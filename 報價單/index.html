@@ -63,7 +63,7 @@ input:focus { outline: none; border-color: #1871b5; background: white; }
 .crop-modal.open { display: flex; }
 .crop-box { background: white; border-radius: 12px; padding: 24px; width: 600px; max-width: 95vw; }
 .crop-box h3 { font-size: 15px; font-weight: 700; color: #1871b5; margin-bottom: 16px; }
-.crop-container { position: relative; width: 100%; height: 340px; background: #222; border-radius: 8px; overflow: hidden; cursor: move; user-select: none; }
+.crop-container { position: relative; width: 300px; height: 400px; background: #222; border-radius: 8px; overflow: hidden; cursor: move; user-select: none; margin: 0 auto; }
 .crop-container img { position: absolute; transform-origin: top left; }
 .crop-overlay { position: absolute; inset: 0; border: 3px solid #1871b5; pointer-events: none; z-index: 2; }
 .crop-hint { font-size: 12px; color: #888; margin-top: 8px; text-align: center; }
@@ -219,11 +219,7 @@ input:focus { outline: none; border-color: #1871b5; background: white; }
     <div style="margin-top:14px;font-size:13px;color:#555;line-height:1.9;">
       <p><strong>其他條款：</strong></p>
       <p>1. 本電子報價單經委託方回覆同意後生效，無須紙本簽名。</p>
-      <div class="warranty-row">
-        <span>2. 施工完成後，本公司提供</span>
-        <input type="number" class="warranty-input" id="warrantyYears" value="3" min="1" max="20">
-        <span>年保固，詳細內容另見保固證明書。</span>
-      </div>
+      <p style="display:flex;align-items:baseline;gap:4px;flex-wrap:nowrap;white-space:nowrap;"><span>2. 施工完成後，本公司提供</span><input type="number" id="warrantyYears" value="3" min="1" max="20" style="border:1px solid #d0d9e8;border-radius:4px;padding:1px 4px;font-size:13px;width:34px;text-align:center;font-family:inherit;background:#fafcff;flex-shrink:0;"><span>年保固，詳細內容另見保固證明書。</span></p>
       <p style="color:#888;font-size:12px;margin-top:6px;">（報價條款說明，請查閱下一頁）</p>
     </div>
   </div>
@@ -245,7 +241,7 @@ let cropOffsetX = 0, cropOffsetY = 0;
 let cropTempX = 0, cropTempY = 0;
 let cropZoom = 1;
 let cropNatW = 0, cropNatH = 0;
-const CROP_W = 512, CROP_H = 340;
+const CROP_W = 300, CROP_H = 400;
 
 window.onload = () => {
   const fmt = d => d.toISOString().split('T')[0];
@@ -267,7 +263,7 @@ function addLocation() {
   div.className = 'location-block'; div.id = `loc-${id}`;
   div.innerHTML = `
     <div class="location-header" style="background:${color}">
-      <input type="text" placeholder="例：2樓-陽台-天花板" oninput="recalc()">
+      <input type="text" placeholder="施工位置，例：2樓-陽台-天花板" oninput="recalc()">
       <button class="del-location-btn" onclick="deleteLocation(${id})">刪除</button>
     </div>
     <div class="location-body">
@@ -542,49 +538,55 @@ async function generatePDF() {
     ctx.fillStyle='rgba(255,255,255,0.0)';
     ctx.fillRect(0,0,PW,PH);
 
-    // ── 標題（左側）+ Logo（右側）──
-    let y = m;
-    const logoH = 44, logoW = Math.round(logoH * 400/120); // 400×120比例
+    // ── 標題（左側）+ Logo（右側），兩者底部對齊橫線 ──
+    const lineH = 22;
+    const logoH = 44, logoW = Math.round(logoH * 400/120);
+    const blockGap = lineH * 0.9; // 標題/Logo 距橫線距離
+    const headerLineY = m + logoH + blockGap;
+
+    // 標題底部對齊橫線
     ctx.font=`bold 26px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
-    ctx.fillText('施工報價單', m, y+28);
+    ctx.fillText('施工報價單', m, headerLineY - 8);
+
+    // Logo底部對齊橫線
     try {
       const logo=new Image(); logo.crossOrigin='anonymous';
       await new Promise((res,rej)=>{ logo.onload=res; logo.onerror=rej; logo.src='詠順工程行_logo.png'; });
-      ctx.drawImage(logo, PW-m-logoW, y, logoW, logoH);
+      ctx.drawImage(logo, PW-m-logoW, headerLineY-logoH, logoW, logoH);
     } catch(e) {
       ctx.font=`bold 14px ${ff}`; ctx.fillStyle='#1871b5'; ctx.textAlign='right';
-      ctx.fillText('詠順工程行', PW-m, y+30);
+      ctx.fillText('詠順工程行', PW-m, headerLineY-8);
     }
     ctx.textAlign='left';
 
-    y += logoH + 10;
+    // 橫線
     ctx.strokeStyle='#ddd'; ctx.lineWidth=1;
-    ctx.beginPath(); ctx.moveTo(m,y); ctx.lineTo(PW-m,y); ctx.stroke();
-    y += 16;
+    ctx.beginPath(); ctx.moveTo(m,headerLineY); ctx.lineTo(PW-m,headerLineY); ctx.stroke();
+
+    // 委託方區塊：上方距橫線 blockGap，下方距施工項目也是 blockGap（對稱）
+    let y = headerLineY + blockGap;
 
     // ── 編號（粗體）+ 日期（右側）──
-    const lineH = 22;
-    ctx.font=`bold 13px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='right';
+    ctx.font=`bold 14px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='right';
     ctx.fillText(`編號：${document.getElementById('quoteNo').value||'—'}`, PW-m, y);
-    y += lineH; // 編號距日期一行
     ctx.font=`12px ${ff}`; ctx.fillStyle='#555';
-    ctx.fillText(`報價日期：${document.getElementById('quoteDate').value||'—'}`, PW-m, y);
-    ctx.fillText(`報價單失效日：${document.getElementById('expireDate').value||'—'}`, PW-m, y+lineH);
+    ctx.fillText(`報價日期：${document.getElementById('quoteDate').value||'—'}`, PW-m, y + lineH*2);
+    ctx.fillText(`報價單失效日：${document.getElementById('expireDate').value||'—'}`, PW-m, y + lineH*3);
     ctx.textAlign='left';
 
-    // 委託方（左側，與編號同起點）
-    const clientStartY = y - lineH; // 對齊編號那行
+    // 委託方（左側）
     ctx.font=`bold 13px ${ff}`; ctx.fillStyle='#1a1a1a';
-    ctx.fillText('委託方資訊', m, clientStartY);
+    ctx.fillText('委託方資訊', m, y);
     ctx.font=`13px ${ff}`; ctx.fillStyle='#333';
     [
       `委託方：${document.getElementById('clientName').value||'—'}`,
       `負責人：${document.getElementById('clientContact').value||'—'}`,
       `聯絡電話：${document.getElementById('clientPhone').value||'—'}`,
       `施工地址：${document.getElementById('clientAddress').value||'—'}`,
-    ].forEach((row,i) => ctx.fillText(row, m, clientStartY+lineH+i*lineH));
+    ].forEach((row,i) => ctx.fillText(row, m, y + lineH*(i+1)));
 
-    y = clientStartY + lineH + 4*lineH + lineH; // 委託方下方一行間距
+    // 施工地址下方距離施工項目 = blockGap（與上方對稱）
+    y = y + lineH*5 + blockGap;
 
     // ── 施工項目（無橫線）──
     const locs=collectData();
@@ -677,44 +679,83 @@ async function generatePDF() {
     ctx.font=`bold 15px ${ff}`; ctx.textAlign='right';
     ctx.fillText('$'+deposit.toLocaleString(),PW-m-8,sy+36);
 
-    // ── 施工位置附圖（最下方）──
+    // ── 施工位置附圖 ──
     const imgEntries=[];
     locs.forEach(loc=>{
       if (loc.img1) imgEntries.push({entry:loc.img1, label:loc.name});
       if (loc.img2) imgEntries.push({entry:loc.img2, label:loc.name});
     });
 
-    if (imgEntries.length>0) {
-      const sectionY = y+payH+48;
-      ctx.strokeStyle='#1871b5'; ctx.lineWidth=1.5;
-      ctx.beginPath(); ctx.moveTo(m,sectionY); ctx.lineTo(PW-m,sectionY); ctx.stroke();
-      ctx.font=`bold 14px ${ff}`; ctx.fillStyle='#1871b5'; ctx.textAlign='left';
-      ctx.fillText('施工位置附圖', m, sectionY-6);
-
+    // 計算附圖區塊需要的高度
+    const drawImgSection = (targetCtx, startY, targetPW, targetM, targetCW) => {
       const cols=3;
-      const imgW=(cw-(cols-1)*12)/cols;
-      const imgH=imgW*0.7;
+      const imgW=(targetCW-(cols-1)*12)/cols;
+      const imgH=imgW*(4/3);
       const labelH=20;
+      const sectionGap=lineH*1.5;
+      const sy=startY+sectionGap;
+
+      targetCtx.font=`bold 14px ${ff}`; targetCtx.fillStyle='#1871b5'; targetCtx.textAlign='left';
+      targetCtx.fillText('施工位置附圖', targetM, sy-6);
+      targetCtx.strokeStyle='#1871b5'; targetCtx.lineWidth=1.5;
+      targetCtx.beginPath(); targetCtx.moveTo(targetM,sy); targetCtx.lineTo(targetPW-targetM,sy); targetCtx.stroke();
 
       imgEntries.forEach((item,idx)=>{
         const col=idx%cols;
         const row=Math.floor(idx/cols);
-        const ix=m+col*(imgW+12);
-        const iy=sectionY+10+row*(imgH+labelH+12);
-        const drawn=drawEntryToCtx(ctx,item.entry,ix,iy,imgW,imgH);
-        if (!drawn) {
-          ctx.fillStyle='#e0eaf5'; ctx.fillRect(ix,iy,imgW,imgH);
-        }
-        ctx.strokeStyle='#d0d9e8'; ctx.lineWidth=0.5; ctx.strokeRect(ix,iy,imgW,imgH);
-        ctx.font=`12px ${ff}`; ctx.fillStyle='#555'; ctx.textAlign='center';
-        ctx.fillText(item.label||'', ix+imgW/2, iy+imgH+15);
+        const ix=targetM+col*(imgW+12);
+        const iy=sy+10+row*(imgH+labelH+12);
+        const drawn=drawEntryToCtx(targetCtx,item.entry,ix,iy,imgW,imgH);
+        if (!drawn) { targetCtx.fillStyle='#e0eaf5'; targetCtx.fillRect(ix,iy,imgW,imgH); }
+        targetCtx.strokeStyle='#d0d9e8'; targetCtx.lineWidth=0.5; targetCtx.strokeRect(ix,iy,imgW,imgH);
+        targetCtx.font=`12px ${ff}`; targetCtx.fillStyle='#555'; targetCtx.textAlign='center';
+        targetCtx.fillText(item.label||'', ix+imgW/2, iy+imgH+15);
       });
-    }
 
-    // ── Canvas → PDF ──
+      const rows=Math.ceil(imgEntries.length/cols);
+      return sectionGap + 30 + rows*(imgH+labelH+12);
+    };
+
+    // 判斷附圖能否放在第一頁
     const { jsPDF }=window.jspdf;
     const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
-    doc.addImage(canvas.toDataURL('image/png',1.0),'PNG',0,0,210,297);
+
+    if (imgEntries.length > 0) {
+      const cols=3;
+      const imgW=(cw-(cols-1)*12)/cols;
+      const imgH=imgW*(4/3);
+      const labelH=20;
+      const rows=Math.ceil(imgEntries.length/cols);
+      const neededH=lineH*1.5+30+rows*(imgH+labelH+12);
+      const contentEndY=y+payH;
+      const fitsOnPage=(contentEndY+neededH+m) <= PH;
+
+      if (fitsOnPage) {
+        // 直接畫在第一頁 canvas
+        drawImgSection(ctx, contentEndY, PW, m, cw);
+        doc.addImage(canvas.toDataURL('image/png',1.0),'PNG',0,0,210,297);
+      } else {
+        // 第一頁先輸出（不含附圖）
+        doc.addImage(canvas.toDataURL('image/png',1.0),'PNG',0,0,210,297);
+        // 附圖另起第二頁
+        const canvas2=document.createElement('canvas');
+        canvas2.width=PW*SCALE; canvas2.height=PH*SCALE;
+        const ctx2=canvas2.getContext('2d');
+        ctx2.scale(SCALE,SCALE);
+        ctx2.fillStyle='#fff'; ctx2.fillRect(0,0,PW,PH);
+        try {
+          const wm2=new Image(); wm2.crossOrigin='anonymous';
+          await new Promise((res,rej)=>{ wm2.onload=res; wm2.onerror=rej; wm2.src='浮水印.png'; });
+          ctx2.drawImage(wm2,0,0,PW,PH);
+        } catch(e){}
+        drawImgSection(ctx2, m, PW, m, cw);
+        doc.addPage();
+        doc.addImage(canvas2.toDataURL('image/png',1.0),'PNG',0,0,210,297);
+      }
+    } else {
+      doc.addImage(canvas.toDataURL('image/png',1.0),'PNG',0,0,210,297);
+    }
+
     const quotePdfBytes=doc.output('arraybuffer');
 
     let finalPdfBytes;
