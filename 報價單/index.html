@@ -11,7 +11,27 @@
 body { font-family: 'Microsoft JhengHei','微軟正黑體',Arial,sans-serif; background: #f0f4f8; color: #1a1a1a; min-height: 100vh; }
 header { background: #1871b5; color: white; padding: 20px 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
 header h1 { font-size: 20px; font-weight: 600; letter-spacing: 1px; }
-.container { max-width: 900px; margin: 36px auto; padding: 0 20px 60px; }
+
+/* ── 雙欄佈局調整 ── */
+.main-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  max-width: 1600px;
+  margin: 36px auto;
+  padding: 0 20px 60px;
+}
+@media (min-width: 1024px) {
+  .main-layout {
+    grid-template-columns: 1fr 1fr; /* 桌面端改為左右等寬雙欄 */
+  }
+}
+
+.container { width: 100%; max-width: 900px; margin: 0 auto; }
+.preview-sticky { position: sticky; top: 24px; height: calc(100vh - 120px); min-height: 500px; }
+.preview-card { background: white; border-radius: 10px; padding: 24px; height: 100%; box-shadow: 0 2px 12px rgba(0,0,0,0.07); display: flex; flex-direction: column; }
+.preview-iframe { width: 100%; flex: 1; border: 1px solid #d0d9e8; border-radius: 6px; background: #fafcff; }
+
 .card { background: white; border-radius: 10px; padding: 32px; margin-bottom: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
 .card-title { font-size: 15px; font-weight: 700; color: #1871b5; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #e8f0fb; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -122,7 +142,6 @@ input:focus { outline: none; border-color: #1871b5; background: white; }
 </head>
 <body>
 
-<!-- 裁切 Modal -->
 <div class="crop-modal" id="cropModal">
   <div class="crop-box">
     <h3>調整圖片顯示範圍</h3>
@@ -143,89 +162,99 @@ input:focus { outline: none; border-color: #1871b5; background: white; }
 </div>
 
 <header><h1>詠順工程行｜施工報價單產生器</h1></header>
-<div class="container">
-  <div class="terms-info">
-    📁 將 <code>terms.pdf</code>、<code>詠順工程行_logo.png</code>、<code>浮水印.png</code> 與 <code>index.html</code> 放在同一個 GitHub repo 資料夾。
-  </div>
 
-  <div class="card">
-    <div class="card-title">📋 報價單資訊</div>
-    <div class="form-grid">
-      <div class="form-group">
-        <label>報價單編號</label>
-        <input type="text" id="quoteNo" placeholder="例：TCG-202601-001">
-      </div>
-      <div class="form-group">
-        <label>報價日期</label>
-        <input type="date" id="quoteDate">
-      </div>
-      <div class="form-group">
-        <label>報價單失效日</label>
-        <input type="date" id="expireDate">
+<div class="main-layout">
+  <div class="container">
+    <div class="terms-info">
+      📁 將 <code>terms.pdf</code>、<code>詠順工程行_logo.png</code>、<code>浮水印.png</code> 與 <code>index.html</code> 放在同一個 GitHub repo 資料夾。
+    </div>
+
+    <div class="card">
+      <div class="card-title">📋 報價單資訊</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>報價單編號</label>
+          <input type="text" id="quoteNo" placeholder="例：TCG-202601-001">
+        </div>
+        <div class="form-group">
+          <label>報價日期</label>
+          <input type="date" id="quoteDate">
+        </div>
+        <div class="form-group">
+          <label>報價單失效日</label>
+          <input type="date" id="expireDate">
+        </div>
       </div>
     </div>
-  </div>
 
-  <div class="card">
-    <div class="card-title">👤 委託方資訊</div>
-    <div class="form-grid">
-      <div class="form-group">
-        <label>委託方</label>
-        <input type="text" id="clientName" placeholder="例：陳大名 先生／學校／工廠">
+    <div class="card">
+      <div class="card-title">👤 委託方資訊</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>委託方</label>
+          <input type="text" id="clientName" placeholder="例：陳大名 先生／學校／工廠">
+        </div>
+        <div class="form-group">
+          <label>負責人</label>
+          <input type="text" id="clientContact" placeholder="例：本人／負責人姓名">
+        </div>
+        <div class="form-group">
+          <label>聯絡電話</label>
+          <input type="text" id="clientPhone" placeholder="例：0912-345-678">
+        </div>
+        <div class="form-group full">
+          <label>施工地址</label>
+          <input type="text" id="clientAddress" placeholder="例：台北市大安區復興南路一段100號">
+        </div>
       </div>
-      <div class="form-group">
-        <label>負責人</label>
-        <input type="text" id="clientContact" placeholder="例：本人／負責人姓名">
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔧 施工項目與費用</div>
+      <div id="locationsContainer"></div>
+      <button class="add-location-btn" onclick="addLocation()">＋ 新增施工位置</button>
+      <div class="summary-block">
+        <div class="summary-row"><label>小計</label><span class="summary-value" id="subtotal">$0</span></div>
+        <div class="summary-row"><label>稅額 (5%)</label><span class="summary-value" id="tax">$0</span></div>
+        <div class="summary-row discount"><label>施工優惠</label><input class="discount-input" type="number" id="discount" placeholder="0" value="0" oninput="recalc()"></div>
+        <div class="summary-row total"><label>合計</label><span class="summary-value" id="grandTotal">$0</span></div>
       </div>
-      <div class="form-group">
-        <label>聯絡電話</label>
-        <input type="text" id="clientPhone" placeholder="例：0912-345-678">
+    </div>
+
+    <div class="card">
+      <div class="card-title">💰 預約施工訂金</div>
+      <div class="deposit-block">
+        <div><div class="deposit-label">預約施工訂金</div><div class="deposit-sub">合計金額 × 40%</div></div>
+        <div class="deposit-amount" id="depositAmount">$0</div>
       </div>
-      <div class="form-group full">
-        <label>施工地址</label>
-        <input type="text" id="clientAddress" placeholder="例：台北市大安區復興南路一段100號">
+    </div>
+
+    <div class="card">
+      <div class="card-title">💳 付款方式</div>
+      <div class="payment-block">
+        <p><strong>訂金：</strong>報價單總額之 40%，支付訂金後始安排施工日期。</p>
+        <p><strong>尾款：</strong>報價單總額之 60%，於施工完成、經委託方驗收合格後支付。</p>
+        <p><strong>指定帳戶：</strong>(822)0675-4034-5912，戶名：詠順工程行，州際分行。</p>
+        <p style="color:#888;font-size:12px;margin-top:6px;">※ 匯款後請於LINE訊息告知帳號末五碼，以利對帳。</p>
+      </div>
+      <div style="margin-top:14px;font-size:13px;color:#555;line-height:1.9;">
+        <p><strong>其他條款：</strong></p>
+        <p>1. 本電子報價單經委託方回覆同意後生效，無須紙本簽名。</p>
+        <p style="display:flex;align-items:baseline;gap:4px;flex-wrap:nowrap;white-space:nowrap;"><span>2. 施工完成後，本公司提供</span><input type="number" id="warrantyYears" value="3" min="1" max="20" style="border:1px solid #d0d9e8;border-radius:4px;padding:1px 4px;font-size:13px;width:34px;text-align:center;font-family:inherit;background:#fafcff;flex-shrink:0;"><span>年保固，詳細內容另見保固證明書。</span></p>
+        <p style="color:#888;font-size:12px;margin-top:6px;">（報價條款說明，請查閱下一頁）</p>
       </div>
     </div>
+
+    <button class="generate-btn" id="generateBtn" onclick="generatePDF(false)">產生報價單 PDF</button>
+    <div class="status-msg" id="statusMsg"></div>
   </div>
 
-  <div class="card">
-    <div class="card-title">🔧 施工項目與費用</div>
-    <div id="locationsContainer"></div>
-    <button class="add-location-btn" onclick="addLocation()">＋ 新增施工位置</button>
-    <div class="summary-block">
-      <div class="summary-row"><label>小計</label><span class="summary-value" id="subtotal">$0</span></div>
-      <div class="summary-row"><label>稅額 (5%)</label><span class="summary-value" id="tax">$0</span></div>
-      <div class="summary-row discount"><label>施工優惠</label><input class="discount-input" type="number" id="discount" placeholder="0" value="0" oninput="recalc()"></div>
-      <div class="summary-row total"><label>合計</label><span class="summary-value" id="grandTotal">$0</span></div>
+  <div class="preview-sticky">
+    <div class="preview-card">
+      <div class="card-title">👀 PDF 報價單即時模擬</div>
+      <iframe class="preview-iframe" id="pdfPreviewer" src="about:blank"></iframe>
     </div>
   </div>
-
-  <div class="card">
-    <div class="card-title">💰 預約施工訂金</div>
-    <div class="deposit-block">
-      <div><div class="deposit-label">預約施工訂金</div><div class="deposit-sub">合計金額 × 40%</div></div>
-      <div class="deposit-amount" id="depositAmount">$0</div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-title">💳 付款方式</div>
-    <div class="payment-block">
-      <p><strong>訂金：</strong>報價單總額之 40%，支付訂金後始安排施工日期。</p>
-      <p><strong>尾款：</strong>報價單總額之 60%，於施工完成、經委託方驗收合格後支付。</p>
-      <p><strong>指定帳戶：</strong>(822)0675-4034-5912，戶名：詠順工程行，州際分行。</p>
-      <p style="color:#888;font-size:12px;margin-top:6px;">※ 匯款後請於LINE訊息告知帳號末五碼，以利對帳。</p>
-    </div>
-    <div style="margin-top:14px;font-size:13px;color:#555;line-height:1.9;">
-      <p><strong>其他條款：</strong></p>
-      <p>1. 本電子報價單經委託方回覆同意後生效，無須紙本簽名。</p>
-      <p style="display:flex;align-items:baseline;gap:4px;flex-wrap:nowrap;white-space:nowrap;"><span>2. 施工完成後，本公司提供</span><input type="number" id="warrantyYears" value="3" min="1" max="20" style="border:1px solid #d0d9e8;border-radius:4px;padding:1px 4px;font-size:13px;width:34px;text-align:center;font-family:inherit;background:#fafcff;flex-shrink:0;"><span>年保固，詳細內容另見保固證明書。</span></p>
-      <p style="color:#888;font-size:12px;margin-top:6px;">（報價條款說明，請查閱下一頁）</p>
-    </div>
-  </div>
-
-  <button class="generate-btn" id="generateBtn" onclick="generatePDF()">產生報價單 PDF</button>
-  <div class="status-msg" id="statusMsg"></div>
 </div>
 
 <script>
@@ -243,6 +272,17 @@ let cropZoom = 1;
 let cropNatW = 0, cropNatH = 0;
 const CROP_W = 300, CROP_H = 400;
 
+// ── 即時同步機制 (防抖緩衝) ──
+let previewTimeout = null;
+let lastPreviewObjectURL = null;
+
+function triggerLivePreview() {
+  clearTimeout(previewTimeout);
+  previewTimeout = setTimeout(() => {
+    generatePDF(true); // 傳入 true 代表僅更新預覽，不觸發檔案下載
+  }, 500); // 延遲 500ms 避免頻繁渲染造成打字卡頓
+}
+
 window.onload = () => {
   const fmt = d => d.toISOString().split('T')[0];
   const today = new Date();
@@ -250,6 +290,14 @@ window.onload = () => {
   const exp = new Date(today); exp.setMonth(exp.getMonth()+1);
   document.getElementById('expireDate').value = fmt(exp);
   addLocation();
+
+  // 監聽左側所有基礎輸入欄位，有變動就即時更新預覽
+  document.querySelectorAll('.container input').forEach(el => {
+    if (el.id !== 'warrantyYears') {
+      el.addEventListener('input', triggerLivePreview);
+    }
+  });
+  document.getElementById('warrantyYears').addEventListener('input', triggerLivePreview);
 };
 
 const LOC_COLORS = ['#1871b5','#1565a8','#1a7fc2','#134f8a'];
@@ -298,13 +346,19 @@ function addLocation() {
       <span class="cost-total-value" id="locTotal-${id}">$0</span>
     </div>`;
   document.getElementById('locationsContainer').appendChild(div);
+  
+  // 為新增位置內的各個 input 綁定預覽監聽
+  div.querySelectorAll('input').forEach(el => {
+    el.addEventListener('input', triggerLivePreview);
+  });
+
   addContent(id);
   recalc();
 }
 
 function deleteLocation(id) {
   const el = document.getElementById(`loc-${id}`);
-  if (el) { el.remove(); recalc(); }
+  if (el) { el.remove(); recalc(); triggerLivePreview(); }
 }
 
 function addContent(locId) {
@@ -314,10 +368,13 @@ function addContent(locId) {
   div.className = 'content-item'; div.id = `content-${cid}`;
   div.innerHTML = `<div class="content-bullet"></div><input type="text" placeholder="施工內容（例：壁癌刮除處理）"><button class="del-content-btn" onclick="deleteContent(${cid})">×</button>`;
   document.getElementById(`contents-${locId}`).appendChild(div);
+  
+  div.querySelector('input').addEventListener('input', triggerLivePreview);
+  triggerLivePreview();
 }
 
 function deleteContent(cid) {
-  const el = document.getElementById(`content-${cid}`); if (el) el.remove();
+  const el = document.getElementById(`content-${cid}`); if (el) { el.remove(); triggerLivePreview(); }
 }
 
 function handleImg(e, locId, slot) {
@@ -331,6 +388,7 @@ function handleImg(e, locId, slot) {
       renderCroppedPreview(key);
       const slotEl = document.getElementById(`imgslot-${locId}-${slot}`);
       slotEl.classList.add('has-image');
+      triggerLivePreview();
     };
     img.src = ev.target.result;
   };
@@ -346,6 +404,7 @@ function removeImg(e, locId, slot) {
   const img = slotEl.querySelector('img'); if (img) img.remove();
   const fi = slotEl.querySelector('input[type="file"]');
   if (fi) { fi.style.display=''; fi.value=''; }
+  triggerLivePreview();
 }
 
 // ── 裁切 ──
@@ -433,6 +492,7 @@ function confirmCrop() {
   entry.croppedCanvas = c;
   renderCroppedPreview(cropKey);
   closeCrop();
+  triggerLivePreview();
 }
 
 function renderCroppedPreview(key) {
@@ -511,11 +571,15 @@ function drawEntryToCtx(ctx, entry, dx, dy, dw, dh) {
   return false;
 }
 
-// ── PDF ──
-async function generatePDF() {
+// ── PDF ── (接受 isPreview 參數，決定是否執行下載)
+async function generatePDF(isPreview = false) {
   const btn=document.getElementById('generateBtn');
   const msg=document.getElementById('statusMsg');
-  btn.disabled=true; msg.className='status-msg'; msg.textContent='正在產生報價單...';
+  
+  if (!isPreview) {
+    btn.disabled=true; msg.className='status-msg'; msg.textContent='正在產生報價單...';
+  }
+  
   try {
     const SCALE=3, PW=794, PH=1123;
     const canvas=document.createElement('canvas');
@@ -770,24 +834,47 @@ async function generatePDF() {
       (await merged.copyPages(qpdf,qpdf.getPageIndices())).forEach(p=>merged.addPage(p));
       (await merged.copyPages(tpdf,tpdf.getPageIndices())).forEach(p=>merged.addPage(p));
       finalPdfBytes=await merged.save();
-      msg.className='status-msg success'; msg.textContent='✅ 報價單已產生（含條款說明）';
+      if (!isPreview) {
+        msg.className='status-msg success'; msg.textContent='✅ 報價單已產生（含條款說明）';
+      }
     } catch(e) {
       finalPdfBytes=quotePdfBytes;
-      msg.className='status-msg'; msg.textContent='⚠️ 找不到 terms.pdf，已產生報價單（不含條款說明）';
+      if (!isPreview) {
+        msg.className='status-msg'; msg.textContent='⚠️ 找不到 terms.pdf，已產生報價單（不含條款說明）';
+      }
     }
 
+    // ── 判斷是預覽還是實際下載 ──
     const blob=new Blob([finalPdfBytes],{type:'application/pdf'});
     const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');
-    a.href=url;
-    a.download=`${document.getElementById('quoteNo').value||'quote'}_報價單.pdf`;
-    a.click(); URL.revokeObjectURL(url);
+    
+    if (isPreview) {
+      // 渲染至右側的模擬器中
+      const previewer = document.getElementById('pdfPreviewer');
+      previewer.src = url;
+      // 釋放舊的 ObjectURL 避免記憶體洩漏
+      if (lastPreviewObjectURL) {
+        URL.revokeObjectURL(lastPreviewObjectURL);
+      }
+      lastPreviewObjectURL = url;
+    } else {
+      // 下載檔案
+      const a=document.createElement('a');
+      a.href=url;
+      a.download=`${document.getElementById('quoteNo').value||'quote'}_報價單.pdf`;
+      a.click(); URL.revokeObjectURL(url);
+    }
 
   } catch(err) {
-    msg.className='status-msg error'; msg.textContent='❌ 產生失敗：'+err.message;
+    if (!isPreview) {
+      msg.className='status-msg error'; msg.textContent='❌ 產生失敗：'+err.message;
+    }
     console.error(err);
   }
-  btn.disabled=false;
+  
+  if (!isPreview) {
+    btn.disabled=false;
+  }
 }
 </script>
 </body>
