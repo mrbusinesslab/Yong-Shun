@@ -107,7 +107,7 @@ input:focus { outline: none; border-color: #1871b5; background: white; }
 .payment-block { background: #f5f8ff; border-radius: 8px; padding: 16px 20px; font-size: 13px; color: #444; line-height: 1.9; border-left: 4px solid #1871b5; }
 .warranty-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
 .warranty-row span { font-size: 13px; color: #555; }
-.warranty-input { border: 1px solid #d0d9e8; border-radius: 5px; padding: 3px 8px; font-size: 13px; width: 56px; text-align: center; font-family: inherit; background: #fafcff; }
+.warranty-input { border: 1px solid #d0d9e8; border-radius: 5px; padding: 3px 6px; font-size: 13px; width: 40px; text-align: center; font-family: inherit; background: #fafcff; }
 .warranty-input:focus { outline: none; border-color: #1871b5; }
 
 .generate-btn { display: block; width: 100%; background: #1871b5; color: white; border: none; padding: 16px; border-radius: 10px; font-size: 16px; font-weight: 700; font-family: inherit; cursor: pointer; letter-spacing: 1px; box-shadow: 0 4px 12px rgba(24,113,181,0.3); transition: background 0.2s; }
@@ -267,7 +267,7 @@ function addLocation() {
   div.className = 'location-block'; div.id = `loc-${id}`;
   div.innerHTML = `
     <div class="location-header" style="background:${color}">
-      <input type="text" placeholder="施工位置（例：浴室外牆）" oninput="recalc()">
+      <input type="text" placeholder="例：2樓-陽台-天花板" oninput="recalc()">
       <button class="del-location-btn" onclick="deleteLocation(${id})">刪除</button>
     </div>
     <div class="location-body">
@@ -542,53 +542,51 @@ async function generatePDF() {
     ctx.fillStyle='rgba(255,255,255,0.0)';
     ctx.fillRect(0,0,PW,PH);
 
-    // ── Logo（最上方） ──
+    // ── 標題（左側）+ Logo（右側）──
     let y = m;
+    const logoH = 44, logoW = Math.round(logoH * 400/120); // 400×120比例
+    ctx.font=`bold 26px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
+    ctx.fillText('施工報價單', m, y+28);
     try {
       const logo=new Image(); logo.crossOrigin='anonymous';
       await new Promise((res,rej)=>{ logo.onload=res; logo.onerror=rej; logo.src='詠順工程行_logo.png'; });
-      // 400×120 → 高度36
-      ctx.drawImage(logo, m, y, 120, 36);
+      ctx.drawImage(logo, PW-m-logoW, y, logoW, logoH);
     } catch(e) {
-      ctx.font=`bold 14px ${ff}`; ctx.fillStyle='#1871b5'; ctx.textAlign='left';
-      ctx.fillText('詠順工程行', m, y+26);
+      ctx.font=`bold 14px ${ff}`; ctx.fillStyle='#1871b5'; ctx.textAlign='right';
+      ctx.fillText('詠順工程行', PW-m, y+30);
     }
-
-    // 標題（logo右側置中）
-    ctx.font=`bold 26px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='center';
-    ctx.fillText('施工報價單', PW/2, y+26);
     ctx.textAlign='left';
 
-    y += 46;
+    y += logoH + 10;
     ctx.strokeStyle='#ddd'; ctx.lineWidth=1;
     ctx.beginPath(); ctx.moveTo(m,y); ctx.lineTo(PW-m,y); ctx.stroke();
-    y += 14;
+    y += 16;
 
-    // ── 編號 + 日期（右側） ──
-    ctx.font=`13px ${ff}`; ctx.fillStyle='#555'; ctx.textAlign='right';
-    ctx.fillText(`編　號：${document.getElementById('quoteNo').value||'—'}`, PW-m, y);
-    ctx.fillText(`報價日期：${document.getElementById('quoteDate').value||'—'}`, PW-m, y+20);
-    ctx.fillText(`報價單失效日：${document.getElementById('expireDate').value||'—'}`, PW-m, y+40);
+    // ── 編號（粗體）+ 日期（右側）──
+    const lineH = 22;
+    ctx.font=`bold 13px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='right';
+    ctx.fillText(`編號：${document.getElementById('quoteNo').value||'—'}`, PW-m, y);
+    y += lineH; // 編號距日期一行
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#555';
+    ctx.fillText(`報價日期：${document.getElementById('quoteDate').value||'—'}`, PW-m, y);
+    ctx.fillText(`報價單失效日：${document.getElementById('expireDate').value||'—'}`, PW-m, y+lineH);
     ctx.textAlign='left';
 
-    // ── 委託方（左側）──
+    // 委託方（左側，與編號同起點）
+    const clientStartY = y - lineH; // 對齊編號那行
     ctx.font=`bold 13px ${ff}`; ctx.fillStyle='#1a1a1a';
-    ctx.fillText('委託方資訊', m, y);
+    ctx.fillText('委託方資訊', m, clientStartY);
     ctx.font=`13px ${ff}`; ctx.fillStyle='#333';
     [
       `委託方：${document.getElementById('clientName').value||'—'}`,
       `負責人：${document.getElementById('clientContact').value||'—'}`,
       `聯絡電話：${document.getElementById('clientPhone').value||'—'}`,
       `施工地址：${document.getElementById('clientAddress').value||'—'}`,
-    ].forEach((row,i) => ctx.fillText(row, m, y+22+i*22));
+    ].forEach((row,i) => ctx.fillText(row, m, clientStartY+lineH+i*lineH));
 
-    y += 22 + 4*22 + 20;
+    y = clientStartY + lineH + 4*lineH + lineH; // 委託方下方一行間距
 
-    ctx.strokeStyle='#e0e6f0'; ctx.lineWidth=1;
-    ctx.beginPath(); ctx.moveTo(m,y); ctx.lineTo(PW-m,y); ctx.stroke();
-    y += 16;
-
-    // ── 施工項目 ──
+    // ── 施工項目（無橫線）──
     const locs=collectData();
     const hdrH=32, rowH=28, costH=30;
     const cbPairs=[['#eef5ff','#edf7ed'],['#e8f2ff','#e3f5ec']];
@@ -687,7 +685,7 @@ async function generatePDF() {
     });
 
     if (imgEntries.length>0) {
-      const sectionY = y+payH+32;
+      const sectionY = y+payH+48;
       ctx.strokeStyle='#1871b5'; ctx.lineWidth=1.5;
       ctx.beginPath(); ctx.moveTo(m,sectionY); ctx.lineTo(PW-m,sectionY); ctx.stroke();
       ctx.font=`bold 14px ${ff}`; ctx.fillStyle='#1871b5'; ctx.textAlign='left';
