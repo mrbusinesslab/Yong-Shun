@@ -72,7 +72,7 @@ input:focus { outline: none; border-color: #1871b5; background: white; }
 .img-slot-label { font-size: 12px; color: #999; text-align: center; line-height: 1.8; z-index: 1; }
 .img-slot.has-image .img-slot-label { display: none; }
 .img-slot input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; z-index: 2; }
-.img-slot.has-image input[type="file"] { display: none; }
+.img-slot.has-image .img-slot input[type="file"] { display: none; }
 .img-actions { position: absolute; bottom: 4px; right: 4px; display: none; gap: 4px; z-index: 3; }
 .img-slot.has-image .img-actions { display: flex; }
 .img-btn { background: rgba(0,0,0,0.55); color: white; border: none; border-radius: 4px; padding: 3px 7px; font-size: 11px; cursor: pointer; font-family: inherit; white-space: nowrap; }
@@ -259,7 +259,6 @@ input:focus { outline: none; border-color: #1871b5; background: white; }
 
 <script>
 let locCount = 0, contentCount = 0;
-// imgStore[key] = { originalSrc, croppedCanvas, offsetX, offsetY, scale }
 const imgStore = {};
 
 // ── 裁切 Modal 狀態 ──
@@ -279,8 +278,8 @@ let lastPreviewObjectURL = null;
 function triggerLivePreview() {
   clearTimeout(previewTimeout);
   previewTimeout = setTimeout(() => {
-    generatePDF(true); // 傳入 true 代表僅更新預覽，不觸發檔案下載
-  }, 500); // 延遲 500ms 避免頻繁渲染造成打字卡頓
+    generatePDF(true);
+  }, 500);
 }
 
 window.onload = () => {
@@ -291,7 +290,6 @@ window.onload = () => {
   document.getElementById('expireDate').value = fmt(exp);
   addLocation();
 
-  // 監聽左側所有基礎輸入欄位，有變動就即時更新預覽
   document.querySelectorAll('.container input').forEach(el => {
     if (el.id !== 'warrantyYears') {
       el.addEventListener('input', triggerLivePreview);
@@ -331,7 +329,7 @@ function addLocation() {
           <div class="img-slot-label">📷<br>圖片 2</div>
           <div class="img-actions">
             <button class="img-btn" onclick="openCrop('${id}_2')">調整</button>
-            <button class="img-btn" onclick="removeImg(event,${id},${2})">移除</button>
+            <button class="img-btn" onclick="removeImg(event,${id},2)">移除</button>
           </div>
         </div>
       </div>
@@ -347,7 +345,6 @@ function addLocation() {
     </div>`;
   document.getElementById('locationsContainer').appendChild(div);
   
-  // 為新增位置內的各個 input 綁定預覽監聽
   div.querySelectorAll('input').forEach(el => {
     el.addEventListener('input', triggerLivePreview);
   });
@@ -411,7 +408,6 @@ function removeImg(e, locId, slot) {
 function openCrop(key) {
   const entry = imgStore[key]; if (!entry) return;
   cropKey = key;
-  const [locId, slot] = key.split('_');
   const img = document.getElementById('cropImg');
   img.src = entry.originalSrc;
   img.onload = () => {
@@ -438,7 +434,7 @@ function openCrop(key) {
   };
   container.onmouseup = () => { cropDrag = false; };
   container.onmouseleave = () => { cropDrag = false; };
-  // touch
+
   container.ontouchstart = e => {
     const t = e.touches[0];
     cropDrag = true; cropStartX = t.clientX - cropOffsetX; cropStartY = t.clientY - cropOffsetY;
@@ -484,7 +480,6 @@ function confirmCrop() {
   entry.offsetX = cropOffsetX;
   entry.offsetY = cropOffsetY;
   entry.scale = cropZoom;
-  // 產生裁切後的 canvas
   const c = document.createElement('canvas');
   c.width = CROP_W; c.height = CROP_H;
   const cx = c.getContext('2d');
@@ -550,7 +545,6 @@ function collectData() {
   return locs;
 }
 
-// ── 從 imgStore entry 畫到 canvas ──
 function drawEntryToCtx(ctx, entry, dx, dy, dw, dh) {
   if (!entry) return false;
   if (entry.croppedCanvas) {
@@ -571,7 +565,6 @@ function drawEntryToCtx(ctx, entry, dx, dy, dw, dh) {
   return false;
 }
 
-// ── PDF ── (接受 isPreview 參數，決定是否執行下載)
 async function generatePDF(isPreview = false) {
   const btn=document.getElementById('generateBtn');
   const msg=document.getElementById('statusMsg');
@@ -589,30 +582,23 @@ async function generatePDF(isPreview = false) {
     const m=44, cw=PW-m*2;
     const ff='"Microsoft JhengHei","微軟正黑體","PingFang TC",Arial,sans-serif';
 
-    // ── 浮水印（最底層）──
     try {
       const wm=new Image(); wm.crossOrigin='anonymous';
       await new Promise((res,rej)=>{ wm.onload=res; wm.onerror=rej; wm.src='浮水印.png'; });
       ctx.drawImage(wm, 0, 0, PW, PH);
-    } catch(e) { /* 沒有浮水印檔案則跳過 */ }
+    } catch(e) { }
 
-    ctx.fillStyle='#fff';
-    // 不整頁填白，只填內容區，讓浮水印透出來
-    // 改用半透明白底讓文字清晰
     ctx.fillStyle='rgba(255,255,255,0.0)';
     ctx.fillRect(0,0,PW,PH);
 
-    // ── 標題（左側）+ Logo（右側），兩者底部對齊橫線 ──
     const lineH = 22;
     const logoH = 44, logoW = Math.round(logoH * 400/120);
-    const blockGap = lineH * 0.9; // 標題/Logo 距橫線距離
+    const blockGap = lineH * 0.9;
     const headerLineY = m + logoH + blockGap;
 
-    // 標題底部對齊橫線
     ctx.font=`bold 26px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
     ctx.fillText('施工報價單', m, headerLineY - 8);
 
-    // Logo底部對齊橫線
     try {
       const logo=new Image(); logo.crossOrigin='anonymous';
       await new Promise((res,rej)=>{ logo.onload=res; logo.onerror=rej; logo.src='詠順工程行_logo.png'; });
@@ -623,14 +609,11 @@ async function generatePDF(isPreview = false) {
     }
     ctx.textAlign='left';
 
-    // 橫線
     ctx.strokeStyle='#ddd'; ctx.lineWidth=1;
     ctx.beginPath(); ctx.moveTo(m,headerLineY); ctx.lineTo(PW-m,headerLineY); ctx.stroke();
 
-    // 委託方區塊：上方距橫線 blockGap，下方距施工項目也是 blockGap（對稱）
     let y = headerLineY + blockGap;
 
-    // ── 編號（粗體）+ 日期（右側）──
     ctx.font=`bold 14px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='right';
     ctx.fillText(`編號：${document.getElementById('quoteNo').value||'—'}`, PW-m, y);
     ctx.font=`12px ${ff}`; ctx.fillStyle='#555';
@@ -638,7 +621,6 @@ async function generatePDF(isPreview = false) {
     ctx.fillText(`報價單失效日：${document.getElementById('expireDate').value||'—'}`, PW-m, y + lineH*3);
     ctx.textAlign='left';
 
-    // 委託方（左側）
     ctx.font=`bold 13px ${ff}`; ctx.fillStyle='#1a1a1a';
     ctx.fillText('委託方資訊', m, y);
     ctx.font=`13px ${ff}`; ctx.fillStyle='#333';
@@ -649,10 +631,8 @@ async function generatePDF(isPreview = false) {
       `施工地址：${document.getElementById('clientAddress').value||'—'}`,
     ].forEach((row,i) => ctx.fillText(row, m, y + lineH*(i+1)));
 
-    // 施工地址下方距離施工項目 = blockGap（與上方對稱）
     y = y + lineH*5 + blockGap;
 
-    // ── 施工項目（無橫線）──
     const locs=collectData();
     const hdrH=32, rowH=28, costH=30;
     const cbPairs=[['#eef5ff','#edf7ed'],['#e8f2ff','#e3f5ec']];
@@ -688,7 +668,6 @@ async function generatePDF(isPreview = false) {
       y+=costH+14;
     }
 
-    // ── 付款方式 + 合計 ──
     y+=6;
     const lw2=Math.floor(cw*0.56), rx2=m+lw2+14;
     let sub=0; locs.forEach(l=>sub+=l.total);
@@ -743,14 +722,12 @@ async function generatePDF(isPreview = false) {
     ctx.font=`bold 15px ${ff}`; ctx.textAlign='right';
     ctx.fillText('$'+deposit.toLocaleString(),PW-m-8,sy+36);
 
-    // ── 施工位置附圖 ──
     const imgEntries=[];
     locs.forEach(loc=>{
       if (loc.img1) imgEntries.push({entry:loc.img1, label:loc.name});
       if (loc.img2) imgEntries.push({entry:loc.img2, label:loc.name});
     });
 
-    // 計算附圖區塊需要的高度
     const drawImgSection = (targetCtx, startY, targetPW, targetM, targetCW) => {
       const cols=3;
       const imgW=(targetCW-(cols-1)*12)/cols;
@@ -780,7 +757,6 @@ async function generatePDF(isPreview = false) {
       return sectionGap + 30 + rows*(imgH+labelH+12);
     };
 
-    // 判斷附圖能否放在第一頁
     const { jsPDF }=window.jspdf;
     const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
 
@@ -795,13 +771,10 @@ async function generatePDF(isPreview = false) {
       const fitsOnPage=(contentEndY+neededH+m) <= PH;
 
       if (fitsOnPage) {
-        // 直接畫在第一頁 canvas
         drawImgSection(ctx, contentEndY, PW, m, cw);
         doc.addImage(canvas.toDataURL('image/png',1.0),'PNG',0,0,210,297);
       } else {
-        // 第一頁先輸出（不含附圖）
         doc.addImage(canvas.toDataURL('image/png',1.0),'PNG',0,0,210,297);
-        // 附圖另起第二頁
         const canvas2=document.createElement('canvas');
         canvas2.width=PW*SCALE; canvas2.height=PH*SCALE;
         const ctx2=canvas2.getContext('2d');
@@ -844,21 +817,18 @@ async function generatePDF(isPreview = false) {
       }
     }
 
-    // ── 判斷是預覽還是實際下載 ──
     const blob=new Blob([finalPdfBytes],{type:'application/pdf'});
     const url=URL.createObjectURL(blob);
     
     if (isPreview) {
-      // 渲染至右側的模擬器中
       const previewer = document.getElementById('pdfPreviewer');
-      previewer.src = url;
-      // 釋放舊的 ObjectURL 避免記憶體洩漏
+      // ── 此處修改：附帶 #toolbar=0&navpanes=0 參數以隱藏下載、列印與工具列 ──
+      previewer.src = url + '#toolbar=0&navpanes=0';
       if (lastPreviewObjectURL) {
         URL.revokeObjectURL(lastPreviewObjectURL);
       }
       lastPreviewObjectURL = url;
     } else {
-      // 下載檔案
       const a=document.createElement('a');
       a.href=url;
       a.download=`${document.getElementById('quoteNo').value||'quote'}_報價單.pdf`;
