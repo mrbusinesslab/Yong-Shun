@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>詠順工程行｜報價單產生器</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Microsoft JhengHei','微軟正黑體',Arial,sans-serif; background: #f0f4f8; color: #1a1a1a; min-height: 100vh; }
+header { background: #1871b5; color: white; padding: 20px 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+header h1 { font-size: 20px; font-weight: 600; letter-spacing: 1px; }
+.container { max-width: 900px; margin: 36px auto; padding: 0 20px 60px; }
+.card { background: white; border-radius: 10px; padding: 32px; margin-bottom: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+.card-title { font-size: 15px; font-weight: 700; color: #1871b5; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #e8f0fb; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group.full { grid-column: 1 / -1; }
+label { font-size: 13px; color: #555; font-weight: 500; }
+input[type="text"],input[type="date"],input[type="number"] {
+  border: 1px solid #d0d9e8; border-radius: 6px; padding: 9px 12px;
+  font-size: 14px; font-family: inherit; color: #1a1a1a; background: #fafcff; width: 100%; transition: border 0.2s;
+}
+input:focus { outline: none; border-color: #1871b5; background: white; }
+
+.location-block { border: 1.5px solid #d0d9e8; border-radius: 10px; margin-bottom: 20px; overflow: hidden; }
+.location-header { background: #1871b5; padding: 12px 16px; display: flex; align-items: center; gap: 10px; }
+.location-header input { flex: 1; border: none; background: transparent; font-size: 14px; font-weight: 600; color: white; padding: 0; font-family: inherit; }
+.location-header input::placeholder { color: rgba(255,255,255,0.6); }
+.location-header input:focus { outline: none; }
+.del-location-btn { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); color: white; padding: 4px 12px; border-radius: 5px; font-size: 12px; cursor: pointer; font-family: inherit; flex-shrink: 0; }
+.del-location-btn:hover { background: rgba(255,255,255,0.35); }
+.location-body { padding: 16px 16px 12px; }
+.content-item { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; padding: 7px 10px 7px 12px; border-radius: 6px; }
+.content-item:nth-child(odd) { background: #eef5ff; }
+.content-item:nth-child(even) { background: #edf7ed; }
+.content-item input { flex: 1; border: none; background: transparent; font-size: 13px; font-family: inherit; padding: 0; }
+.content-item input:focus { outline: none; }
+.content-bullet { width: 7px; height: 7px; background: #1871b5; border-radius: 50%; flex-shrink: 0; }
+.del-content-btn { background: none; border: none; cursor: pointer; color: #ccc; font-size: 16px; padding: 2px 4px; border-radius: 4px; }
+.del-content-btn:hover { color: #e53935; }
+.add-content-btn { background: none; border: 1px dashed #1871b5; color: #1871b5; padding: 5px 12px; border-radius: 5px; font-size: 12px; cursor: pointer; font-family: inherit; margin-top: 4px; }
+.add-content-btn:hover { background: #e8f0fb; }
+
+/* 圖片上傳 */
+.location-imgs { display: flex; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed #e0e6f0; }
+.img-slot { flex: 1; border: 1.5px dashed #c0d4ea; border-radius: 8px; background: #f0f6ff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100px; cursor: pointer; position: relative; overflow: hidden; }
+.img-slot:hover { border-color: #1871b5; background: #e8f0fb; }
+.img-slot.has-image { border-style: solid; border-color: #1871b5; cursor: default; }
+.img-slot img { width: 100%; height: 100%; object-fit: cover; position: absolute; top:0; left:0; pointer-events: none; }
+.img-slot-label { font-size: 12px; color: #999; text-align: center; line-height: 1.8; z-index: 1; }
+.img-slot.has-image .img-slot-label { display: none; }
+.img-slot input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; z-index: 2; }
+.img-slot.has-image input[type="file"] { display: none; }
+.img-actions { position: absolute; bottom: 4px; right: 4px; display: none; gap: 4px; z-index: 3; }
+.img-slot.has-image .img-actions { display: flex; }
+.img-btn { background: rgba(0,0,0,0.55); color: white; border: none; border-radius: 4px; padding: 3px 7px; font-size: 11px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+.img-btn:hover { background: rgba(0,0,0,0.75); }
+
+/* 裁切 modal */
+.crop-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; }
+.crop-modal.open { display: flex; }
+.crop-box { background: white; border-radius: 12px; padding: 24px; width: 600px; max-width: 95vw; }
+.crop-box h3 { font-size: 15px; font-weight: 700; color: #1871b5; margin-bottom: 16px; }
+.crop-container { position: relative; width: 100%; height: 340px; background: #222; border-radius: 8px; overflow: hidden; cursor: move; user-select: none; }
+.crop-container img { position: absolute; transform-origin: top left; }
+.crop-overlay { position: absolute; inset: 0; border: 3px solid #1871b5; pointer-events: none; z-index: 2; }
+.crop-hint { font-size: 12px; color: #888; margin-top: 8px; text-align: center; }
+.crop-actions { display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end; }
+.crop-btn-cancel { background: #f0f4f8; border: 1px solid #d0d9e8; color: #555; padding: 9px 20px; border-radius: 7px; font-size: 14px; cursor: pointer; font-family: inherit; }
+.crop-btn-cancel:hover { background: #e8edf5; }
+.crop-btn-confirm { background: #1871b5; border: none; color: white; padding: 9px 24px; border-radius: 7px; font-size: 14px; cursor: pointer; font-family: inherit; font-weight: 600; }
+.crop-btn-confirm:hover { background: #155fa0; }
+.zoom-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.zoom-row label { font-size: 12px; color: #666; }
+.zoom-row input[type="range"] { flex: 1; accent-color: #1871b5; }
+
+.cost-row { background: #f0f2f5; padding: 10px 16px; display: flex; align-items: center; gap: 10px; border-top: 1px solid #e0e6f0; flex-wrap: wrap; }
+.cost-group { display: flex; align-items: center; gap: 6px; }
+.cost-group label { font-size: 12px; color: #666; white-space: nowrap; }
+.cost-group input[type="number"] { width: 90px; text-align: right; border: 1px solid #d0d9e8; border-radius: 5px; padding: 5px 8px; font-size: 13px; background: white; font-family: inherit; }
+.cost-group input[type="text"] { width: 60px; border: 1px solid #d0d9e8; border-radius: 5px; padding: 5px 8px; font-size: 13px; background: white; font-family: inherit; }
+.cost-divider { color: #ccc; }
+.cost-total-label { margin-left: auto; font-size: 13px; color: #555; }
+.cost-total-value { font-size: 15px; font-weight: 700; color: #1871b5; min-width: 110px; text-align: right; }
+
+.add-location-btn { background: none; border: 1.5px dashed #1871b5; color: #1871b5; padding: 10px 20px; border-radius: 8px; font-size: 14px; cursor: pointer; font-family: inherit; width: 100%; margin-top: 4px; }
+.add-location-btn:hover { background: #e8f0fb; }
+
+.summary-block { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; margin-top: 20px; padding-top: 16px; border-top: 2px solid #e8f0fb; }
+.summary-row { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+.summary-row label { color: #555; min-width: 80px; text-align: right; }
+.summary-value { min-width: 130px; text-align: right; }
+.summary-row.discount label { color: #e53935; }
+.summary-row.discount .summary-value { color: #e53935; }
+.summary-row.total label { font-size: 16px; font-weight: 700; color: #1871b5; }
+.summary-row.total .summary-value { font-size: 18px; font-weight: 700; color: #1871b5; }
+.discount-input { border: 1px solid #d0d9e8; border-radius: 6px; padding: 6px 10px; font-size: 14px; width: 130px; text-align: right; font-family: inherit; background: #fafcff; }
+.discount-input:focus { outline: none; border-color: #1871b5; }
+
+.deposit-block { background: #f0f7ff; border: 1.5px solid #1871b5; border-radius: 8px; padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; }
+.deposit-label { font-size: 15px; font-weight: 700; color: #1871b5; }
+.deposit-sub { font-size: 12px; color: #888; margin-top: 3px; }
+.deposit-amount { font-size: 24px; font-weight: 700; color: #1871b5; }
+
+.payment-block { background: #f5f8ff; border-radius: 8px; padding: 16px 20px; font-size: 13px; color: #444; line-height: 1.9; border-left: 4px solid #1871b5; }
+.warranty-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.warranty-row span { font-size: 13px; color: #555; }
+.warranty-input { border: 1px solid #d0d9e8; border-radius: 5px; padding: 3px 8px; font-size: 13px; width: 56px; text-align: center; font-family: inherit; background: #fafcff; }
+.warranty-input:focus { outline: none; border-color: #1871b5; }
+
+.generate-btn { display: block; width: 100%; background: #1871b5; color: white; border: none; padding: 16px; border-radius: 10px; font-size: 16px; font-weight: 700; font-family: inherit; cursor: pointer; letter-spacing: 1px; box-shadow: 0 4px 12px rgba(24,113,181,0.3); transition: background 0.2s; }
+.generate-btn:hover { background: #155fa0; }
+.generate-btn:disabled { background: #aac4de; cursor: not-allowed; }
+.status-msg { text-align: center; font-size: 13px; color: #888; margin-top: 10px; min-height: 20px; }
+.status-msg.error { color: #e53935; }
+.status-msg.success { color: #2e7d32; }
+.terms-info { background: #fffbea; border: 1px solid #ffe58f; border-radius: 8px; padding: 14px 18px; font-size: 13px; color: #7d6000; margin-bottom: 24px; line-height: 1.7; }
+.terms-info code { background: #fff3cd; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<!-- 裁切 Modal -->
+<div class="crop-modal" id="cropModal">
+  <div class="crop-box">
+    <h3>調整圖片顯示範圍</h3>
+    <div class="crop-container" id="cropContainer">
+      <img id="cropImg" src="" alt="">
+      <div class="crop-overlay"></div>
+    </div>
+    <p class="crop-hint">拖曳圖片調整位置，使用下方滑桿縮放</p>
+    <div class="zoom-row">
+      <label>縮放</label>
+      <input type="range" id="zoomSlider" min="0.5" max="3" step="0.01" value="1" oninput="onZoom()">
+    </div>
+    <div class="crop-actions">
+      <button class="crop-btn-cancel" onclick="closeCrop()">取消</button>
+      <button class="crop-btn-confirm" onclick="confirmCrop()">確認</button>
+    </div>
+  </div>
+</div>
+
+<header><h1>詠順工程行｜施工報價單產生器</h1></header>
+<div class="container">
+  <div class="terms-info">
+    📁 將 <code>terms.pdf</code>、<code>詠順工程行_logo.png</code>、<code>浮水印.png</code> 與 <code>index.html</code> 放在同一個 GitHub repo 資料夾。
+  </div>
+
+  <div class="card">
+    <div class="card-title">📋 報價單資訊</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>報價單編號</label>
+        <input type="text" id="quoteNo" placeholder="例：TCG-202601-001">
+      </div>
+      <div class="form-group">
+        <label>報價日期</label>
+        <input type="date" id="quoteDate">
+      </div>
+      <div class="form-group">
+        <label>報價單失效日</label>
+        <input type="date" id="expireDate">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">👤 委託方資訊</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>委託方</label>
+        <input type="text" id="clientName" placeholder="例：陳大名 先生／學校／工廠">
+      </div>
+      <div class="form-group">
+        <label>負責人</label>
+        <input type="text" id="clientContact" placeholder="例：本人／負責人姓名">
+      </div>
+      <div class="form-group">
+        <label>聯絡電話</label>
+        <input type="text" id="clientPhone" placeholder="例：0912-345-678">
+      </div>
+      <div class="form-group full">
+        <label>施工地址</label>
+        <input type="text" id="clientAddress" placeholder="例：台北市大安區復興南路一段100號">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🔧 施工項目與費用</div>
+    <div id="locationsContainer"></div>
+    <button class="add-location-btn" onclick="addLocation()">＋ 新增施工位置</button>
+    <div class="summary-block">
+      <div class="summary-row"><label>小計</label><span class="summary-value" id="subtotal">$0</span></div>
+      <div class="summary-row"><label>稅額 (5%)</label><span class="summary-value" id="tax">$0</span></div>
+      <div class="summary-row discount"><label>施工優惠</label><input class="discount-input" type="number" id="discount" placeholder="0" value="0" oninput="recalc()"></div>
+      <div class="summary-row total"><label>合計</label><span class="summary-value" id="grandTotal">$0</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">💰 預約施工訂金</div>
+    <div class="deposit-block">
+      <div><div class="deposit-label">預約施工訂金</div><div class="deposit-sub">合計金額 × 40%</div></div>
+      <div class="deposit-amount" id="depositAmount">$0</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">💳 付款方式</div>
+    <div class="payment-block">
+      <p><strong>訂金：</strong>報價單總額之 40%，支付訂金後始安排施工日期。</p>
+      <p><strong>尾款：</strong>報價單總額之 60%，於施工完成、經委託方驗收合格後支付。</p>
+      <p><strong>指定帳戶：</strong>(822)0675-4034-5912，戶名：詠順工程行，州際分行。</p>
+      <p style="color:#888;font-size:12px;margin-top:6px;">※ 匯款後請於LINE訊息告知帳號末五碼，以利對帳。</p>
+    </div>
+    <div style="margin-top:14px;font-size:13px;color:#555;line-height:1.9;">
+      <p><strong>其他條款：</strong></p>
+      <p>1. 本電子報價單經委託方回覆同意後生效，無須紙本簽名。</p>
+      <div class="warranty-row">
+        <span>2. 施工完成後，本公司提供</span>
+        <input type="number" class="warranty-input" id="warrantyYears" value="3" min="1" max="20">
+        <span>年保固，詳細內容另見保固證明書。</span>
+      </div>
+      <p style="color:#888;font-size:12px;margin-top:6px;">（報價條款說明，請查閱下一頁）</p>
+    </div>
+  </div>
+
+  <button class="generate-btn" id="generateBtn" onclick="generatePDF()">產生報價單 PDF</button>
+  <div class="status-msg" id="statusMsg"></div>
+</div>
+
+<script>
+let locCount = 0, contentCount = 0;
+// imgStore[key] = { originalSrc, croppedCanvas, offsetX, offsetY, scale }
+const imgStore = {};
+
+// ── 裁切 Modal 狀態 ──
+let cropKey = null;
+let cropDrag = false;
+let cropStartX = 0, cropStartY = 0;
+let cropOffsetX = 0, cropOffsetY = 0;
+let cropTempX = 0, cropTempY = 0;
+let cropZoom = 1;
+let cropNatW = 0, cropNatH = 0;
+const CROP_W = 512, CROP_H = 340;
+
+window.onload = () => {
+  const fmt = d => d.toISOString().split('T')[0];
+  const today = new Date();
+  document.getElementById('quoteDate').value = fmt(today);
+  const exp = new Date(today); exp.setMonth(exp.getMonth()+1);
+  document.getElementById('expireDate').value = fmt(exp);
+  addLocation();
+};
+
+const LOC_COLORS = ['#1871b5','#1565a8','#1a7fc2','#134f8a'];
+
+function addLocation() {
+  locCount++;
+  const id = locCount;
+  const idx = document.getElementById('locationsContainer').children.length;
+  const color = LOC_COLORS[idx % LOC_COLORS.length];
+  const div = document.createElement('div');
+  div.className = 'location-block'; div.id = `loc-${id}`;
+  div.innerHTML = `
+    <div class="location-header" style="background:${color}">
+      <input type="text" placeholder="施工位置（例：浴室外牆）" oninput="recalc()">
+      <button class="del-location-btn" onclick="deleteLocation(${id})">刪除</button>
+    </div>
+    <div class="location-body">
+      <div class="content-list" id="contents-${id}"></div>
+      <button class="add-content-btn" onclick="addContent(${id})">＋ 新增施工內容</button>
+      <div class="location-imgs">
+        <div class="img-slot" id="imgslot-${id}-1">
+          <input type="file" accept="image/*" onchange="handleImg(event,${id},1)">
+          <div class="img-slot-label">📷<br>圖片 1</div>
+          <div class="img-actions">
+            <button class="img-btn" onclick="openCrop('${id}_1')">調整</button>
+            <button class="img-btn" onclick="removeImg(event,${id},1)">移除</button>
+          </div>
+        </div>
+        <div class="img-slot" id="imgslot-${id}-2">
+          <input type="file" accept="image/*" onchange="handleImg(event,${id},2)">
+          <div class="img-slot-label">📷<br>圖片 2</div>
+          <div class="img-actions">
+            <button class="img-btn" onclick="openCrop('${id}_2')">調整</button>
+            <button class="img-btn" onclick="removeImg(event,${id},${2})">移除</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="cost-row">
+      <div class="cost-group"><label>數量</label><input type="number" placeholder="1" min="0" id="qty-${id}" oninput="recalcLoc(${id})"></div>
+      <span class="cost-divider">·</span>
+      <div class="cost-group"><label>單位</label><input type="text" placeholder="式" id="unit-${id}"></div>
+      <span class="cost-divider">·</span>
+      <div class="cost-group"><label>單價</label><input type="number" placeholder="0" min="0" id="price-${id}" oninput="recalcLoc(${id})"></div>
+      <span class="cost-total-label">總價</span>
+      <span class="cost-total-value" id="locTotal-${id}">$0</span>
+    </div>`;
+  document.getElementById('locationsContainer').appendChild(div);
+  addContent(id);
+  recalc();
+}
+
+function deleteLocation(id) {
+  const el = document.getElementById(`loc-${id}`);
+  if (el) { el.remove(); recalc(); }
+}
+
+function addContent(locId) {
+  contentCount++;
+  const cid = contentCount;
+  const div = document.createElement('div');
+  div.className = 'content-item'; div.id = `content-${cid}`;
+  div.innerHTML = `<div class="content-bullet"></div><input type="text" placeholder="施工內容（例：壁癌刮除處理）"><button class="del-content-btn" onclick="deleteContent(${cid})">×</button>`;
+  document.getElementById(`contents-${locId}`).appendChild(div);
+}
+
+function deleteContent(cid) {
+  const el = document.getElementById(`content-${cid}`); if (el) el.remove();
+}
+
+function handleImg(e, locId, slot) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const key = `${locId}_${slot}`;
+    const img = new Image();
+    img.onload = () => {
+      imgStore[key] = { originalSrc: ev.target.result, img, offsetX: 0, offsetY: 0, scale: 1, croppedCanvas: null };
+      renderCroppedPreview(key);
+      const slotEl = document.getElementById(`imgslot-${locId}-${slot}`);
+      slotEl.classList.add('has-image');
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeImg(e, locId, slot) {
+  e.stopPropagation();
+  const key = `${locId}_${slot}`;
+  delete imgStore[key];
+  const slotEl = document.getElementById(`imgslot-${locId}-${slot}`);
+  slotEl.classList.remove('has-image');
+  const img = slotEl.querySelector('img'); if (img) img.remove();
+  const fi = slotEl.querySelector('input[type="file"]');
+  if (fi) { fi.style.display=''; fi.value=''; }
+}
+
+// ── 裁切 ──
+function openCrop(key) {
+  const entry = imgStore[key]; if (!entry) return;
+  cropKey = key;
+  const [locId, slot] = key.split('_');
+  const img = document.getElementById('cropImg');
+  img.src = entry.originalSrc;
+  img.onload = () => {
+    cropNatW = img.naturalWidth; cropNatH = img.naturalHeight;
+    cropZoom = entry.scale || Math.max(CROP_W/cropNatW, CROP_H/cropNatH);
+    cropOffsetX = entry.offsetX || 0;
+    cropOffsetY = entry.offsetY || 0;
+    document.getElementById('zoomSlider').value = cropZoom;
+    applyCropTransform();
+  };
+  document.getElementById('cropModal').classList.add('open');
+
+  const container = document.getElementById('cropContainer');
+  container.onmousedown = e => {
+    cropDrag = true; cropStartX = e.clientX - cropOffsetX; cropStartY = e.clientY - cropOffsetY;
+    e.preventDefault();
+  };
+  container.onmousemove = e => {
+    if (!cropDrag) return;
+    cropOffsetX = e.clientX - cropStartX;
+    cropOffsetY = e.clientY - cropStartY;
+    clampOffset();
+    applyCropTransform();
+  };
+  container.onmouseup = () => { cropDrag = false; };
+  container.onmouseleave = () => { cropDrag = false; };
+  // touch
+  container.ontouchstart = e => {
+    const t = e.touches[0];
+    cropDrag = true; cropStartX = t.clientX - cropOffsetX; cropStartY = t.clientY - cropOffsetY;
+    e.preventDefault();
+  };
+  container.ontouchmove = e => {
+    if (!cropDrag) return;
+    const t = e.touches[0];
+    cropOffsetX = t.clientX - cropStartX; cropOffsetY = t.clientY - cropStartY;
+    clampOffset(); applyCropTransform(); e.preventDefault();
+  };
+  container.ontouchend = () => { cropDrag = false; };
+}
+
+function onZoom() {
+  cropZoom = parseFloat(document.getElementById('zoomSlider').value);
+  clampOffset(); applyCropTransform();
+}
+
+function clampOffset() {
+  const scaledW = cropNatW * cropZoom;
+  const scaledH = cropNatH * cropZoom;
+  cropOffsetX = Math.min(0, Math.max(cropOffsetX, CROP_W - scaledW));
+  cropOffsetY = Math.min(0, Math.max(cropOffsetY, CROP_H - scaledH));
+}
+
+function applyCropTransform() {
+  const img = document.getElementById('cropImg');
+  img.style.width = (cropNatW * cropZoom) + 'px';
+  img.style.height = (cropNatH * cropZoom) + 'px';
+  img.style.left = cropOffsetX + 'px';
+  img.style.top = cropOffsetY + 'px';
+}
+
+function closeCrop() {
+  document.getElementById('cropModal').classList.remove('open');
+  cropKey = null;
+}
+
+function confirmCrop() {
+  if (!cropKey) return;
+  const entry = imgStore[cropKey];
+  entry.offsetX = cropOffsetX;
+  entry.offsetY = cropOffsetY;
+  entry.scale = cropZoom;
+  // 產生裁切後的 canvas
+  const c = document.createElement('canvas');
+  c.width = CROP_W; c.height = CROP_H;
+  const cx = c.getContext('2d');
+  cx.drawImage(entry.img, cropOffsetX, cropOffsetY, cropNatW * cropZoom, cropNatH * cropZoom);
+  entry.croppedCanvas = c;
+  renderCroppedPreview(cropKey);
+  closeCrop();
+}
+
+function renderCroppedPreview(key) {
+  const [locId, slot] = key.split('_');
+  const slotEl = document.getElementById(`imgslot-${locId}-${slot}`);
+  const entry = imgStore[key];
+  const old = slotEl.querySelector('img'); if (old) old.remove();
+  const preview = document.createElement('img');
+  preview.src = entry.croppedCanvas ? entry.croppedCanvas.toDataURL() : entry.originalSrc;
+  preview.style.pointerEvents = 'none';
+  slotEl.insertBefore(preview, slotEl.firstChild);
+  slotEl.classList.add('has-image');
+}
+
+function recalcLoc(id) {
+  const qty = parseFloat(document.getElementById(`qty-${id}`)?.value)||0;
+  const price = parseFloat(document.getElementById(`price-${id}`)?.value)||0;
+  const el = document.getElementById(`locTotal-${id}`);
+  if (el) el.textContent = '$' + fmtN(qty*price);
+  recalc();
+}
+
+function recalc() {
+  let sub = 0;
+  for (const loc of document.getElementById('locationsContainer').children) {
+    const id = loc.id.replace('loc-','');
+    sub += (parseFloat(document.getElementById(`qty-${id}`)?.value)||0)
+          *(parseFloat(document.getElementById(`price-${id}`)?.value)||0);
+  }
+  const tax=sub*0.05, disc=parseFloat(document.getElementById('discount').value)||0;
+  const grand=sub+tax-disc;
+  document.getElementById('subtotal').textContent='$'+fmtN(sub);
+  document.getElementById('tax').textContent='$'+fmtN(tax);
+  document.getElementById('grandTotal').textContent='$'+fmtN(grand);
+  document.getElementById('depositAmount').textContent='$'+fmtN(grand*0.4);
+}
+
+function fmtN(n) { return Math.round(n).toLocaleString('zh-TW'); }
+
+function collectData() {
+  const locs = [];
+  for (const loc of document.getElementById('locationsContainer').children) {
+    const id = loc.id.replace('loc-','');
+    const name = loc.querySelector('.location-header input').value||'';
+    const contents = [];
+    loc.querySelectorAll('.content-item input[type="text"]').forEach(i => { if(i.value.trim()) contents.push(i.value.trim()); });
+    const qty=parseFloat(document.getElementById(`qty-${id}`)?.value)||0;
+    const unit=document.getElementById(`unit-${id}`)?.value||'';
+    const price=parseFloat(document.getElementById(`price-${id}`)?.value)||0;
+    const color=loc.querySelector('.location-header').style.background||'#1871b5';
+    const img1=imgStore[`${id}_1`]||null;
+    const img2=imgStore[`${id}_2`]||null;
+    locs.push({ name, contents, qty, unit, price, total:qty*price, color, img1, img2 });
+  }
+  return locs;
+}
+
+// ── 從 imgStore entry 畫到 canvas ──
+function drawEntryToCtx(ctx, entry, dx, dy, dw, dh) {
+  if (!entry) return false;
+  if (entry.croppedCanvas) {
+    ctx.drawImage(entry.croppedCanvas, 0, 0, CROP_W, CROP_H, dx, dy, dw, dh);
+    return true;
+  }
+  if (entry.img && entry.img.complete && entry.img.naturalWidth > 0) {
+    const sw=entry.img.naturalWidth, sh=entry.img.naturalHeight;
+    const scale=Math.max(dw/sw, dh/sh);
+    const fw=sw*scale, fh=sh*scale;
+    const ox=(dw-fw)/2, oy=(dh-fh)/2;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(dx,dy,dw,dh); ctx.clip();
+    ctx.drawImage(entry.img, dx+ox, dy+oy, fw, fh);
+    ctx.restore();
+    return true;
+  }
+  return false;
+}
+
+// ── PDF ──
+async function generatePDF() {
+  const btn=document.getElementById('generateBtn');
+  const msg=document.getElementById('statusMsg');
+  btn.disabled=true; msg.className='status-msg'; msg.textContent='正在產生報價單...';
+  try {
+    const SCALE=3, PW=794, PH=1123;
+    const canvas=document.createElement('canvas');
+    canvas.width=PW*SCALE; canvas.height=PH*SCALE;
+    const ctx=canvas.getContext('2d');
+    ctx.scale(SCALE,SCALE);
+    const m=44, cw=PW-m*2;
+    const ff='"Microsoft JhengHei","微軟正黑體","PingFang TC",Arial,sans-serif';
+
+    // ── 浮水印（最底層）──
+    try {
+      const wm=new Image(); wm.crossOrigin='anonymous';
+      await new Promise((res,rej)=>{ wm.onload=res; wm.onerror=rej; wm.src='浮水印.png'; });
+      ctx.drawImage(wm, 0, 0, PW, PH);
+    } catch(e) { /* 沒有浮水印檔案則跳過 */ }
+
+    ctx.fillStyle='#fff';
+    // 不整頁填白，只填內容區，讓浮水印透出來
+    // 改用半透明白底讓文字清晰
+    ctx.fillStyle='rgba(255,255,255,0.0)';
+    ctx.fillRect(0,0,PW,PH);
+
+    // ── Logo（最上方） ──
+    let y = m;
+    try {
+      const logo=new Image(); logo.crossOrigin='anonymous';
+      await new Promise((res,rej)=>{ logo.onload=res; logo.onerror=rej; logo.src='詠順工程行_logo.png'; });
+      // 400×120 → 高度36
+      ctx.drawImage(logo, m, y, 120, 36);
+    } catch(e) {
+      ctx.font=`bold 14px ${ff}`; ctx.fillStyle='#1871b5'; ctx.textAlign='left';
+      ctx.fillText('詠順工程行', m, y+26);
+    }
+
+    // 標題（logo右側置中）
+    ctx.font=`bold 26px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='center';
+    ctx.fillText('施工報價單', PW/2, y+26);
+    ctx.textAlign='left';
+
+    y += 46;
+    ctx.strokeStyle='#ddd'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(m,y); ctx.lineTo(PW-m,y); ctx.stroke();
+    y += 14;
+
+    // ── 編號 + 日期（右側） ──
+    ctx.font=`13px ${ff}`; ctx.fillStyle='#555'; ctx.textAlign='right';
+    ctx.fillText(`編　號：${document.getElementById('quoteNo').value||'—'}`, PW-m, y);
+    ctx.fillText(`報價日期：${document.getElementById('quoteDate').value||'—'}`, PW-m, y+20);
+    ctx.fillText(`報價單失效日：${document.getElementById('expireDate').value||'—'}`, PW-m, y+40);
+    ctx.textAlign='left';
+
+    // ── 委託方（左側）──
+    ctx.font=`bold 13px ${ff}`; ctx.fillStyle='#1a1a1a';
+    ctx.fillText('委託方資訊', m, y);
+    ctx.font=`13px ${ff}`; ctx.fillStyle='#333';
+    [
+      `委託方：${document.getElementById('clientName').value||'—'}`,
+      `負責人：${document.getElementById('clientContact').value||'—'}`,
+      `聯絡電話：${document.getElementById('clientPhone').value||'—'}`,
+      `施工地址：${document.getElementById('clientAddress').value||'—'}`,
+    ].forEach((row,i) => ctx.fillText(row, m, y+22+i*22));
+
+    y += 22 + 4*22 + 20;
+
+    ctx.strokeStyle='#e0e6f0'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(m,y); ctx.lineTo(PW-m,y); ctx.stroke();
+    y += 16;
+
+    // ── 施工項目 ──
+    const locs=collectData();
+    const hdrH=32, rowH=28, costH=30;
+    const cbPairs=[['#eef5ff','#edf7ed'],['#e8f2ff','#e3f5ec']];
+
+    for (let li=0; li<locs.length; li++) {
+      const loc=locs[li];
+      const [c1,c2]=cbPairs[li%cbPairs.length];
+      ctx.fillStyle=loc.color;
+      ctx.fillRect(m,y,cw,hdrH);
+      ctx.font=`bold 14px ${ff}`; ctx.fillStyle='#fff'; ctx.textAlign='left';
+      ctx.fillText(loc.name||`施工位置 ${li+1}`, m+12, y+22);
+      y+=hdrH;
+      for (let ci=0; ci<loc.contents.length; ci++) {
+        ctx.fillStyle=ci%2===0?c1:c2;
+        ctx.fillRect(m,y+ci*rowH,cw,rowH);
+        ctx.fillStyle=loc.color;
+        ctx.beginPath(); ctx.arc(m+14,y+ci*rowH+rowH/2,3.5,0,Math.PI*2); ctx.fill();
+        ctx.font=`13px ${ff}`; ctx.fillStyle='#333'; ctx.textAlign='left';
+        ctx.fillText(loc.contents[ci], m+26, y+ci*rowH+rowH/2+5);
+      }
+      if (loc.contents.length===0) { ctx.fillStyle=c1; ctx.fillRect(m,y,cw,rowH); }
+      y+=Math.max(loc.contents.length,1)*rowH;
+      ctx.fillStyle='#f0f2f5'; ctx.fillRect(m,y,cw,costH);
+      ctx.strokeStyle='#e0e6f0'; ctx.lineWidth=0.5;
+      ctx.beginPath(); ctx.moveTo(m,y); ctx.lineTo(PW-m,y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(m,y+costH); ctx.lineTo(PW-m,y+costH); ctx.stroke();
+      ctx.font=`13px ${ff}`; ctx.fillStyle='#555'; ctx.textAlign='left';
+      let cx=m+10;
+      [`數量：${loc.qty||'—'}`,`單位：${loc.unit||'—'}`,`單價：${loc.price>0?'$'+Math.round(loc.price).toLocaleString():'—'}`]
+        .forEach(item=>{ ctx.fillText(item,cx,y+costH/2+5); cx+=ctx.measureText(item).width+28; });
+      ctx.fillStyle='#1871b5'; ctx.font=`bold 14px ${ff}`; ctx.textAlign='right';
+      ctx.fillText(`總價：${loc.total>0?'$'+Math.round(loc.total).toLocaleString():'—'}`, PW-m-8, y+costH/2+5);
+      y+=costH+14;
+    }
+
+    // ── 付款方式 + 合計 ──
+    y+=6;
+    const lw2=Math.floor(cw*0.56), rx2=m+lw2+14;
+    let sub=0; locs.forEach(l=>sub+=l.total);
+    const tax=Math.round(sub*0.05);
+    const disc=parseFloat(document.getElementById('discount').value)||0;
+    const grand=sub+tax-disc;
+    const deposit=Math.round(grand*0.4);
+    const warrantyYears=document.getElementById('warrantyYears').value||'3';
+
+    const payLines=[
+      {t:'付款方式：',b:true,c:'#1a1a1a'},
+      {t:'訂金：報價單總額之 40%，支付訂金後始安排施工日期。',b:false,c:'#444'},
+      {t:'尾款：報價單總額之 60%，於施工完成、經委託方驗收合格後支付。',b:false,c:'#444'},
+      {t:'指定帳戶：(822)0675-4034-5912，戶名：詠順工程行，州際分行。',b:false,c:'#444'},
+      {t:'※ 匯款後請於LINE告知帳號末五碼，以利對帳。',b:false,c:'#888'},
+      {t:'',b:false,c:'#444'},
+      {t:'其他條款：',b:true,c:'#1a1a1a'},
+      {t:'1. 本電子報價單經委託方回覆同意後生效，無須紙本簽名。',b:false,c:'#444'},
+      {t:`2. 施工完成後，本公司提供 ${warrantyYears} 年保固，詳細內容另見保固證明書。`,b:false,c:'#444'},
+      {t:'（報價條款說明，請查閱下一頁）',b:false,c:'#888'},
+    ];
+    const lh=16, pad=12;
+    const payH=payLines.length*lh+pad*2;
+    ctx.fillStyle='#f5f8ff'; ctx.fillRect(m,y,lw2,payH);
+    ctx.strokeStyle='#d0d9e8'; ctx.lineWidth=0.5; ctx.strokeRect(m,y,lw2,payH);
+    ctx.fillStyle='#1871b5'; ctx.fillRect(m,y,3,payH);
+    payLines.forEach((line,i)=>{
+      ctx.font=line.b?`bold 12px ${ff}`:`12px ${ff}`;
+      ctx.fillStyle=line.c; ctx.textAlign='left';
+      ctx.fillText(line.t, m+10, y+pad+i*lh+11);
+    });
+
+    let sy=y+18;
+    [{l:'小計：',v:'$'+Math.round(sub).toLocaleString(),c:'#333'},
+     {l:'稅額(5%)：',v:'$'+tax.toLocaleString(),c:'#333'},
+     {l:'施工優惠：',v:'-$'+Math.round(disc).toLocaleString(),c:'#e53935'},
+    ].forEach(row=>{
+      ctx.font=`13px ${ff}`; ctx.fillStyle='#666'; ctx.textAlign='left'; ctx.fillText(row.l,rx2,sy);
+      ctx.fillStyle=row.c; ctx.textAlign='right'; ctx.fillText(row.v,PW-m,sy); sy+=24;
+    });
+    ctx.strokeStyle='#1871b5'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(rx2,sy); ctx.lineTo(PW-m,sy); ctx.stroke();
+    sy+=18;
+    ctx.font=`bold 15px ${ff}`; ctx.fillStyle='#1871b5';
+    ctx.textAlign='left'; ctx.fillText('合計：',rx2,sy);
+    ctx.textAlign='right'; ctx.fillText('$'+Math.round(grand).toLocaleString(),PW-m,sy);
+    sy+=26;
+    ctx.fillStyle='#e8f4ff'; ctx.fillRect(rx2,sy,PW-m-rx2,44);
+    ctx.strokeStyle='#1871b5'; ctx.lineWidth=1; ctx.strokeRect(rx2,sy,PW-m-rx2,44);
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#1871b5'; ctx.textAlign='left';
+    ctx.fillText('預約施工訂金（40%）：',rx2+8,sy+16);
+    ctx.font=`bold 15px ${ff}`; ctx.textAlign='right';
+    ctx.fillText('$'+deposit.toLocaleString(),PW-m-8,sy+36);
+
+    // ── 施工位置附圖（最下方）──
+    const imgEntries=[];
+    locs.forEach(loc=>{
+      if (loc.img1) imgEntries.push({entry:loc.img1, label:loc.name});
+      if (loc.img2) imgEntries.push({entry:loc.img2, label:loc.name});
+    });
+
+    if (imgEntries.length>0) {
+      const sectionY = y+payH+32;
+      ctx.strokeStyle='#1871b5'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(m,sectionY); ctx.lineTo(PW-m,sectionY); ctx.stroke();
+      ctx.font=`bold 14px ${ff}`; ctx.fillStyle='#1871b5'; ctx.textAlign='left';
+      ctx.fillText('施工位置附圖', m, sectionY-6);
+
+      const cols=3;
+      const imgW=(cw-(cols-1)*12)/cols;
+      const imgH=imgW*0.7;
+      const labelH=20;
+
+      imgEntries.forEach((item,idx)=>{
+        const col=idx%cols;
+        const row=Math.floor(idx/cols);
+        const ix=m+col*(imgW+12);
+        const iy=sectionY+10+row*(imgH+labelH+12);
+        const drawn=drawEntryToCtx(ctx,item.entry,ix,iy,imgW,imgH);
+        if (!drawn) {
+          ctx.fillStyle='#e0eaf5'; ctx.fillRect(ix,iy,imgW,imgH);
+        }
+        ctx.strokeStyle='#d0d9e8'; ctx.lineWidth=0.5; ctx.strokeRect(ix,iy,imgW,imgH);
+        ctx.font=`12px ${ff}`; ctx.fillStyle='#555'; ctx.textAlign='center';
+        ctx.fillText(item.label||'', ix+imgW/2, iy+imgH+15);
+      });
+    }
+
+    // ── Canvas → PDF ──
+    const { jsPDF }=window.jspdf;
+    const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+    doc.addImage(canvas.toDataURL('image/png',1.0),'PNG',0,0,210,297);
+    const quotePdfBytes=doc.output('arraybuffer');
+
+    let finalPdfBytes;
+    try {
+      const resp=await fetch('terms.pdf');
+      if (!resp.ok) throw new Error('not found');
+      const termsBytes=await resp.arrayBuffer();
+      const { PDFDocument }=PDFLib;
+      const merged=await PDFDocument.create();
+      const qpdf=await PDFDocument.load(quotePdfBytes);
+      const tpdf=await PDFDocument.load(termsBytes);
+      (await merged.copyPages(qpdf,qpdf.getPageIndices())).forEach(p=>merged.addPage(p));
+      (await merged.copyPages(tpdf,tpdf.getPageIndices())).forEach(p=>merged.addPage(p));
+      finalPdfBytes=await merged.save();
+      msg.className='status-msg success'; msg.textContent='✅ 報價單已產生（含條款說明）';
+    } catch(e) {
+      finalPdfBytes=quotePdfBytes;
+      msg.className='status-msg'; msg.textContent='⚠️ 找不到 terms.pdf，已產生報價單（不含條款說明）';
+    }
+
+    const blob=new Blob([finalPdfBytes],{type:'application/pdf'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download=`${document.getElementById('quoteNo').value||'quote'}_報價單.pdf`;
+    a.click(); URL.revokeObjectURL(url);
+
+  } catch(err) {
+    msg.className='status-msg error'; msg.textContent='❌ 產生失敗：'+err.message;
+    console.error(err);
+  }
+  btn.disabled=false;
+}
+</script>
+</body>
+</html>
