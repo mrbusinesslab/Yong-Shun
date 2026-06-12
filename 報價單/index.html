@@ -340,8 +340,8 @@ input:focus { outline: none; border-color: #1871b5; background: white; }
       }
     };
 
-    render();
     document.body.parentNode.insertBefore(overlay, document.body);
+    render();
   }
 
   if (isLocked() || localStorage.getItem('ys_auth') !== '1') {
