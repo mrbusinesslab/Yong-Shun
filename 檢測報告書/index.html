@@ -1,0 +1,1921 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>詠順工程行｜漏水檢測報告書產生器</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Microsoft JhengHei','微軟正黑體',Arial,sans-serif; background: #f0f4f8; color: #1a1a1a; min-height: 100vh; }
+header { background: #1871b5; color: white; padding: 20px 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+header h1 { font-size: 20px; font-weight: 600; letter-spacing: 1px; }
+
+.step-bar { background: white; border-bottom: 1px solid #e0e6f0; padding: 0 40px; display: flex; gap: 4px; overflow-x: auto; }
+.step-tab { padding: 14px 18px; font-size: 13px; color: #888; cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; font-weight: 500; user-select: none; }
+.step-tab.active { color: #1871b5; border-bottom-color: #1871b5; font-weight: 700; }
+.step-tab.disabled { color: #ccc; cursor: not-allowed; }
+
+.main-layout { display: grid; grid-template-columns: 1fr; gap: 24px; max-width: 1600px; margin: 36px auto; padding: 0 20px 60px; }
+@media (min-width: 1024px) { .main-layout { grid-template-columns: 1fr 1fr; } }
+
+.container { width: 100%; max-width: 900px; margin: 0 auto; }
+.preview-sticky { position: sticky; top: 24px; height: calc(100vh - 120px); min-height: 500px; }
+.preview-card { background: white; border-radius: 10px; padding: 24px; height: 100%; box-shadow: 0 2px 12px rgba(0,0,0,0.07); display: flex; flex-direction: column; }
+.preview-iframe { width: 100%; flex: 1; border: 1px solid #d0d9e8; border-radius: 6px; background: #fafcff; }
+
+.card { background: white; border-radius: 10px; padding: 32px; margin-bottom: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+.card-title { font-size: 15px; font-weight: 700; color: #1871b5; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #e8f0fb; }
+.card-title-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; padding-bottom: 14px; margin-bottom: 6px; border-bottom: 2px solid #e8f0fb; flex-wrap: wrap; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group.full { grid-column: 1 / -1; }
+label { font-size: 13px; color: #555; font-weight: 500; }
+input[type="text"], input[type="date"], input[type="time"], input[type="number"], select, textarea {
+  border: 1px solid #d0d9e8; border-radius: 6px; padding: 9px 12px;
+  font-size: 14px; font-family: inherit; color: #1a1a1a; background: #fafcff; width: 100%; transition: border 0.2s;
+}
+textarea { resize: vertical; min-height: 70px; line-height: 1.6; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: #1871b5; background: white; }
+select { cursor: pointer; }
+
+.prefix-input { display: flex; align-items: center; border: 1px solid #d0d9e8; border-radius: 6px; background: #fafcff; transition: border 0.2s; overflow: hidden; }
+.prefix-input:focus-within { border-color: #1871b5; background: white; }
+.prefix-label { padding: 9px 0 9px 12px; font-size: 14px; color: #555; white-space: nowrap; user-select: none; }
+.prefix-input input[type="text"] { border: none; background: transparent; padding-left: 4px; }
+.prefix-input input[type="text"]:focus { border: none; background: transparent; }
+
+.case-no-block { background: #eef5ff; border: 1.5px solid #1871b5; border-radius: 8px; padding: 16px 18px; margin-bottom: 20px; }
+.case-no-label { font-size: 12px; color: #1871b5; font-weight: 600; margin-bottom: 6px; }
+.case-no-value { font-size: 22px; font-weight: 700; color: #1871b5; letter-spacing: 1px; font-family: 'Consolas', monospace; }
+.case-no-sub { font-size: 12px; color: #888; margin-top: 6px; }
+.seq-reset-btn { float: right; background: none; border: 1px solid #1871b5; color: #1871b5; padding: 4px 10px; border-radius: 5px; font-size: 11px; cursor: pointer; font-family: inherit; }
+.seq-reset-btn:hover { background: #dcebfb; }
+
+.client-block { background: rgba(93,137,189,0.10); border: 1.5px solid #5d89bd; border-radius: 10px; padding: 16px; margin-top: 20px; }
+.client-block-inner { display: flex; gap: 16px; align-items: stretch; }
+.building-type-box { background: #fff; border: 1px solid #d0d9e8; border-radius: 8px; padding: 14px 16px; width: 180px; flex-shrink: 0; display: flex; flex-direction: column; justify-content: center; gap: 6px; }
+.client-block-right { flex: 1; display: flex; flex-direction: column; gap: 12px; justify-content: center; }
+@media (max-width: 640px) { .client-block-inner { flex-direction: column; } .building-type-box { width: 100%; } }
+
+.declare-block { margin-top: 4px; }
+
+/* 圖片上傳 */
+.photo-section { margin-top: 20px; padding-top: 20px; border-top: 1px dashed #e0e6f0; }
+.photo-section-title { font-size: 13px; font-weight: 700; color: #1871b5; margin-bottom: 12px; }
+.layout-picker { display: none; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.layout-picker.show { display: flex; }
+.layout-opt { border: 1.5px solid #d0d9e8; background: #fafcff; border-radius: 6px; padding: 6px 10px; font-size: 11px; color: #555; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 6px; }
+.layout-opt.active { border-color: #1871b5; background: #eef5ff; color: #1871b5; font-weight: 600; }
+.layout-opt-icon { width: 22px; height: 16px; border: 1.2px solid currentColor; display: flex; gap: 1px; padding: 1px; }
+.layout-opt-icon span { flex: 1; background: currentColor; opacity: 0.35; }
+.layout-opt-icon.row span { height: 100%; }
+.layout-opt-icon.col { flex-direction: column; }
+.layout-opt-icon.col span { width: 100%; }
+
+.photo-slots { display: flex; gap: 10px; }
+.img-slot { flex: 1; border: 1.5px dashed #c0d4ea; border-radius: 8px; background: #f0f6ff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 130px; cursor: pointer; position: relative; overflow: hidden; }
+.img-slot:hover { border-color: #1871b5; background: #e8f0fb; }
+.img-slot.has-image { border-style: solid; border-color: #1871b5; cursor: default; }
+.img-slot img { width: 100%; height: 100%; object-fit: cover; position: absolute; top:0; left:0; pointer-events: none; }
+.img-slot-label { font-size: 12px; color: #999; text-align: center; line-height: 1.8; z-index: 1; }
+.img-slot.has-image .img-slot-label { display: none; }
+.img-slot input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; z-index: 2; }
+.img-slot.has-image .img-slot input[type="file"] { display: none; }
+.img-actions { position: absolute; bottom: 4px; right: 4px; display: none; gap: 4px; z-index: 3; }
+.img-slot.has-image .img-actions { display: flex; }
+.img-btn { background: rgba(0,0,0,0.55); color: white; border: none; border-radius: 4px; padding: 3px 7px; font-size: 11px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+.img-btn:hover { background: rgba(0,0,0,0.75); }
+
+/* 裁切 modal */
+.crop-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; }
+.crop-modal.open { display: flex; }
+.crop-box { background: white; border-radius: 12px; padding: 24px; width: 600px; max-width: 95vw; }
+.crop-box h3 { font-size: 15px; font-weight: 700; color: #1871b5; margin-bottom: 16px; }
+.crop-container { position: relative; width: 320px; height: 240px; max-width: 100%; max-height: 60vh; background: #222; border-radius: 8px; overflow: hidden; cursor: move; user-select: none; margin: 0 auto; }
+.crop-container img { position: absolute; transform-origin: top left; }
+.crop-overlay { position: absolute; inset: 0; border: 3px solid #1871b5; pointer-events: none; z-index: 2; }
+.crop-hint { font-size: 12px; color: #888; margin-top: 8px; text-align: center; }
+.crop-actions { display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end; }
+.crop-btn-cancel { background: #f0f4f8; border: 1px solid #d0d9e8; color: #555; padding: 9px 20px; border-radius: 7px; font-size: 14px; cursor: pointer; font-family: inherit; }
+.crop-btn-cancel:hover { background: #e8edf5; }
+.crop-btn-confirm { background: #1871b5; border: none; color: white; padding: 9px 24px; border-radius: 7px; font-size: 14px; cursor: pointer; font-family: inherit; font-weight: 600; }
+.crop-btn-confirm:hover { background: #155fa0; }
+.zoom-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.zoom-row label { font-size: 12px; color: #666; }
+.zoom-row input[type="range"] { flex: 1; accent-color: #1871b5; }
+
+.generate-btn { display: block; width: 100%; background: #1871b5; color: white; border: none; padding: 16px; border-radius: 10px; font-size: 16px; font-weight: 700; font-family: inherit; cursor: pointer; letter-spacing: 1px; box-shadow: 0 4px 12px rgba(24,113,181,0.3); transition: background 0.2s; }
+.generate-btn:hover { background: #155fa0; }
+.generate-btn:disabled { background: #aac4de; cursor: not-allowed; }
+.status-msg { text-align: center; font-size: 13px; color: #888; margin-top: 10px; min-height: 20px; }
+.status-msg.error { color: #e53935; }
+.status-msg.success { color: #2e7d32; }
+
+.terms-info { background: #fffbea; border: 1px solid #ffe58f; border-radius: 8px; padding: 14px 18px; font-size: 13px; color: #7d6000; margin-bottom: 24px; line-height: 1.7; }
+.terms-info code { background: #fff3cd; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 12px; }
+
+/* ── Step2 檢測結果卡片系統 ── */
+.add-card-btn { display: block; width: 100%; background: #eef5ff; border: 1.5px dashed #1871b5; color: #1871b5; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; margin-top: 12px; }
+.add-card-btn:hover { background: #dcebfb; }
+
+.s2-card { border: 1.5px solid #d0d9e8; border-radius: 10px; padding: 16px; margin-bottom: 18px; background: #fafcff; }
+.s2-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.s2-card-no { font-size: 13px; font-weight: 700; color: #1871b5; }
+.s2-card-actions { display: flex; gap: 8px; align-items: center; }
+.s2-tpl-toggle { display: flex; border: 1px solid #1871b5; border-radius: 6px; overflow: hidden; }
+.s2-tpl-btn { padding: 5px 12px; font-size: 12px; background: white; color: #1871b5; border: none; cursor: pointer; font-family: inherit; }
+.s2-tpl-btn.active { background: #1871b5; color: white; font-weight: 600; }
+.s2-del-btn { background: none; border: 1px solid #e57373; color: #e57373; border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer; font-family: inherit; }
+.s2-del-btn:hover { background: #fdecea; }
+
+.s2-card-body { display: flex; gap: 14px; }
+.s2-photo-col { width: 40%; flex-shrink: 0; }
+.s2-text-col { width: 60%; display: flex; flex-direction: column; gap: 10px; }
+
+.s2-photo-single .img-slot { height: 200px; }
+.s2-photo-dual { display: flex; flex-direction: column; gap: 6px; }
+.s2-photo-dual .img-slot { height: 97px; }
+
+.s2-photo-time-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.s2-photo-time-row label { font-size: 11px; color: #888; white-space: nowrap; }
+.s2-photo-time-row input[type="datetime-local"] { font-size: 11px; padding: 5px 6px; }
+
+.field-counter { font-size: 11px; color: #999; text-align: right; margin-top: 2px; }
+.field-counter.over { color: #e53935; font-weight: 700; }
+.s2-dual-record { display: flex; flex-direction: column; gap: 10px; }
+.s2-dual-record > div { flex: 1; }
+.s2-dual-record label { font-size: 11px; }
+
+/* ── Step5 綜合判定總表 ── */
+.s5-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.s5-table th { background: #eef5ff; color: #1871b5; padding: 9px 10px; text-align: left; border: 1px solid #d0d9e8; font-weight: 700; font-size: 12px; }
+.s5-table td { border: 1px solid #d0d9e8; padding: 6px 8px; vertical-align: top; }
+.s5-table td input[type="text"], .s5-table td textarea { width: 100%; border: 1px solid #e0e6f0; border-radius: 4px; padding: 6px 8px; font-size: 13px; font-family: inherit; background: #fafcff; }
+.s5-table td textarea { min-height: 44px; resize: vertical; }
+.s5-table select { width: 100%; border: 1px solid #e0e6f0; border-radius: 4px; padding: 6px 8px; font-size: 13px; font-family: inherit; background: #fafcff; cursor: pointer; }
+.s5-table tr.s5-row-exists { background: #fdecea; }
+.s5-table tr.s5-row-exists td { background: #fdecea; }
+.s5-row-source { font-size: 10px; color: #999; white-space: nowrap; }
+.s5-empty-hint { font-size: 13px; color: #999; padding: 20px; text-align: center; background: #fafcff; border: 1px dashed #d0d9e8; border-radius: 8px; }
+
+
+.hint { font-size: 11px; color: #999; margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<div class="crop-modal" id="cropModal">
+  <div class="crop-box">
+    <h3>調整圖片顯示範圍</h3>
+    <div class="crop-container" id="cropContainer">
+      <img id="cropImg" src="" alt="">
+      <div class="crop-overlay"></div>
+    </div>
+    <p class="crop-hint">拖曳圖片調整位置，使用下方滑桿縮放</p>
+    <div class="zoom-row">
+      <label>縮放</label>
+      <input type="range" id="zoomSlider" min="0.1" max="3" step="0.001" value="1" oninput="onZoom()">
+    </div>
+    <div class="crop-actions">
+      <button class="crop-btn-cancel" onclick="closeCrop()">取消</button>
+      <button class="crop-btn-confirm" onclick="confirmCrop()">確認</button>
+    </div>
+  </div>
+</div>
+
+<header><h1>詠順工程行｜漏水檢測報告書產生器</h1></header>
+
+<div class="step-bar" id="stepBar">
+  <div class="step-tab active" data-step="1" onclick="switchStep(1)">一、案例個資</div>
+  <div class="step-tab" data-step="2" onclick="switchStep(2)">二、儀器檢查結果</div>
+  <div class="step-tab" data-step="3" onclick="switchStep(3)">三、管線配置調查</div>
+  <div class="step-tab" data-step="4" onclick="switchStep(4)">四、其他</div>
+  <div class="step-tab" data-step="5" onclick="switchStep(5)">五、結論</div>
+  <div class="step-tab disabled" data-step="6">六、建議事項</div>
+</div>
+
+<div class="main-layout">
+  <div class="container">
+
+    <!-- ════════ STEP 1 ════════ -->
+    <div class="step-panel" id="panel-1">
+
+      <div class="card">
+        <div class="card-title">🔢 案例編號</div>
+        <div class="case-no-block">
+          <span class="case-no-label">編號自動產生</span>
+          <button class="seq-reset-btn" onclick="resetSeqForCurrent()" title="若編錯可手動重設此組合的序號">重設序號</button>
+          <div class="case-no-value" id="caseNoDisplay">—</div>
+          <div class="case-no-sub" id="caseNoSub">請先填寫完整地址（含縣市）與檢測時間、建築類型</div>
+        </div>
+        <div class="form-group">
+          <label>出具日期</label>
+          <input type="date" id="issueDate">
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🛠️ 檢測方資訊 ／ 委託方資訊</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>檢測時間</label>
+            <input type="date" id="inspectDate" onchange="updateCaseNo(); triggerLivePreview();">
+          </div>
+          <div class="form-group">
+            <label>委託方</label>
+            <input type="text" id="clientName" placeholder="例：姓名／社區名稱／公司名稱">
+          </div>
+          <div class="form-group">
+            <label>檢測時刻</label>
+            <input type="time" id="inspectTime">
+          </div>
+          <div class="form-group">
+            <label>負責人</label>
+            <input type="text" id="clientContact" placeholder="例：本人／負責人姓名">
+          </div>
+          <div class="form-group">
+            <label>檢測單位</label>
+            <input type="text" id="inspectUnit" value="詠順工程行">
+          </div>
+          <div class="form-group">
+            <label>聯絡電話</label>
+            <input type="text" id="clientPhone" placeholder="例：0912-345-678">
+          </div>
+          <div class="form-group">
+            <label>檢測人員</label>
+            <input type="text" id="inspectStaff" value="鍾師富">
+          </div>
+        </div>
+
+        <div class="client-block">
+          <div class="client-block-inner">
+            <div class="building-type-box">
+              <label>建築類型</label>
+              <select id="buildingType" onchange="updateCaseNo(); triggerLivePreview();"></select>
+            </div>
+            <div class="client-block-right">
+              <div class="form-group">
+                <label>地址</label>
+                <input type="text" id="clientAddress" placeholder="例：臺中市○○區○○路二段100號" oninput="updateCaseNo();" onchange="updateCaseNo();">
+                <p class="hint" id="regionDetectHint"></p>
+              </div>
+              <div class="form-group">
+                <label>檢測範圍</label>
+                <input type="text" id="inspectScope" placeholder="例：三樓管道間及二樓對應天花板區域">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title-row">
+          <div class="card-title" style="margin-bottom:0;padding-bottom:0;border-bottom:none;">📝 一、現場漏水狀況紀錄</div>
+          <div class="form-group" style="flex:1;max-width:300px;">
+            <label>拍攝位置</label>
+            <div class="prefix-input">
+              <span class="prefix-label">位置：</span>
+              <input type="text" id="s1Position" placeholder="樓層-空間-位置">
+            </div>
+          </div>
+        </div>
+
+        <div class="photo-section" style="margin-top:14px;padding-top:0;border-top:none;">
+          <div class="photo-section-title">現場照片</div>
+          <div class="photo-slots" id="s1PhotoSlots">
+            <div class="img-slot" id="imgslot-s1-1">
+              <input type="file" accept="image/*" onchange="handleImg(event,'s1',1)">
+              <div class="img-slot-label">📷<br>圖 1.1</div>
+              <div class="img-actions">
+                <button class="img-btn" onclick="openCrop('s1_1')">調整</button>
+                <button class="img-btn" onclick="removeImg(event,'s1',1)">移除</button>
+              </div>
+            </div>
+            <div class="img-slot" id="imgslot-s1-2">
+              <input type="file" accept="image/*" onchange="handleImg(event,'s1',2)">
+              <div class="img-slot-label">📷<br>圖 1.2</div>
+              <div class="img-actions">
+                <button class="img-btn" onclick="openCrop('s1_2')">調整</button>
+                <button class="img-btn" onclick="removeImg(event,'s1',2)">移除</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group declare-block">
+          <label>委託方漏水狀況陳述</label>
+          <textarea id="clientDeclare" placeholder="例：2樓陽台天花板長期有潮濕、滴水現象，尤其在3樓使用水龍頭或雨天後更明顯……"></textarea>
+        </div>
+      </div>
+
+    </div>
+    <!-- ════════ /STEP 1 ════════ -->
+
+    <!-- ════════ STEP 2：儀器檢查結果 ════════ -->
+    <div class="step-panel" id="panel-2" style="display:none;">
+
+      <div class="card">
+        <div class="card-title">🔬 二、檢測結果</div>
+        <p class="hint" style="margin-bottom:16px;">每張卡片代表一筆檢測紀錄，可自由新增。系統會自動每 3 張卡片分頁列印成一張 A4。</p>
+        <div id="s2CardList"></div>
+        <button type="button" class="add-card-btn" onclick="addCard(2)">＋ 新增檢測卡片</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📋 檢測結果結論</div>
+        <div class="form-group">
+          <label>結論</label>
+          <textarea id="s2Conclusion" placeholder="例：綜合上述檢測結果，本區域確認有持續性滲水現象，主因研判為……"></textarea>
+        </div>
+      </div>
+
+    </div>
+    <!-- ════════ /STEP 2 ════════ -->
+
+    <!-- ════════ STEP 3：管線配置調查 ════════ -->
+    <div class="step-panel" id="panel-3" style="display:none;">
+
+      <div class="card">
+        <div class="card-title">🔧 三、管線配置調查</div>
+        <p class="hint" style="margin-bottom:16px;">每張卡片代表一筆管線配置紀錄，可自由新增。系統會自動每 3 張卡片分頁列印成一張 A4。</p>
+        <div id="s3CardList"></div>
+        <button type="button" class="add-card-btn" onclick="addCard(3)">＋ 新增管線配置卡片</button>
+      </div>
+
+    </div>
+    <!-- ════════ /STEP 3 ════════ -->
+
+    <!-- ════════ STEP 4：其他 ════════ -->
+    <div class="step-panel" id="panel-4" style="display:none;">
+
+      <div class="card">
+        <div class="card-title">📌 四、其他</div>
+        <p class="hint" style="margin-bottom:16px;">每張卡片代表一筆其他觀察紀錄，可自由新增。系統會自動每 3 張卡片分頁列印成一張 A4。</p>
+        <div id="s4CardList"></div>
+        <button type="button" class="add-card-btn" onclick="addCard(4)">＋ 新增觀察卡片</button>
+      </div>
+
+    </div>
+    <!-- ════════ /STEP 4 ════════ -->
+
+    <!-- ════════ STEP 5：結論 ════════ -->
+    <div class="step-panel" id="panel-5" style="display:none;">
+
+      <div class="card">
+        <div class="card-title">📊 5.1 綜合判定總表</div>
+        <p class="hint" style="margin-bottom:16px;">點擊下方按鈕，系統會依目前「二、檢測結果」「三、管線配置調查」「四、其他」已填寫的卡片資料，自動產生表格列（檢測項目＝位置、結果摘要＝紀錄內容）。表格內容可自由編輯，「判定」選擇「漏水存在」時會自動標示警示色。</p>
+        <button type="button" class="add-card-btn" onclick="generateS5Table()">🔄 產生／重新產生總表</button>
+        <div id="s5TableWrap" style="margin-top:16px;"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">⚖️ 5.2 最終判定</div>
+        <div class="form-group">
+          <label>漏水原因</label>
+          <textarea id="s5Cause" placeholder="例：3樓衛浴給水管接頭老化滲漏，水分沿樓板裂縫向下滲透至2樓天花板……" style="min-height:50px;"></textarea>
+        </div>
+        <div class="form-group">
+          <label>漏水型態</label>
+          <textarea id="s5Type" placeholder="例：持續性滲漏（非一次性瞬間漏水）" style="min-height:50px;"></textarea>
+        </div>
+        <div class="form-group">
+          <label>責任歸屬</label>
+          <textarea id="s5Responsibility" style="min-height:70px;">漏水點位於OOO。若為專有部分，由該住戶負責；若為共用部分，依《公寓大廈管理條例》第10條第2項由管委會負擔。</textarea>
+        </div>
+      </div>
+
+    </div>
+    <!-- ════════ /STEP 5 ════════ -->
+
+    <button class="generate-btn" id="generateBtn" onclick="generatePDF(false)">產生報告書 PDF</button>
+    <div class="status-msg" id="statusMsg"></div>
+
+  </div>
+
+  <div class="preview-sticky">
+    <div class="preview-card">
+      <div class="card-title">👀 PDF 報告書即時模擬</div>
+      <iframe class="preview-iframe" id="pdfPreviewer" src="about:blank"></iframe>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══════════════ 頁面尺寸常數（全步驟共用，需在最前面宣告） ══════════════ */
+const SCALE=3, PW=794, PH=1123;
+const ff='"Microsoft JhengHei","微軟正黑體","PingFang TC",Arial,sans-serif';
+const BLUE='#1871b5', LABEL_BLUE='#336590';
+// 頁邊距：上下 25mm(≈94px)、左右 20mm(≈75px)，固定數值（全部步驟共用）
+const mTop = 94, mBottom = 94, mSide = 75, pageCW = PW - mSide*2;
+
+/* ══════════════ 地區 / 建築類型 對照表 ══════════════ */
+const REGIONS = [
+  ['臺北市','TPE'],['新北市','NWT'],['基隆市','KEE'],['桃園市','TAO'],
+  ['新竹市','HSC'],['新竹縣','HSZ'],['苗栗縣','MIA'],['臺中市','TCG'],
+  ['彰化縣','CWH'],['南投縣','NTO'],['雲林縣','YUN'],['嘉義市','CYI'],
+  ['嘉義縣','CYQ'],['臺南市','TNN'],['高雄市','KHH'],['屏東縣','PIF'],
+  ['宜蘭縣','ILA'],['花蓮縣','HUA'],['臺東縣','TTT'],['澎湖縣','PEH'],
+  ['金門縣','KIN'],['連江縣（馬祖）','LEN'],
+];
+const BUILDING_TYPES = [
+  ['公寓','1'],['透天厝','2'],['電梯大廈','3'],['社區','4'],['套房','5'],
+  ['辦公室','6'],['店面','7'],['廠房','10'],['學校','20'],['醫院','30'],['公共設施','40'],
+];
+
+function populateSelect(id, list, defaultIdx) {
+  const sel = document.getElementById(id);
+  sel.innerHTML = list.map((item,i)=>`<option value="${item[1]}">${item[0]}</option>`).join('');
+  if (defaultIdx!=null) sel.selectedIndex = defaultIdx;
+}
+
+/* ══════════════ 案例編號邏輯 ══════════════ */
+const SEQ_KEY = 'leakReport_seqMap';
+
+function getSeqMap() {
+  try { return JSON.parse(localStorage.getItem(SEQ_KEY)) || {}; } catch(e) { return {}; }
+}
+function saveSeqMap(map) { localStorage.setItem(SEQ_KEY, JSON.stringify(map)); }
+
+// 依地址開頭文字判讀縣市，回傳 [中文縣市, 英文代碼] 或 null
+function detectRegionFromAddress(address) {
+  if (!address) return null;
+  const trimmed = address.trim();
+  for (const [cn, code] of REGIONS) {
+    if (trimmed.startsWith(cn)) return [cn, code];
+  }
+  return null;
+}
+
+function buildCaseNoPrefix() {
+  const address = document.getElementById('clientAddress').value;
+  const region = detectRegionFromAddress(address);
+  const buildingCode = document.getElementById('buildingType').value;
+  const dateVal = document.getElementById('inspectDate').value;
+  if (!region || !buildingCode || !dateVal) return null;
+  const ym = dateVal.replace(/-/g,'').slice(0,6);
+  return { key: `${region[1]}-${ym}-${buildingCode}`, regionCode: region[1], regionName: region[0], ym, buildingCode };
+}
+
+let currentCaseNo = '';
+let currentSeqAssigned = null;
+
+function updateCaseNo() {
+  const address = document.getElementById('clientAddress').value;
+  const region = detectRegionFromAddress(address);
+  const regionHint = document.getElementById('regionDetectHint');
+
+  if (address && !region) {
+    regionHint.textContent = '⚠️ 無法判讀縣市，請確認地址開頭包含完整縣市名稱（例：臺中市…）';
+    regionHint.style.color = '#e53935';
+  } else if (region) {
+    regionHint.textContent = `已判讀地區：${region[0]}（${region[1]}）`;
+    regionHint.style.color = '#2e7d32';
+  } else {
+    regionHint.textContent = '';
+  }
+
+  const ctx = buildCaseNoPrefix();
+  const sub = document.getElementById('caseNoSub');
+  const disp = document.getElementById('caseNoDisplay');
+  if (!ctx) {
+    disp.textContent = '—';
+    sub.textContent = !address
+      ? '請先填寫完整地址（含縣市）與檢測時間、建築類型'
+      : (!region ? '地址無法判讀縣市，請輸入完整地址才能產生編號' : '請先填寫檢測時間與建築類型');
+    currentCaseNo = ''; currentSeqAssigned = null;
+    return;
+  }
+  const map = getSeqMap();
+  let seq = map[ctx.key];
+  if (seq == null) seq = 1; // 預覽時先假設下一號，正式產生時才寫入
+  currentSeqAssigned = seq;
+  const paddedSeq = String(seq).padStart(2,'0');
+  const fullCode = ctx.buildingCode + paddedSeq;
+  currentCaseNo = `${ctx.regionCode}-${ctx.ym}-${fullCode}`;
+  disp.textContent = currentCaseNo;
+  sub.textContent = `${ctx.regionName}・此組合下一個序號為 ${paddedSeq}，產生 PDF 時才會正式登記。`;
+}
+
+function commitSeq() {
+  const ctx = buildCaseNoPrefix();
+  if (!ctx) return;
+  const map = getSeqMap();
+  const seq = (map[ctx.key]||1);
+  map[ctx.key] = seq + 1;
+  saveSeqMap(map);
+}
+
+function resetSeqForCurrent() {
+  const ctx = buildCaseNoPrefix();
+  if (!ctx) { alert('請先填寫完整地址、檢測時間與建築類型'); return; }
+  const map = getSeqMap();
+  const cur = map[ctx.key] || 1;
+  const input = prompt(`此組合（${ctx.key}）目前下一個序號為 ${cur}。\n請輸入要重設的「下一個序號」數字：`, cur);
+  if (input === null) return;
+  const n = parseInt(input,10);
+  if (isNaN(n) || n < 1) { alert('請輸入有效的正整數'); return; }
+  map[ctx.key] = n;
+  saveSeqMap(map);
+  updateCaseNo();
+  triggerLivePreview();
+}
+
+/* ══════════════ 圖片上傳 / 裁切（沿用報價單同款邏輯） ══════════════ */
+const imgStore = {};
+let cropKey = null;
+let cropDrag = false;
+let cropStartX = 0, cropStartY = 0;
+let cropOffsetX = 0, cropOffsetY = 0;
+let cropZoom = 1;
+let cropNatW = 0, cropNatH = 0;
+const CROP_BASE_W = 320; // 裁切框基準寬度
+// 依目前實際照片張數／所屬卡片模板，動態算出裁切框比例（與 PDF 最終呈現格一致）
+function getCropDims(groupId, slot) {
+  if (groupId === 's1') {
+    const count = (imgStore['s1_1']?1:0) + (imgStore['s1_2']?1:0);
+    const ratio = (count <= 1) ? 1.919 : 0.938;
+    return { w: CROP_BASE_W, h: Math.round(CROP_BASE_W / ratio) };
+  }
+  if (groupId.startsWith('s2_') || groupId.startsWith('s3_') || groupId.startsWith('s4_')) {
+    // 模板A單圖 ≈ 1.03:1（近正方形）；模板B單張（上/下半） ≈ 1.988:1（寬扁）
+    const ratio = (slot === 'A') ? 1.03 : 1.988;
+    return { w: CROP_BASE_W, h: Math.round(CROP_BASE_W / ratio) };
+  }
+  return { w: CROP_BASE_W, h: CROP_BASE_W };
+}
+
+function handleImg(e, groupId, slot) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const key = `${groupId}_${slot}`;
+    const isNewPhotoCountChange = (groupId === 's1') && ((imgStore['s1_1']?1:0) + (imgStore['s1_2']?1:0)) === 1;
+    const img = new Image();
+    img.onload = () => {
+      imgStore[key] = { originalSrc: ev.target.result, img, offsetX: 0, offsetY: 0, scale: 1, croppedCanvas: null };
+      renderCroppedPreview(key);
+      const slotEl = document.getElementById(`imgslot-${groupId}-${slot}`);
+      slotEl.classList.add('has-image');
+
+      // 照片張數改變（例如1張變2張），先前已裁切的照片比例不再適用，需重新確認
+      if (isNewPhotoCountChange) {
+        const otherSlot = slot === 1 ? 2 : 1;
+        const otherKey = `${groupId}_${otherSlot}`;
+        if (imgStore[otherKey] && imgStore[otherKey].croppedCanvas) {
+          imgStore[otherKey].croppedCanvas = null;
+          imgStore[otherKey].offsetX = 0;
+          imgStore[otherKey].offsetY = 0;
+          imgStore[otherKey].scale = 1;
+          renderCroppedPreview(otherKey);
+          alert('因照片張數改變，版面比例已更新，原本已裁切的照片需要重新確認裁切範圍（請點選「調整」重新裁切）。');
+        }
+      }
+
+      triggerLivePreview();
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeImg(e, groupId, slot) {
+  e.stopPropagation();
+  const key = `${groupId}_${slot}`;
+  const wasTwo = (groupId === 's1') && ((imgStore['s1_1']?1:0) + (imgStore['s1_2']?1:0)) === 2;
+  delete imgStore[key];
+  const slotEl = document.getElementById(`imgslot-${groupId}-${slot}`);
+  slotEl.classList.remove('has-image');
+  const img = slotEl.querySelector('img'); if (img) img.remove();
+  const fi = slotEl.querySelector('input[type="file"]');
+  if (fi) { fi.style.display=''; fi.value=''; }
+
+  // 照片從2張變1張，剩下那張的版面比例改變，需重新確認裁切
+  if (wasTwo) {
+    const otherSlot = slot === 1 ? 2 : 1;
+    const otherKey = `${groupId}_${otherSlot}`;
+    if (imgStore[otherKey] && imgStore[otherKey].croppedCanvas) {
+      imgStore[otherKey].croppedCanvas = null;
+      imgStore[otherKey].offsetX = 0;
+      imgStore[otherKey].offsetY = 0;
+      imgStore[otherKey].scale = 1;
+      renderCroppedPreview(otherKey);
+      alert('因照片張數改變，版面比例已更新，剩餘照片需要重新確認裁切範圍（請點選「調整」重新裁切）。');
+    }
+  }
+
+  triggerLivePreview();
+}
+
+let curCropW = CROP_BASE_W, curCropH = 240;
+
+function openCrop(key) {
+  const entry = imgStore[key]; if (!entry) return;
+  cropKey = key;
+  const sepIdx = key.lastIndexOf('_');
+  const groupId = key.substring(0, sepIdx);
+  const slotPart = key.substring(sepIdx+1);
+  const dims = getCropDims(groupId, slotPart);
+  curCropW = dims.w; curCropH = dims.h;
+
+  const container = document.getElementById('cropContainer');
+  container.style.width = curCropW + 'px';
+  container.style.height = curCropH + 'px';
+
+  const img = document.getElementById('cropImg');
+  img.src = entry.originalSrc;
+  img.onload = () => {
+    cropNatW = img.naturalWidth; cropNatH = img.naturalHeight;
+    const minZoom = Math.max(curCropW/cropNatW, curCropH/cropNatH); // 剛好填滿裁切框的縮放值
+    cropZoom = entry.scale || minZoom;
+
+    // 滑桿範圍依這張照片動態計算：最小＝剛好填滿裁切框，最大＝最小值的4倍（足夠局部放大細看）
+    const slider = document.getElementById('zoomSlider');
+    slider.min = minZoom.toFixed(4);
+    slider.max = (minZoom * 4).toFixed(4);
+    slider.step = ((minZoom * 4 - minZoom) / 200).toFixed(6);
+
+    cropOffsetX = entry.offsetX || 0;
+    cropOffsetY = entry.offsetY || 0;
+    slider.value = cropZoom;
+    applyCropTransform();
+  };
+  document.getElementById('cropModal').classList.add('open');
+
+  container.onmousedown = e => {
+    cropDrag = true; cropStartX = e.clientX - cropOffsetX; cropStartY = e.clientY - cropOffsetY;
+    e.preventDefault();
+  };
+  container.onmousemove = e => {
+    if (!cropDrag) return;
+    cropOffsetX = e.clientX - cropStartX;
+    cropOffsetY = e.clientY - cropStartY;
+    clampOffset();
+    applyCropTransform();
+  };
+  container.onmouseup = () => { cropDrag = false; };
+  container.onmouseleave = () => { cropDrag = false; };
+
+  container.ontouchstart = e => {
+    const t = e.touches[0];
+    cropDrag = true; cropStartX = t.clientX - cropOffsetX; cropStartY = t.clientY - cropOffsetY;
+    e.preventDefault();
+  };
+  container.ontouchmove = e => {
+    if (!cropDrag) return;
+    const t = e.touches[0];
+    cropOffsetX = t.clientX - cropStartX; cropOffsetY = t.clientY - cropStartY;
+    clampOffset(); applyCropTransform(); e.preventDefault();
+  };
+  container.ontouchend = () => { cropDrag = false; };
+}
+
+function onZoom() {
+  cropZoom = parseFloat(document.getElementById('zoomSlider').value);
+  clampOffset(); applyCropTransform();
+}
+
+function clampOffset() {
+  const scaledW = cropNatW * cropZoom;
+  const scaledH = cropNatH * cropZoom;
+  cropOffsetX = Math.min(0, Math.max(cropOffsetX, curCropW - scaledW));
+  cropOffsetY = Math.min(0, Math.max(cropOffsetY, curCropH - scaledH));
+}
+
+function applyCropTransform() {
+  const img = document.getElementById('cropImg');
+  img.style.width = (cropNatW * cropZoom) + 'px';
+  img.style.height = (cropNatH * cropZoom) + 'px';
+  img.style.left = cropOffsetX + 'px';
+  img.style.top = cropOffsetY + 'px';
+}
+
+function closeCrop() {
+  document.getElementById('cropModal').classList.remove('open');
+  cropKey = null;
+}
+
+function confirmCrop() {
+  if (!cropKey) return;
+  const entry = imgStore[cropKey];
+  entry.offsetX = cropOffsetX;
+  entry.offsetY = cropOffsetY;
+  entry.scale = cropZoom;
+  entry.cropW = curCropW;
+  entry.cropH = curCropH;
+  const c = document.createElement('canvas');
+  c.width = curCropW; c.height = curCropH;
+  const cx = c.getContext('2d');
+  cx.drawImage(entry.img, cropOffsetX, cropOffsetY, cropNatW * cropZoom, cropNatH * cropZoom);
+  entry.croppedCanvas = c;
+  renderCroppedPreview(cropKey);
+  closeCrop();
+  triggerLivePreview();
+}
+
+function renderCroppedPreview(key) {
+  const sepIdx = key.lastIndexOf('_');
+  const groupId = key.substring(0, sepIdx);
+  const slot = key.substring(sepIdx+1);
+  const slotEl = document.getElementById(`imgslot-${groupId}-${slot}`);
+  if (!slotEl) return;
+  const entry = imgStore[key];
+  const old = slotEl.querySelector('img'); if (old) old.remove();
+  const preview = document.createElement('img');
+  preview.src = entry.croppedCanvas ? entry.croppedCanvas.toDataURL() : entry.originalSrc;
+  preview.style.pointerEvents = 'none';
+  slotEl.insertBefore(preview, slotEl.firstChild);
+  slotEl.classList.add('has-image');
+}
+
+function drawEntryToCtx(ctx, entry, dx, dy, dw, dh) {
+  if (!entry) return false;
+  if (entry.croppedCanvas) {
+    const cw_ = entry.cropW || entry.croppedCanvas.width;
+    const ch_ = entry.cropH || entry.croppedCanvas.height;
+    ctx.drawImage(entry.croppedCanvas, 0, 0, cw_, ch_, dx, dy, dw, dh);
+    return true;
+  }
+  if (entry.img && entry.img.complete && entry.img.naturalWidth > 0) {
+    const sw=entry.img.naturalWidth, sh=entry.img.naturalHeight;
+    const scale=Math.max(dw/sw, dh/sh);
+    const fw=sw*scale, fh=sh*scale;
+    const ox=(dw-fw)/2, oy=(dh-fh)/2;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(dx,dy,dw,dh); ctx.clip();
+    ctx.drawImage(entry.img, dx+ox, dy+oy, fw, fh);
+    ctx.restore();
+    return true;
+  }
+  return false;
+}
+
+/* ══════════════ 通用卡片引擎（Step2/3/4 共用） ══════════════ */
+// 每個步驟的差異設定：標題、檢測紀錄欄位名稱、是否顯示影像判讀／結論
+const STEP_CONFIG = {
+  2: { title: '二、檢測結果', recordLabel: '檢測紀錄', hasAnalysis: true, hasConclusion: true, listId: 's2CardList', conclusionId: 's2Conclusion' },
+  3: { title: '三、管線配置調查', recordLabel: '走向與配置', hasAnalysis: false, hasConclusion: false, listId: 's3CardList', conclusionId: null },
+  4: { title: '四、其他', recordLabel: '觀察紀錄', hasAnalysis: false, hasConclusion: false, listId: 's4CardList', conclusionId: null },
+};
+
+const cardStore = { 2: [], 3: [], 4: [] }; // { id, template, position, recordA, recordB, analysis, photoTimeA, photoTimeB }
+const cardSeqStore = { 2: 0, 3: 0, 4: 0 };
+
+const FIELD_LIMITS = { position: 15, record: 30, analysis: 120 };
+
+function addCard(step) {
+  cardSeqStore[step]++;
+  const inspectDate = document.getElementById('inspectDate').value;
+  const inspectTime = document.getElementById('inspectTime').value;
+  const defaultDT = (inspectDate ? inspectDate : new Date().toISOString().split('T')[0]) + 'T' + (inspectTime || '09:00');
+  cardStore[step].push({
+    id: cardSeqStore[step],
+    template: 'A',
+    position: '',
+    recordA: '',
+    recordB: '',
+    analysis: '',
+    photoTimeA: defaultDT,
+    photoTimeB: defaultDT,
+  });
+  renderCards(step);
+  triggerLivePreview();
+}
+
+function removeCard(step, id) {
+  const prefix = `s${step}_${id}`;
+  delete imgStore[`${prefix}_A`]; delete imgStore[`${prefix}_B1`]; delete imgStore[`${prefix}_B2`];
+  cardStore[step] = cardStore[step].filter(c => c.id !== id);
+  renderCards(step);
+  triggerLivePreview();
+}
+
+function setCardTemplate(step, id, tpl) {
+  const card = cardStore[step].find(c => c.id === id);
+  if (!card) return;
+  if (card.template === tpl) return;
+  card.template = tpl;
+  const prefix = `s${step}_${id}`;
+  const hadPhoto = imgStore[`${prefix}_A`] || imgStore[`${prefix}_B1`] || imgStore[`${prefix}_B2`];
+  delete imgStore[`${prefix}_A`];
+  delete imgStore[`${prefix}_B1`];
+  delete imgStore[`${prefix}_B2`];
+  if (hadPhoto) alert('切換模板後，原本的照片需要重新上傳與裁切（因版面比例不同）。');
+  renderCards(step);
+  triggerLivePreview();
+}
+
+function cardFieldChange(step, id, field, value) {
+  const card = cardStore[step].find(c => c.id === id);
+  if (!card) return;
+  card[field] = value;
+  triggerLivePreview();
+}
+
+function updateCounter(inputEl, limit) {
+  const wrap = inputEl.closest('.form-group, .s2-dual-record > div');
+  if (!wrap) return;
+  const counter = wrap.querySelector('.field-counter');
+  if (!counter) return;
+  const len = inputEl.value.length;
+  counter.textContent = `${len}/${limit} 字`;
+  counter.classList.toggle('over', len > limit);
+  checkCardOverflowLive();
+}
+
+// 即時偵測：用一個隱藏量測 canvas 模擬卡片版面，檢查文字是否會超出 70mm 卡片高度（巡覽 Step2/3/4 全部卡片）
+function checkCardOverflowLive() {
+  const btn = document.getElementById('generateBtn');
+  const msg = document.getElementById('statusMsg');
+  const measureCanvas = document.createElement('canvas');
+  const mctx = measureCanvas.getContext('2d');
+
+  const cw = pageCW;
+  const cardH = Math.round(70 * (PW/210));
+  const pad = 12;
+  const photoColW = (cw - pad*2) * 0.4;
+  const textColW = cw - pad*2 - photoColW - 14;
+  const lh = 18;
+
+  let overflowMsg = '';
+  for (const step of [2,3,4]) {
+    if (overflowMsg) break;
+    const cfg = STEP_CONFIG[step];
+    const cards = cardStore[step];
+    for (let i=0; i<cards.length && !overflowMsg; i++) {
+      const card = cards[i];
+      const labelBase = `${step}.${i+1}`;
+      const posBoxH = 30; // 固定高度，單圖／雙圖模式一致
+      let ty = posBoxH + 18; // 位置為固定底色區塊高度，不隨文字內容變化
+      mctx.font = `12px ${ff}`;
+
+      if (card.template === 'A') {
+        const recLines = wrapText(mctx, card.recordA || '—', textColW, `12px ${ff}`);
+        ty += lh*(recLines.length+1) + 4;
+        if (cfg.hasAnalysis) {
+          const anaLines = wrapText(mctx, card.analysis || '—', textColW, `12px ${ff}`);
+          const maxAnaLines = Math.max(0, Math.floor((cardH - pad*2 - ty) / lh));
+          if (anaLines.length > maxAnaLines) {
+            overflowMsg = `⚠️ 圖${labelBase}「${cfg.hasAnalysis ? '影像判讀' : cfg.recordLabel}」內容過長，已超出卡片版面範圍，請縮減文字。`;
+          }
+        } else {
+          const availH = cardH - pad*2 - ty;
+          if (availH < 0) {
+            overflowMsg = `⚠️ 圖${labelBase}「${cfg.recordLabel}」內容過長，已超出卡片版面範圍，請縮減文字。`;
+          }
+        }
+      } else {
+        const recALines = wrapText(mctx, card.recordA || '—', textColW, `12px ${ff}`);
+        const recBLines = wrapText(mctx, card.recordB || '—', textColW, `12px ${ff}`);
+        const usedH = lh*(recALines.length+1) + 4 + lh*(recBLines.length+1);
+        const availH = cardH - pad*2 - ty;
+        if (usedH > availH) {
+          overflowMsg = `⚠️ 圖${labelBase}「${cfg.recordLabel}」內容過長，已超出卡片版面範圍，請縮減文字。`;
+        }
+      }
+    }
+  }
+
+  if (overflowMsg) {
+    btn.disabled = true;
+    msg.className = 'status-msg error';
+    msg.textContent = overflowMsg;
+    return true;
+  } else {
+    btn.disabled = false;
+    if (msg.textContent.includes('已超出卡片版面範圍')) {
+      msg.className = 'status-msg'; msg.textContent = '';
+    }
+    return false;
+  }
+}
+
+function renderCards(step) {
+  const cfg = STEP_CONFIG[step];
+  const list = document.getElementById(cfg.listId);
+  if (!list) return;
+  const cards = cardStore[step];
+  list.innerHTML = cards.map((card, idx) => {
+    const cardNo = idx + 1;
+    const labelBase = `${step}.${cardNo}`;
+    const isA = card.template === 'A';
+    const gid = `s${step}_${card.id}`; // groupId prefix for imgStore keys
+    const photoColHtml = isA ? `
+      <div class="s2-photo-col s2-photo-single">
+        <div class="img-slot" id="imgslot-${gid}-A">
+          <input type="file" accept="image/*" onchange="handleImg(event,'${gid}','A')">
+          <div class="img-slot-label">📷<br>圖${labelBase}</div>
+          <div class="img-actions">
+            <button class="img-btn" onclick="openCrop('${gid}_A')">調整</button>
+            <button class="img-btn" onclick="removeImg(event,'${gid}','A')">移除</button>
+          </div>
+        </div>
+        <div class="s2-photo-time-row">
+          <label>拍攝時間</label>
+          <input type="datetime-local" value="${card.photoTimeA}" onchange="cardFieldChange(${step},${card.id},'photoTimeA',this.value); triggerLivePreview();">
+        </div>
+      </div>` : `
+      <div class="s2-photo-col s2-photo-dual">
+        <div>
+          <div class="img-slot" id="imgslot-${gid}-B1">
+            <input type="file" accept="image/*" onchange="handleImg(event,'${gid}','B1')">
+            <div class="img-slot-label">📷<br>圖${labelBase}-1</div>
+            <div class="img-actions">
+              <button class="img-btn" onclick="openCrop('${gid}_B1')">調整</button>
+              <button class="img-btn" onclick="removeImg(event,'${gid}','B1')">移除</button>
+            </div>
+          </div>
+          <div class="s2-photo-time-row">
+            <label>時間</label>
+            <input type="datetime-local" value="${card.photoTimeA}" onchange="cardFieldChange(${step},${card.id},'photoTimeA',this.value); triggerLivePreview();">
+          </div>
+        </div>
+        <div>
+          <div class="img-slot" id="imgslot-${gid}-B2">
+            <input type="file" accept="image/*" onchange="handleImg(event,'${gid}','B2')">
+            <div class="img-slot-label">📷<br>圖${labelBase}-2</div>
+            <div class="img-actions">
+              <button class="img-btn" onclick="openCrop('${gid}_B2')">調整</button>
+              <button class="img-btn" onclick="removeImg(event,'${gid}','B2')">移除</button>
+            </div>
+          </div>
+          <div class="s2-photo-time-row">
+            <label>時間</label>
+            <input type="datetime-local" value="${card.photoTimeB}" onchange="cardFieldChange(${step},${card.id},'photoTimeB',this.value); triggerLivePreview();">
+          </div>
+        </div>
+      </div>`;
+
+    const textColHtml = `
+      <div class="s2-text-col">
+        <div class="form-group">
+          <label>位置</label>
+          <input type="text" maxlength="${FIELD_LIMITS.position}" value="${escapeHtml(card.position)}"
+            oninput="cardFieldChange(${step},${card.id},'position',this.value); updateCounter(this,${FIELD_LIMITS.position}); triggerLivePreview();"
+            placeholder="樓層-空間-位置">
+          <div class="field-counter">${card.position.length}/${FIELD_LIMITS.position} 字</div>
+        </div>
+        ${isA ? `
+        <div class="form-group">
+          <label>${cfg.recordLabel}</label>
+          <input type="text" maxlength="${FIELD_LIMITS.record}" value="${escapeHtml(card.recordA)}"
+            oninput="cardFieldChange(${step},${card.id},'recordA',this.value); updateCounter(this,${FIELD_LIMITS.record}); triggerLivePreview();"
+            placeholder="例：濕度計讀數 82%RH">
+          <div class="field-counter">${card.recordA.length}/${FIELD_LIMITS.record} 字</div>
+        </div>
+        ${cfg.hasAnalysis ? `
+        <div class="form-group">
+          <label>影像判讀</label>
+          <textarea maxlength="${FIELD_LIMITS.analysis}"
+            oninput="cardFieldChange(${step},${card.id},'analysis',this.value); updateCounter(this,${FIELD_LIMITS.analysis}); triggerLivePreview();"
+            placeholder="例：熱顯像顯示該處溫度明顯低於周圍區域，研判有持續性水分滲入……">${escapeHtml(card.analysis)}</textarea>
+          <div class="field-counter">${card.analysis.length}/${FIELD_LIMITS.analysis} 字</div>
+        </div>` : ``}` : `
+        <div class="s2-dual-record">
+          <div>
+            <label>${cfg.recordLabel}（圖${labelBase}-1）</label>
+            <input type="text" maxlength="${FIELD_LIMITS.record}" value="${escapeHtml(card.recordA)}"
+              oninput="cardFieldChange(${step},${card.id},'recordA',this.value); updateCounter(this,${FIELD_LIMITS.record}); triggerLivePreview();"
+              placeholder="例：處理前">
+            <div class="field-counter">${card.recordA.length}/${FIELD_LIMITS.record} 字</div>
+          </div>
+          <div>
+            <label>${cfg.recordLabel}（圖${labelBase}-2）</label>
+            <input type="text" maxlength="${FIELD_LIMITS.record}" value="${escapeHtml(card.recordB)}"
+              oninput="cardFieldChange(${step},${card.id},'recordB',this.value); updateCounter(this,${FIELD_LIMITS.record}); triggerLivePreview();"
+              placeholder="例：處理後">
+            <div class="field-counter">${card.recordB.length}/${FIELD_LIMITS.record} 字</div>
+          </div>
+        </div>`}
+      </div>`;
+
+    return `
+      <div class="s2-card" id="s2card-${gid}">
+        <div class="s2-card-head">
+          <span class="s2-card-no">圖${labelBase}</span>
+          <div class="s2-card-actions">
+            <div class="s2-tpl-toggle">
+              <button type="button" class="s2-tpl-btn ${isA?'active':''}" onclick="setCardTemplate(${step},${card.id},'A')">模板A・單圖</button>
+              <button type="button" class="s2-tpl-btn ${!isA?'active':''}" onclick="setCardTemplate(${step},${card.id},'B')">模板B・雙圖對比</button>
+            </div>
+            <button type="button" class="s2-del-btn" onclick="removeCard(${step},${card.id})">刪除</button>
+          </div>
+        </div>
+        <div class="s2-card-body">
+          ${photoColHtml}
+          ${textColHtml}
+        </div>
+      </div>`;
+  }).join('');
+
+  // 重新套用既有照片預覽（renderCards 重繪 DOM 後，img-slot 內的圖需要重新插入）
+  cards.forEach(card => {
+    const gid = `s${step}_${card.id}`;
+    if (card.template === 'A') {
+      if (imgStore[`${gid}_A`]) renderCroppedPreview(`${gid}_A`);
+    } else {
+      if (imgStore[`${gid}_B1`]) renderCroppedPreview(`${gid}_B1`);
+      if (imgStore[`${gid}_B2`]) renderCroppedPreview(`${gid}_B2`);
+    }
+  });
+}
+
+function escapeHtml(str) {
+  return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ══════════════ Step5：5.1 綜合判定總表 ══════════════ */
+let s5TableRows = []; // { sourceLabel, item, summary, verdict }
+
+function buildCardSummary(card) {
+  if (card.template === 'A') {
+    return card.recordA || '';
+  } else {
+    const a = card.recordA || '', b = card.recordB || '';
+    if (!a && !b) return '';
+    return `①${a || '—'}　②${b || '—'}`;
+  }
+}
+
+function generateS5Table() {
+  const rows = [];
+  for (const step of [2,3,4]) {
+    const cfg = STEP_CONFIG[step];
+    cardStore[step].forEach((card, idx) => {
+      const labelBase = `${step}.${idx+1}`;
+      rows.push({
+        sourceLabel: `圖${labelBase}`,
+        item: card.position || '',
+        summary: buildCardSummary(card),
+        verdict: '', // 預設留空，由師傅判斷選擇
+      });
+    });
+  }
+  s5TableRows = rows;
+  renderS5Table();
+  triggerLivePreview();
+}
+
+function s5FieldChange(idx, field, value) {
+  if (!s5TableRows[idx]) return;
+  s5TableRows[idx][field] = value;
+  if (field === 'verdict') renderS5Table(); // 判定改變需要重新套用警示色
+  triggerLivePreview();
+}
+
+function s5RemoveRow(idx) {
+  s5TableRows.splice(idx, 1);
+  renderS5Table();
+  triggerLivePreview();
+}
+
+function renderS5Table() {
+  const wrap = document.getElementById('s5TableWrap');
+  if (!wrap) return;
+  if (s5TableRows.length === 0) {
+    wrap.innerHTML = `<div class="s5-empty-hint">尚未產生總表。請先在「二、檢測結果」「三、管線配置調查」「四、其他」新增卡片後，點擊上方按鈕產生總表。</div>`;
+    return;
+  }
+  const rowsHtml = s5TableRows.map((row, idx) => {
+    const isExists = row.verdict === '漏水存在';
+    return `
+      <tr class="${isExists ? 's5-row-exists' : ''}">
+        <td class="s5-row-source">${row.sourceLabel}</td>
+        <td><input type="text" value="${escapeHtml(row.item)}" oninput="s5FieldChange(${idx},'item',this.value)" placeholder="檢測項目"></td>
+        <td><textarea oninput="s5FieldChange(${idx},'summary',this.value)" placeholder="結果摘要">${escapeHtml(row.summary)}</textarea></td>
+        <td>
+          <select onchange="s5FieldChange(${idx},'verdict',this.value)">
+            <option value="" ${row.verdict===''?'selected':''}>（請選擇）</option>
+            <option value="漏水存在" ${row.verdict==='漏水存在'?'selected':''}>漏水存在</option>
+            <option value="已排除" ${row.verdict==='已排除'?'selected':''}>已排除</option>
+            <option value="待確認" ${row.verdict==='待確認'?'selected':''}>待確認</option>
+          </select>
+        </td>
+        <td><button type="button" class="s2-del-btn" onclick="s5RemoveRow(${idx})">刪除</button></td>
+      </tr>`;
+  }).join('');
+
+  wrap.innerHTML = `
+    <table class="s5-table">
+      <thead>
+        <tr>
+          <th style="width:60px;">來源</th>
+          <th style="width:18%;">檢測項目</th>
+          <th>結果摘要</th>
+          <th style="width:140px;">判定</th>
+          <th style="width:60px;"></th>
+        </tr>
+      </thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>`;
+}
+
+/* ══════════════ 步驟切換 ══════════════ */
+let currentStep = 1;
+function switchStep(n) {
+  currentStep = n;
+  document.querySelectorAll('.step-panel').forEach(p => p.style.display = 'none');
+  const panel = document.getElementById(`panel-${n}`);
+  if (panel) panel.style.display = '';
+  document.querySelectorAll('.step-tab').forEach(t => {
+    t.classList.toggle('active', parseInt(t.dataset.step) === n);
+  });
+  triggerLivePreview();
+}
+
+/* ══════════════ 即時預覽（防抖） ══════════════ */
+let previewTimeout = null;
+let lastPreviewObjectURL = null;
+function triggerLivePreview() {
+  clearTimeout(previewTimeout);
+  previewTimeout = setTimeout(() => { generatePDF(true); }, 500);
+}
+
+/* ══════════════ 初始化 ══════════════ */
+window.onload = () => {
+  populateSelect('buildingType', BUILDING_TYPES, 0); // 預設公寓
+
+  const fmt = d => d.toISOString().split('T')[0];
+  const today = new Date();
+  document.getElementById('issueDate').value = fmt(today);
+  document.getElementById('inspectDate').value = fmt(today);
+
+  updateCaseNo();
+
+  document.querySelectorAll('.container input, .container select, .container textarea').forEach(el => {
+    el.addEventListener('input', triggerLivePreview);
+    el.addEventListener('change', triggerLivePreview);
+  });
+
+  triggerLivePreview();
+};
+
+/* ══════════════ PDF 產生（Canvas 繪製 → jsPDF → pdf-lib 合併） ══════════════ */
+function newPageCanvas() {
+  const canvas=document.createElement('canvas');
+  canvas.width=PW*SCALE; canvas.height=PH*SCALE;
+  const ctx=canvas.getContext('2d');
+  ctx.scale(SCALE,SCALE);
+  return { canvas, ctx };
+}
+
+async function drawWatermark(ctx) {
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,PW,PH);
+  try {
+    const wm=new Image(); wm.crossOrigin='anonymous';
+    await new Promise((res,rej)=>{ wm.onload=res; wm.onerror=rej; wm.src='浮水印.png'; });
+    ctx.drawImage(wm, 0, 0, PW, PH);
+  } catch(e) { }
+}
+
+async function drawStep1Canvas() {
+  const { canvas, ctx } = newPageCanvas();
+  const m = mSide, cw = pageCW;
+  await drawWatermark(ctx);
+
+  const lineH = 22;
+  const logoH = 40, logoW = Math.round(logoH * 400/120);
+  const blockGap = lineH * 0.9;
+  const headerLineY = mTop + logoH + blockGap;
+
+  // 左上 Logo
+  try {
+    const logo=new Image(); logo.crossOrigin='anonymous';
+    await new Promise((res,rej)=>{ logo.onload=res; logo.onerror=rej; logo.src='詠順工程行_logo.png'; });
+    ctx.drawImage(logo, m, headerLineY-logoH, logoW, logoH);
+  } catch(e) {
+    ctx.font=`bold 16px ${ff}`; ctx.fillStyle=BLUE; ctx.textAlign='left';
+    ctx.fillText('詠順工程行', m, headerLineY-8);
+  }
+
+    // 右上 編號 + 出具日期
+    const caseNoText = currentCaseNo || '—';
+    const issueDate = document.getElementById('issueDate').value || '—';
+    ctx.textAlign='right';
+    ctx.font=`bold 13px ${ff}`; ctx.fillStyle='#1a1a1a';
+    ctx.fillText(`編　　號：${caseNoText}`, PW-m, headerLineY-22);
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#555';
+    ctx.fillText(`出具日期：${issueDate}`, PW-m, headerLineY-4);
+    ctx.textAlign='left';
+
+    ctx.strokeStyle='#ddd'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(m,headerLineY); ctx.lineTo(PW-m,headerLineY); ctx.stroke();
+
+    let y = headerLineY + lineH*1.1;
+
+    // ── 檢測方資訊 ／ 委託方資訊（左右並排） ──
+    const colGap = 24;
+    const colW = (cw - colGap) / 2;
+    const leftX = m, rightX2 = m + colW + colGap;
+    const bodyFont = `12px ${ff}`;
+    const labelFont = `bold 12px ${ff}`;
+    const rowH = 19;
+
+    const inspectDate = document.getElementById('inspectDate').value || '—';
+    const inspectTimeRaw = document.getElementById('inspectTime').value || '';
+    const inspectTime = formatTimeCN(inspectTimeRaw);
+    const inspectUnit = document.getElementById('inspectUnit').value || '—';
+    const inspectStaff = document.getElementById('inspectStaff').value || '—';
+    const clientName = document.getElementById('clientName').value || '—';
+    const clientContact = document.getElementById('clientContact').value || '—';
+    const clientPhone = document.getElementById('clientPhone').value || '—';
+    const clientAddress = document.getElementById('clientAddress').value || '—';
+    const buildingTypeText = BUILDING_TYPES.find(b=>b[1]===document.getElementById('buildingType').value)?.[0] || '—';
+    const inspectScope = document.getElementById('inspectScope').value || '—';
+
+    ctx.textAlign='left';
+    ctx.font=labelFont; ctx.fillStyle='#1a1a1a';
+    ctx.fillText('檢測方資訊', leftX, y);
+    ctx.fillText('委託方資訊', rightX2, y);
+    ctx.font=bodyFont; ctx.fillStyle='#333';
+    [
+      `檢測時間：${inspectDate}${inspectTime ? ' '+inspectTime : ''}`,
+      `檢測單位：${inspectUnit}`,
+      `檢測人員：${inspectStaff}`,
+    ].forEach((row,i) => ctx.fillText(row, leftX, y + rowH*(i+1)));
+    [
+      `委託方：${clientName}`,
+      `負責人：${clientContact}`,
+      `聯絡電話：${clientPhone}`,
+    ].forEach((row,i) => ctx.fillText(row, rightX2, y + rowH*(i+1)));
+
+    y += rowH*4 + blockGap*0.5;
+
+    // ── 橫向底色區塊：左白色子區塊（建築類型），右地址＋檢測範圍（置中） ──
+    const boxPad = 14;
+    const boxH = rowH*2.4 + boxPad*1.2;
+    const typeBoxW = 130;
+
+    ctx.fillStyle = 'rgba(93,137,189,0.10)';
+    ctx.fillRect(m, y, cw, boxH);
+
+    const typePad = 10;
+    const typeInnerW = typeBoxW - typePad*1.5;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(m+typePad, y+typePad, typeInnerW, boxH-typePad*2);
+    ctx.strokeStyle = '#d0d9e8'; ctx.lineWidth=0.75;
+    ctx.strokeRect(m+typePad, y+typePad, typeInnerW, boxH-typePad*2);
+    ctx.textAlign='center';
+    ctx.font=`11px ${ff}`; ctx.fillStyle='#888';
+    ctx.fillText('建築類型', m+typePad+typeInnerW/2, y+boxH/2-6);
+    ctx.font=`bold 15px ${ff}`; ctx.fillStyle=BLUE;
+    ctx.fillText(buildingTypeText, m+typePad+typeInnerW/2, y+boxH/2+16);
+
+    // 右：地址、檢測範圍（左對齊文字，於剩餘區域內「上下置中」）
+    const infoX1 = m + typeBoxW + boxPad;
+    const infoBlockH = rowH*2;
+    let by = y + boxH/2 - infoBlockH/2 + rowH*0.75;
+    ctx.textAlign='left';
+    ctx.font=bodyFont; ctx.fillStyle='#333';
+    ctx.fillText(`地址：${clientAddress}`, infoX1, by);
+    by += rowH;
+    ctx.fillText(`檢測範圍：${inspectScope}`, infoX1, by);
+
+    y += boxH + blockGap*0.9;
+
+    // ── 一、現場漏水狀況紀錄（16px標題、固定延伸到頁尾的黑框、標題列右側拍攝位置標籤） ──
+    const s1Position = document.getElementById('s1Position').value || '';
+    const has1 = !!imgStore['s1_1'];
+    const has2 = !!imgStore['s1_2'];
+    const photoCount = (has1?1:0) + (has2?1:0);
+
+    const sectionTitleH = 30;
+    const photoPad = 14;
+    const PHOTO_BLOCK_H = 321; // 固定 85mm 照片區塊高度
+
+    // 外框固定從目前 y 延伸到「距頁尾 3.5cm（約132px）」處
+    const boxTop = y;
+    const boxBottom = PH - mBottom - 38; // 距頁尾約 3.5cm，再扣頁碼提示文字空間
+    const boxInnerH = boxBottom - boxTop;
+
+    // 外框（黑色，固定高度，不隨內容縮放）
+    ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 1.3;
+    ctx.strokeRect(m, boxTop, cw, boxInnerH);
+
+    // 標題列
+    const titleY = boxTop + 24;
+    ctx.font=`bold 16px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
+    ctx.fillText('一、現場漏水狀況紀錄', m+photoPad, titleY);
+
+    // 標題列右側：拍攝位置（固定底色區塊，不論有無內容都顯示，與「二、檢測結果」同樣風格）
+    const posBoxW = 220, posBoxH = 24;
+    const posBoxX = m+cw-photoPad-posBoxW, posBoxY = titleY-17;
+    ctx.fillStyle = 'rgba(93,137,189,0.10)';
+    ctx.fillRect(posBoxX, posBoxY, posBoxW, posBoxH);
+    ctx.strokeStyle = '#5d89bd'; ctx.lineWidth=0.6;
+    ctx.strokeRect(posBoxX, posBoxY, posBoxW, posBoxH);
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#336590'; ctx.textAlign='center';
+    ctx.fillText(`位置：${s1Position || '樓層-空間-位置'}`, posBoxX+posBoxW/2, posBoxY+posBoxH/2+4);
+    ctx.textAlign='left';
+
+    ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 0.75;
+    ctx.beginPath(); ctx.moveTo(m+photoPad, boxTop+34); ctx.lineTo(m+cw-photoPad, boxTop+34); ctx.stroke();
+
+    let iy = boxTop + sectionTitleH + 14;
+
+    // 照片：固定 85mm 高度區塊；1張滿版／2張左右並排（裁切框已動態對齊比例，故填滿繪製）
+    if (photoCount === 2) {
+      const pgap=14, imgW=(cw-photoPad*2-pgap)/2;
+      drawPhotoCardFixed(ctx, imgStore['s1_1'], m+photoPad, iy, imgW, PHOTO_BLOCK_H, '圖1.1', LABEL_BLUE, ff);
+      drawPhotoCardFixed(ctx, imgStore['s1_2'], m+photoPad+imgW+pgap, iy, imgW, PHOTO_BLOCK_H, '圖1.2', LABEL_BLUE, ff);
+      iy += PHOTO_BLOCK_H;
+    } else if (photoCount === 1) {
+      const entry = has1 ? imgStore['s1_1'] : imgStore['s1_2'];
+      const imgW=cw-photoPad*2;
+      drawPhotoCardFixed(ctx, entry, m+photoPad, iy, imgW, PHOTO_BLOCK_H, '圖1.1', LABEL_BLUE, ff);
+      iy += PHOTO_BLOCK_H;
+    }
+
+    // 委託方陳述（與上方照片拉開較大間距；標籤獨立一行，內容換行開始；左對齊、行高適中）
+    iy += photoCount > 0 ? 36 : 14;
+    const declareLabel = '【委託方漏水狀況陳述】';
+    const declareText = document.getElementById('clientDeclare').value || '（尚未填寫）';
+    const declareLineH = 21;
+    ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
+    ctx.fillText(declareLabel, m+photoPad, iy);
+    const declareContentStartY = iy + declareLineH;
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
+    const wrapLines = wrapText(ctx, declareText, cw - photoPad*2 - 4, `12px ${ff}`);
+    wrapLines.forEach((line,i)=>{ ctx.fillText(line, m+photoPad, declareContentStartY + i*declareLineH); });
+    const declareBottom = declareContentStartY + wrapLines.length*declareLineH;
+
+    // 若委託方陳述內容超出固定外框範圍，提醒師傅自行縮減（不自動壓縮文字）
+    if (declareBottom > boxBottom - 10) {
+      throw new ValidationError('「委託方漏水狀況陳述」內容過長，已超出版面範圍，請縮減文字後再產生報告書。');
+    }
+
+    y = boxBottom + blockGap*0.6;
+
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#999'; ctx.textAlign='right';
+    ctx.fillText('▶ 詳細檢測報告請翻至下一頁', PW-m, boxBottom + 20);
+    ctx.textAlign='left';
+
+    return { canvas, ctx };
+}
+
+class ValidationError extends Error {}
+
+
+/* ══════════════ Step2 PDF 繪製：25mm標題區、3卡/頁自動分頁、雙模板 ══════════════ */
+async function drawCardStepPages(step) {
+  const cfg = STEP_CONFIG[step];
+  const cards = cardStore[step];
+  const pages = [];
+  if (cards.length === 0) return pages;
+
+  const m = mSide, cw = pageCW;
+  const cardH = Math.round(70 * (PW/210));
+  const cardGap = Math.round(3.5 * (PW/210));
+  const cardsPerPage = 3;
+
+  // 標題＋3張卡片整體在頁面可用範圍內垂直置中，算出固定位置；
+  // 不論實際卡片數量是1/2/3張，標題都固定在這個位置（不隨內容多寡飄移）
+  const threeCardsH = cardH*3 + cardGap*2;
+  const titleBlockH = 34; // 標題文字到分隔線+間距的視覺高度
+  const totalContentH = titleBlockH + threeCardsH;
+  const availTop = mTop, availBottom = PH - mBottom - 30;
+  const contentTop = availTop + (availBottom - availTop - totalContentH) / 2;
+  const FIXED_TITLE_LINE_Y = contentTop + 24;
+
+  function drawTitleBar(ctx, titleText) {
+    const titleLineY = FIXED_TITLE_LINE_Y;
+    const titleY = titleLineY - 10;
+    ctx.font=`bold 16px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
+    ctx.fillText(titleText, m, titleY);
+    ctx.font=`10px ${ff}`; ctx.fillStyle='#555'; ctx.textAlign='right';
+    ctx.fillText(`編號：${currentCaseNo || '—'}`, PW-m, titleY);
+    ctx.textAlign='left';
+    ctx.strokeStyle='#1a1a1a'; ctx.lineWidth=0.75;
+    ctx.beginPath(); ctx.moveTo(m, titleLineY); ctx.lineTo(PW-m, titleLineY); ctx.stroke();
+    return titleLineY;
+  }
+
+  const totalPages = Math.ceil(cards.length / cardsPerPage);
+
+  for (let p = 0; p < totalPages; p++) {
+    const { canvas, ctx } = newPageCanvas();
+    await drawWatermark(ctx);
+
+    const titleLineY = drawTitleBar(ctx, cfg.title);
+    let cardTop = titleLineY + 10; // 緊接分隔線下方，不留多餘空白
+    const cardsThisPage = cards.slice(p*cardsPerPage, p*cardsPerPage+cardsPerPage);
+
+    cardsThisPage.forEach((card, idxInPage) => {
+      const globalIdx = p*cardsPerPage + idxInPage; // 0-based 全卡片索引
+      const labelBase = `${step}.${globalIdx+1}`;
+      drawCardBox(ctx, card, labelBase, m, cardTop, cw, cardH, cfg, step);
+      cardTop += cardH + cardGap; // 固定間距累加（靠頂對齊，非分散對齊）
+    });
+
+    pages.push({ canvas, ctx, cardBottom: cardTop - cardGap });
+  }
+
+  // 結論區塊（僅 Step2 有）：固定放在最後一頁的最後一張卡片之後
+  // 若師傅尚未填寫結論文字，整個區塊不顯示
+  if (cfg.hasConclusion) {
+    const conclusionRaw = document.getElementById(cfg.conclusionId).value.trim();
+    if (conclusionRaw) {
+      const minConclusionH = 90; // 結論區塊所需的最小高度（標籤+至少2行文字+留白）
+      const lastPage = pages[pages.length - 1];
+      const maxBottom = PH - mBottom - 30;
+      const spaceLeft = maxBottom - lastPage.cardBottom;
+
+      if (spaceLeft >= minConclusionH) {
+        drawS2Conclusion(lastPage.ctx, conclusionRaw, m, lastPage.cardBottom + 28, cw, maxBottom);
+      } else {
+        const { canvas, ctx } = newPageCanvas();
+        await drawWatermark(ctx);
+        drawTitleBar(ctx, cfg.title + '（續）');
+        drawS2Conclusion(ctx, conclusionRaw, m, FIXED_TITLE_LINE_Y + 18, cw, maxBottom);
+        pages.push({ canvas, ctx });
+      }
+    }
+  }
+
+  return pages.map(p => ({ canvas: p.canvas, ctx: p.ctx }));
+}
+
+// 結論區塊：左側粗黑垂直線、上方加粗「結論：」、接續總結文字
+function drawS2Conclusion(ctx, text, x, y, w, maxBottom) {
+  const barW = 4, padLeft = 16;
+  const lh = 21;
+  ctx.font=`bold 13px ${ff}`;
+  const labelW = ctx.measureText('結論：').width;
+
+  ctx.font=`12px ${ff}`;
+  const lines = wrapText(ctx, text, w - padLeft - 4, `12px ${ff}`);
+  const blockH = Math.max(lh*1.6, lh*lines.length + 10);
+
+  // 左側粗黑垂直線
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(x, y, barW, blockH);
+
+  ctx.font=`bold 13px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
+  ctx.fillText('結論：', x+padLeft, y+18);
+
+  ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
+  lines.forEach((line,i)=> ctx.fillText(line, x+padLeft, y+18 + lh*(i+1)));
+
+  if (y + 18 + lh*(lines.length+1) > maxBottom) {
+    throw new ValidationError('「檢測結果結論」內容過長，已超出版面範圍，請縮減文字後再產生報告書。');
+  }
+}
+
+function drawCardBox(ctx, card, labelBase, x, y, w, h, cfg, step) {
+  const isA = card.template === 'A';
+  const pad = 12;
+  const photoColW = (w - pad*2) * 0.4;
+  const textColX = x + pad + photoColW + 14;
+  const textColW = w - pad*2 - photoColW - 14;
+  const gid = `s${step}_${card.id}`; // groupId prefix for imgStore keys
+
+  // 外框（黑色細邊）
+  ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, w, h);
+
+  const photoX = x + pad, photoY = y + pad;
+  const photoAvailH = h - pad*2;
+
+  if (isA) {
+    drawCardPhoto(ctx, imgStore[`${gid}_A`], photoX, photoY, photoColW, photoAvailH, labelBase, card.photoTimeA);
+  } else {
+    const dualGap = 4;
+    const singleH = (photoAvailH - dualGap) / 2;
+    drawCardPhoto(ctx, imgStore[`${gid}_B1`], photoX, photoY, photoColW, singleH, `${labelBase}-1`, card.photoTimeA);
+    drawCardPhoto(ctx, imgStore[`${gid}_B2`], photoX, photoY+singleH+dualGap, photoColW, singleH, `${labelBase}-2`, card.photoTimeB);
+  }
+
+  // 右欄：位置（固定底色區塊，不論有無內容都顯示；雙圖模式時只跟上半張圖片同高）
+  const posBoxH = 30; // 固定高度，單圖／雙圖模式一致
+  const posBoxY = photoY;
+  ctx.fillStyle = 'rgba(93,137,189,0.10)';
+  ctx.fillRect(textColX, posBoxY, textColW, posBoxH);
+  ctx.strokeStyle = '#5d89bd'; ctx.lineWidth = 0.6;
+  ctx.strokeRect(textColX, posBoxY, textColW, posBoxH);
+
+  const posText = `位置：${card.position || '樓層-空間-位置'}`;
+  ctx.font=`12px ${ff}`; ctx.fillStyle='#336590'; ctx.textAlign='center';
+  ctx.fillText(posText, textColX + textColW/2, posBoxY + posBoxH/2 + 4);
+  ctx.textAlign='left';
+
+  // 右欄文字（位置區塊之下）
+  let ty = posBoxY + posBoxH + 18;
+  const lh = 18;
+  const recordLabel = cfg.recordLabel;
+
+  if (isA) {
+    ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#1a1a1a';
+    ctx.fillText(`【${recordLabel}】`, textColX, ty);
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
+    const recLines = wrapText(ctx, card.recordA || '—', textColW, `12px ${ff}`);
+    recLines.forEach((line,i)=> ctx.fillText(line, textColX, ty + lh*(i+1)));
+    ty += lh*(recLines.length+1) + 4;
+
+    if (cfg.hasAnalysis) {
+      ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#1a1a1a';
+      ctx.fillText('【影像判讀】', textColX, ty);
+      ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
+      const anaLines = wrapText(ctx, card.analysis || '—', textColW, `12px ${ff}`);
+      const maxAnaLines = Math.max(0, Math.floor((y+h-pad - (ty+lh)) / lh));
+      anaLines.slice(0, maxAnaLines).forEach((line,i)=> ctx.fillText(line, textColX, ty + lh*(i+1)));
+
+      // 渲染高度防呆：若實際換行數超出卡片可容納行數，視為超版
+      if (anaLines.length > maxAnaLines) {
+        throw new ValidationError(`圖${labelBase}「影像判讀」內容過長，已超出卡片版面範圍，請縮減文字後再產生報告書。`);
+      }
+    } else {
+      const availBottom = y+h-pad;
+      if (ty > availBottom) {
+        throw new ValidationError(`圖${labelBase}「${recordLabel}」內容過長，已超出卡片版面範圍，請縮減文字後再產生報告書。`);
+      }
+    }
+  } else {
+    ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#1a1a1a';
+    ctx.fillText(`【${recordLabel}（${labelBase}-1）】`, textColX, ty);
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
+    const recALines = wrapText(ctx, card.recordA || '—', textColW, `12px ${ff}`);
+    recALines.forEach((line,i)=> ctx.fillText(line, textColX, ty + lh*(i+1)));
+    ty += lh*(recALines.length+1) + 4;
+
+    ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#1a1a1a';
+    ctx.fillText(`【${recordLabel}（${labelBase}-2）】`, textColX, ty);
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
+    const recBLines = wrapText(ctx, card.recordB || '—', textColW, `12px ${ff}`);
+    recBLines.forEach((line,i)=> ctx.fillText(line, textColX, ty + lh*(i+1)));
+
+    const finalBottom = ty + lh*(recBLines.length+1);
+    const availBottom = y+h-pad;
+    if (finalBottom > availBottom) {
+      throw new ValidationError(`圖${labelBase}「${recordLabel}」內容過長，已超出卡片版面範圍，請縮減文字後再產生報告書。`);
+    }
+  }
+}
+
+function drawCardPhoto(ctx, entry, x, y, w, h, label, photoTimeStr) {
+  ctx.fillStyle = '#F5F7FA';
+  ctx.fillRect(x, y, w, h);
+  drawEntryToCtx(ctx, entry, x, y, w, h);
+  ctx.strokeStyle='#d0d9e8'; ctx.lineWidth=0.75; ctx.strokeRect(x,y,w,h);
+
+  // 左上角：圖標（藍底白字方形標籤）
+  ctx.font=`bold 11px ${ff}`;
+  const tagPadX=6, tagH=18;
+  const tagText = `圖${label}`;
+  const tw = ctx.measureText(tagText).width + tagPadX*2;
+  ctx.fillStyle = LABEL_BLUE;
+  ctx.fillRect(x, y, tw, tagH);
+  ctx.fillStyle = '#fff'; ctx.textAlign='left';
+  ctx.fillText(tagText, x+tagPadX, y+13);
+
+  // 右下角：拍攝時間（半透明白字）
+  if (entry && photoTimeStr) {
+    const dt = new Date(photoTimeStr);
+    if (!isNaN(dt)) {
+      const timeStr = `拍攝時間：${dt.getFullYear()}.${String(dt.getMonth()+1).padStart(2,'0')}.${String(dt.getDate()).padStart(2,'0')} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
+      ctx.font=`9px ${ff}`;
+      const ttw = ctx.measureText(timeStr).width;
+      ctx.fillStyle = 'rgba(0,0,0,0.42)';
+      ctx.fillRect(x+w-ttw-10, y+h-18, ttw+8, 16);
+      ctx.fillStyle = 'rgba(255,255,255,0.95)';
+      ctx.fillText(timeStr, x+w-ttw-6, y+h-6);
+    }
+  }
+  ctx.textAlign='left';
+}
+
+/* ══════════════ Step5 PDF 繪製：5.1 綜合判定總表 ＋ 5.2 最終判定 ══════════════ */
+async function drawStep5Pages() {
+  const pages = [];
+  const hasTable = s5TableRows.length > 0;
+  const cause = document.getElementById('s5Cause').value.trim();
+  const type = document.getElementById('s5Type').value.trim();
+  const resp = document.getElementById('s5Responsibility').value.trim();
+  const hasFinalVerdict = cause || type || resp;
+  if (!hasTable && !hasFinalVerdict) return pages;
+
+  const m = mSide, cw = pageCW;
+  const colSourceW = 50, colItemW = Math.round(cw*0.18), colVerdictW = 90;
+  const colSummaryW = cw - colSourceW - colItemW - colVerdictW;
+  const headerH = 26, rowPad = 8, lh = 16;
+
+  function newS5Page() {
+    return newPageCanvas();
+  }
+
+  function drawTitleBar(ctx, titleText) {
+    const titleLineY = mTop + 24;
+    const titleY = titleLineY - 10;
+    ctx.font=`bold 16px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
+    ctx.fillText(titleText, m, titleY);
+    ctx.font=`10px ${ff}`; ctx.fillStyle='#555'; ctx.textAlign='right';
+    ctx.fillText(`編號：${currentCaseNo || '—'}`, PW-m, titleY);
+    ctx.textAlign='left';
+    ctx.strokeStyle='#1a1a1a'; ctx.lineWidth=0.75;
+    ctx.beginPath(); ctx.moveTo(m, titleLineY); ctx.lineTo(PW-m, titleLineY); ctx.stroke();
+    return titleLineY;
+  }
+
+  function measureRowH(ctx, row) {
+    ctx.font = `12px ${ff}`;
+    const itemLines = wrapText(ctx, row.item || '—', colItemW-12, `12px ${ff}`);
+    const summaryLines = wrapText(ctx, row.summary || '—', colSummaryW-12, `12px ${ff}`);
+    const maxLines = Math.max(itemLines.length, summaryLines.length, 1);
+    return Math.max(headerH, maxLines*lh + rowPad*2);
+  }
+
+  function drawTableHeader(ctx, y) {
+    const headers = ['來源','檢測項目','結果摘要','判定'];
+    const widths = [colSourceW, colItemW, colSummaryW, colVerdictW];
+    let x = m;
+    ctx.font=`bold 12px ${ff}`; ctx.textAlign='left';
+    headers.forEach((h, i) => {
+      ctx.fillStyle = '#eef5ff';
+      ctx.fillRect(x, y, widths[i], headerH);
+      ctx.strokeStyle = '#d0d9e8'; ctx.lineWidth=0.75;
+      ctx.strokeRect(x, y, widths[i], headerH);
+      ctx.fillStyle = '#1871b5';
+      ctx.fillText(h, x+8, y+17);
+      x += widths[i];
+    });
+    return y + headerH;
+  }
+
+  function drawTableRow(ctx, row, y, rowH) {
+    const isExists = row.verdict === '漏水存在';
+    let x = m;
+    const widths = [colSourceW, colItemW, colSummaryW, colVerdictW];
+    const bg = isExists ? '#fdecea' : '#fff';
+
+    // 來源
+    ctx.fillStyle = bg; ctx.fillRect(x, y, widths[0], rowH);
+    ctx.strokeStyle = '#d0d9e8'; ctx.lineWidth=0.75; ctx.strokeRect(x, y, widths[0], rowH);
+    ctx.font=`10px ${ff}`; ctx.fillStyle='#999'; ctx.textAlign='left';
+    ctx.fillText(row.sourceLabel, x+6, y+rowH/2+3);
+    x += widths[0];
+
+    // 檢測項目
+    ctx.fillStyle = bg; ctx.fillRect(x, y, widths[1], rowH);
+    ctx.strokeRect(x, y, widths[1], rowH);
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
+    const itemLines = wrapText(ctx, row.item || '—', widths[1]-12, `12px ${ff}`);
+    itemLines.forEach((line,i)=> ctx.fillText(line, x+6, y+rowPad+lh*(i+1)-3));
+    x += widths[1];
+
+    // 結果摘要
+    ctx.fillStyle = bg; ctx.fillRect(x, y, widths[2], rowH);
+    ctx.strokeRect(x, y, widths[2], rowH);
+    const summaryLines = wrapText(ctx, row.summary || '—', widths[2]-12, `12px ${ff}`);
+    summaryLines.forEach((line,i)=> ctx.fillText(line, x+6, y+rowPad+lh*(i+1)-3));
+    x += widths[2];
+
+    // 判定
+    ctx.fillStyle = isExists ? '#f5c6cb' : bg; ctx.fillRect(x, y, widths[3], rowH);
+    ctx.strokeRect(x, y, widths[3], rowH);
+    ctx.font = isExists ? `bold 12px ${ff}` : `12px ${ff}`;
+    ctx.fillStyle = isExists ? '#c0392b' : '#333';
+    ctx.textAlign='center';
+    ctx.fillText(row.verdict || '—', x+widths[3]/2, y+rowH/2+4);
+    ctx.textAlign='left';
+  }
+
+  let pageCtx = null, y = 0, titleLineY = 0;
+
+  function startNewPage(continued) {
+    const { canvas, ctx } = newS5Page();
+    pages.push({ canvas, ctx });
+    pageCtx = ctx;
+    titleLineY = drawTitleBar(ctx, '五、結論' + (continued ? '（續）' : ''));
+    y = titleLineY + 18;
+  }
+
+  if (hasTable) {
+    startNewPage(false);
+    pageCtx.font=`bold 14px ${ff}`; pageCtx.fillStyle='#1a1a1a'; pageCtx.textAlign='left';
+    pageCtx.fillText('5.1 綜合判定總表', m, y);
+    y += 14;
+    y = drawTableHeader(pageCtx, y);
+
+    const maxBottom = PH - mBottom - 30;
+    for (const row of s5TableRows) {
+      const rowH = measureRowH(pageCtx, row);
+      if (y + rowH > maxBottom) {
+        startNewPage(true);
+        y = drawTableHeader(pageCtx, y);
+      }
+      drawTableRow(pageCtx, row, y, rowH);
+      y += rowH;
+    }
+    y += 30;
+  }
+
+  // 5.2 最終判定（每行獨立的左側粗線、標籤獨立一行、內容換行後開始，固定三行：漏水原因／漏水型態／責任歸屬）
+  if (hasFinalVerdict) {
+    const maxBottom = PH - mBottom - 30;
+    const barW = 4, padLeft = 16, lhF = 21;
+    const labelLineH = 20; // 標籤本身佔一行的高度
+    const fieldGap = 16; // 每個欄位區塊之間的間距（讓左側線斷開）
+
+    // 先量測總高度，決定是否需要另開新頁
+    const measureFieldH = (text) => {
+      pageCtx.font = `12px ${ff}`;
+      const lines = wrapText(pageCtx, text || '（未填寫）', pageCW - padLeft - 4, `12px ${ff}`);
+      return labelLineH + lines.length*lhF + 8;
+    };
+
+    if (!pageCtx) startNewPage(false);
+    let estH = 30; // 「5.2 最終判定」標題
+    estH += measureFieldH(cause) + fieldGap;
+    estH += measureFieldH(type) + fieldGap;
+    estH += measureFieldH(resp) + fieldGap;
+
+    if (y + estH > maxBottom) {
+      startNewPage(true);
+    }
+
+    pageCtx.font=`bold 14px ${ff}`; pageCtx.fillStyle='#1a1a1a'; pageCtx.textAlign='left';
+    pageCtx.fillText('5.2 最終判定', m, y);
+    y += 18;
+
+    const fields = [
+      ['漏水原因：', cause],
+      ['漏水型態：', type],
+      ['責任歸屬：', resp],
+    ];
+
+    let fy = y;
+    fields.forEach(([label, text]) => {
+      pageCtx.font=`12px ${ff}`;
+      const lines = wrapText(pageCtx, text || '（未填寫）', pageCW - padLeft - 4, `12px ${ff}`);
+      const fieldH = labelLineH + lines.length*lhF + 8;
+
+      // 每行各自獨立的左側黑線（只跨這一個欄位區塊的高度，不與其他行相連）
+      pageCtx.fillStyle = '#1a1a1a';
+      pageCtx.fillRect(m, fy, barW, fieldH);
+
+      // 標籤獨立一行
+      pageCtx.font=`bold 13px ${ff}`; pageCtx.fillStyle='#1a1a1a';
+      pageCtx.fillText(label, m+padLeft, fy+16);
+
+      // 內容換行後開始
+      pageCtx.font=`12px ${ff}`; pageCtx.fillStyle='#333';
+      const contentStartY = fy + labelLineH + lhF;
+      lines.forEach((line,i)=> pageCtx.fillText(line, m+padLeft, contentStartY + i*lhF));
+
+      fy += fieldH + fieldGap;
+    });
+  }
+
+  return pages.map(p => ({ canvas: p.canvas, ctx: p.ctx }));
+}
+
+/* ══════════════ 主流程：產生並合併所有步驟頁面 ══════════════ */
+async function generatePDF(isPreview = false) {
+  const btn=document.getElementById('generateBtn');
+  const msg=document.getElementById('statusMsg');
+
+  if (!isPreview) {
+    btn.disabled=true; msg.className='status-msg'; msg.textContent='正在產生報告書...';
+  }
+
+  try {
+    const pageObjs = [];
+    const step1Page = await drawStep1Canvas();
+    step1Page.step = 1;
+    pageObjs.push(step1Page);
+
+    for (const step of [2,3,4]) {
+      const pages = await drawCardStepPages(step);
+      pages.forEach(p => { p.step = step; pageObjs.push(p); });
+    }
+
+    const s5Pages = await drawStep5Pages();
+    s5Pages.forEach(p => { p.step = 5; pageObjs.push(p); });
+
+    // 統一補畫頁碼（從封面開始算，格式：當頁／總頁數），置中於頁尾
+    const totalPageCount = pageObjs.length;
+    pageObjs.forEach((p, i) => {
+      const pc = p.ctx;
+      pc.font=`11px ${ff}`; pc.fillStyle='#999'; pc.textAlign='center';
+      pc.fillText(`${i+1} / ${totalPageCount}`, PW/2, PH - mBottom + 30);
+      pc.textAlign='left';
+    });
+
+    const { jsPDF }=window.jspdf;
+    const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+    pageObjs.forEach((p, i) => {
+      if (i > 0) doc.addPage();
+      doc.addImage(p.canvas.toDataURL('image/png',1.0),'PNG',0,0,210,297);
+    });
+
+    const reportPdfBytes=doc.output('arraybuffer');
+
+    let finalPdfBytes;
+    try {
+      const resp=await fetch('terms.pdf');
+      if (!resp.ok) throw new Error('not found');
+      const termsBytes=await resp.arrayBuffer();
+      const { PDFDocument }=PDFLib;
+      const merged=await PDFDocument.create();
+      const rpdf=await PDFDocument.load(reportPdfBytes);
+      const tpdf=await PDFDocument.load(termsBytes);
+      (await merged.copyPages(rpdf,rpdf.getPageIndices())).forEach(p=>merged.addPage(p));
+      (await merged.copyPages(tpdf,tpdf.getPageIndices())).forEach(p=>merged.addPage(p));
+      finalPdfBytes=await merged.save();
+      if (!isPreview) {
+        msg.className='status-msg success'; msg.textContent='✅ 報告書已產生（含使用說明附頁）';
+      }
+    } catch(e) {
+      finalPdfBytes=reportPdfBytes;
+      if (!isPreview) {
+        msg.className='status-msg'; msg.textContent='⚠️ 找不到 terms.pdf，已產生報告書（不含使用說明附頁）';
+      }
+    }
+
+    const blob=new Blob([finalPdfBytes],{type:'application/pdf'});
+    const url=URL.createObjectURL(blob);
+
+    if (isPreview) {
+      const previewer = document.getElementById('pdfPreviewer');
+      // 依目前正在編輯的步驟，找出該步驟第一次出現的頁碼，讓預覽自動捲動過去
+      const targetIdx = pageObjs.findIndex(p => p.step === currentStep);
+      const targetPage = targetIdx >= 0 ? targetIdx + 1 : 1;
+      previewer.src = url + `#toolbar=0&navpanes=0&page=${targetPage}`;
+      if (lastPreviewObjectURL) URL.revokeObjectURL(lastPreviewObjectURL);
+      lastPreviewObjectURL = url;
+    } else {
+      commitSeq(); // 正式產生才登記序號
+      updateCaseNo();
+      const a=document.createElement('a');
+      a.href=url;
+      a.download=`${currentCaseNo||'report'}_漏水檢測報告書.pdf`;
+      a.click(); URL.revokeObjectURL(url);
+    }
+
+  } catch(err) {
+    if (err instanceof ValidationError) {
+      msg.className='status-msg error'; msg.textContent='⚠️ ' + err.message;
+    } else if (!isPreview) {
+      msg.className='status-msg error'; msg.textContent='❌ 產生失敗：'+err.message;
+    }
+    console.error(err);
+  }
+
+  if (!isPreview) { btn.disabled=false; }
+}
+
+// 固定高度照片區塊：等比例縮放置中（不裁切、不拉伸），空白處用淺灰底色呈現裝裱感
+function drawPhotoCardFixed(ctx, entry, x, y, w, h, labelText, labelColor, ff) {
+  // 底色（無照片時的佔位淺灰）
+  ctx.fillStyle = '#F5F7FA';
+  ctx.fillRect(x, y, w, h);
+
+  // 裁切框比例已與此區塊比例動態對齊，因此直接填滿繪製（不留白）
+  drawEntryToCtx(ctx, entry, x, y, w, h);
+
+  ctx.strokeStyle='#d0d9e8'; ctx.lineWidth=0.75; ctx.strokeRect(x,y,w,h);
+
+  // 側邊圖說編號（底色 #336590）
+  const tagW = 52, tagH2 = 22;
+  ctx.fillStyle=labelColor;
+  ctx.fillRect(x+6, y+h-tagH2-6, tagW, tagH2);
+  ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#fff'; ctx.textAlign='center';
+  ctx.fillText(labelText, x+6+tagW/2, y+h-6-7);
+  ctx.textAlign='left';
+}
+
+// 將 HH:MM 24小時制轉換為中文上午/下午/中午顯示
+function formatTimeCN(timeStr) {
+  if (!timeStr) return '';
+  const [hStr, mStr] = timeStr.split(':');
+  let h = parseInt(hStr, 10);
+  const min = mStr || '00';
+  if (h === 12) {
+    return `中午 12:${min}`;
+  } else if (h < 12) {
+    return `上午 ${h}:${min}`;
+  } else {
+    const h12 = h - 12;
+    return `下午 ${h12}:${min}`;
+  }
+}
+
+function wrapText(ctx, text, maxWidth, font) {
+  ctx.font = font;
+  const lines = [];
+  let line = '';
+  for (const ch of text) {
+    const test = line + ch;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      lines.push(line);
+      line = ch;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+</script>
+</body>
+</html>
