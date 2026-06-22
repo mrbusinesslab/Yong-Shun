@@ -415,18 +415,22 @@ select { cursor: pointer; }
 
       <div class="card">
         <div class="card-title-s6">6.2 後續修繕施工（由本檢測公司承接）</div>
-        <ol class="s6-subitems">
-          <li class="s6-subitem"><strong>優惠施工款：</strong>檢測費半數可折抵施工款，限總工程達 NT$50,000 以上案件，每筆限折抵一次。</li>
-          <li class="s6-subitem"><strong>三年保固：</strong>工程保固期為3年，並於完工時提供正式保固證明書。</li>
-          <li class="s6-subitem"><strong>獨立報價：</strong>隨本報告一併交付施工報價單，內容詳列各工項數量、單價、總價及付款方式。</li>
-          <li class="s6-subitem"><strong>自主決定：</strong>委託方可依報價決定是否委託本公司施工，無強制義務。</li>
-        </ol>
-</div>
+        <div class="s6-fixed-text">
+          依據本報告檢測結論，建議對<span class="s6-inline-input-wrap">【<input type="text" id="s6RepairTarget" class="s6-inline-input" value="3樓陽台地板結構體進行漏水修繕">】</span>。本公司提供後續施工服務，並針對委託本檢測之委託方給予專屬優惠。<br><br>
+          凡委託本檢測報告並由本公司進行修繕施工者，可享：<br>
+          ▸優惠施工款：檢測費半數可折抵施工款，限總工程達 NT$50,000以上案件，每筆限折抵一次。<br>
+          ▸三年保固：工程保固期為3年，並於完工時提供正式保固證明書。<br><br>
+          隨本報告一併交付施工報價單，內容詳列各工項數量、單價、總價及付款方式。<br>
+          委託方可依報價單決定是否委託本公司施工，無強制義務。
+        </div>
+      </div>
 
       <div class="card">
         <div class="card-title-s6">6.3 法律與保險</div>
-        <p class="s6-fixed-text">若涉及管委會或鄰戶責任，本報告可作為協調、調解或訴訟之客觀證據。</p>
-        <p class="s6-fixed-text">若委託方有投保住宅保險，建議向保險公司申請理賠勘查，本報告可輔助理賠申請。</p>
+        <div class="s6-fixed-text">
+          ▸若涉及管委會或鄰戶責任，本報告可作為協調、調解或訴訟之客觀證據。<br>
+          ▸若委託方有投保住宅保險，建議向保險公司申請理賠勘查，本報告可輔助理賠申請。
+        </div>
       </div>
 
       <div class="card">
@@ -875,7 +879,7 @@ function getChapterTitle(chapters, key) {
 }
 
 
-const FIELD_LIMITS = { position: 15, record: 30, analysis: 120 };
+const FIELD_LIMITS = { position: 15, record: 120, analysis: 120 };
 
 function addCard(step) {
   cardSeqStore[step]++;
@@ -1294,13 +1298,15 @@ async function drawStep1Canvas() {
   const blockGap = lineH * 0.9;
   const headerLineY = mTop + logoH + blockGap;
 
-  // 左上 Logo
+  // 左上 Logo（放大並靠著下方橫線）
   try {
     const logo=new Image(); logo.crossOrigin='anonymous';
     await new Promise((res,rej)=>{ logo.onload=res; logo.onerror=rej; logo.src='詠順工程行_logo.png'; });
-    ctx.drawImage(logo, m, headerLineY-logoH, logoW, logoH);
+    const logoH_large = 52; // 放大 Logo
+    const logoW_large = Math.round(logoH_large * 400/120);
+    ctx.drawImage(logo, m, headerLineY - logoH_large, logoW_large, logoH_large);
   } catch(e) {
-    ctx.font=`bold 16px ${ff}`; ctx.fillStyle=BLUE; ctx.textAlign='left';
+    ctx.font=`bold 20px ${ff}`; ctx.fillStyle=BLUE; ctx.textAlign='left';
     ctx.fillText('詠順工程行', m, headerLineY-8);
   }
 
@@ -1540,7 +1546,7 @@ async function drawCardStepPages(step, chapterTitle, chapterNumIndex) {
         drawS2Conclusion(lastPage.ctx, conclusionRaw, m, lastPage.cardBottom + 28, cw, maxBottom);
       } else {
         const { canvas, ctx } = newPageCanvas();
-        await drawWatermark(ctx);
+        await drawWatermark(ctx); // 確保新分頁也有浮水印
         drawTitleBar(ctx, chapterTitle + '（續）');
         drawS2Conclusion(ctx, conclusionRaw, m, FIXED_TITLE_LINE_Y + 18, cw, maxBottom);
         pages.push({ canvas, ctx });
@@ -1716,8 +1722,10 @@ async function drawStep5Pages(chapters) {
   const colSummaryW = cw - colSourceW - colItemW - colVerdictW;
   const headerH = 26, rowPad = 8, lh = 16;
 
-  function newS5Page() {
-    return newPageCanvas();
+  async function newS5Page() {
+    const { canvas, ctx } = newPageCanvas();
+    await drawWatermark(ctx); // 確保結論頁有浮水印
+    return { canvas, ctx };
   }
 
   function drawTitleBar(ctx, titleText) {
@@ -1798,8 +1806,8 @@ async function drawStep5Pages(chapters) {
 
   let pageCtx = null, y = 0, titleLineY = 0;
 
-  function startNewPage(continued) {
-    const { canvas, ctx } = newS5Page();
+  async function startNewPage(continued) {
+    const { canvas, ctx } = await newS5Page();
     pages.push({ canvas, ctx });
     pageCtx = ctx;
     titleLineY = drawTitleBar(ctx, chapterTitle + (continued ? '（續）' : ''));
@@ -1955,18 +1963,15 @@ async function drawFlowingPages(chapterTitle, blocks) {
 async function drawStep6Pages(chapters) {
   const ch6 = chapters.find(c => c.key === 'step6');
   const chapterTitle = `${ch6.cnNum}、${ch6.titleBase}`;
+  const repairTarget = document.getElementById('s6RepairTarget').value.trim() || '相關區域';
 
   const blocks = [
     { type: 'h2', text: `${ch6.numIndex}.1 立即處置` },
     { type: 'p', text: document.getElementById('s6Immediate').value.trim() || '（尚未填寫）' },
     { type: 'h2', text: `${ch6.numIndex}.2 後續修繕施工（由本檢測公司承接）` },
-    { type: 'subitem', text: '優惠施工款：檢測費半數可折抵施工款，限總工程達 NT$50,000 以上案件，每筆限折抵一次。' },
-    { type: 'subitem', text: '三年保固：工程保固期為3年，並於完工時提供正式保固證明書。' },
-    { type: 'subitem', text: '獨立報價：隨本報告一併交付施工報價單，內容詳列各工項數量、單價、總價及付款方式。' },
-    { type: 'subitem', text: '自主決定：委託方可依報價決定是否委託本公司施工，無強制義務。' },
+    { type: 'p', text: `依據本報告檢測結論，建議對【${repairTarget}】。本公司提供後續施工服務，並針對委託本檢測之委託方給予專屬優惠。\n\n凡委託本檢測報告並由本公司進行修繕施工者，可享：\n▸優惠施工款：檢測費半數可折抵施工款，限總工程達 NT$50,000以上案件，每筆限折抵一次。\n▸三年保固：工程保固期為3年，並於完工時提供正式保固證明書。\n\n隨本報告一併交付施工報價單，內容詳列各工項數量、單價、總價及付款方式。\n委託方可依報價單決定是否委託本公司施工，無強制義務。` },
     { type: 'h2', text: `${ch6.numIndex}.3 法律與保險` },
-    { type: 'p', text: '若涉及管委會或鄰戶責任，本報告可作為協調、調解或訴訟之客觀證據。' },
-    { type: 'p', text: '若委託方有投保住宅保險，建議向保險公司申請理賠勘查，本報告可輔助理賠申請。' },
+    { type: 'p', text: '▸若涉及管委會或鄰戶責任，本報告可作為協調、調解或訴訟之客觀證據。\n▸若委託方有投保住宅保險，建議向保險公司申請理賠勘查，本報告可輔助理賠申請。' },
     { type: 'h2', text: `${ch6.numIndex}.4 後續追蹤` },
     { type: 'p', text: document.getElementById('s6Followup').value.trim() || '（尚未填寫）' },
   ];
@@ -2080,7 +2085,8 @@ async function generatePDF(isPreview = false) {
       updateCaseNo();
       const a=document.createElement('a');
       a.href=url;
-      a.download=`${currentCaseNo||'report'}_漏水檢測報告書.pdf`;
+      const fileName = currentCaseNo ? `${currentCaseNo}_檢測報告書.pdf` : '檢測報告書.pdf';
+      a.download = fileName;
       a.click(); URL.revokeObjectURL(url);
     }
 
