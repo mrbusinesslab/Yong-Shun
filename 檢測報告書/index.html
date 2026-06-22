@@ -1817,7 +1817,7 @@ async function drawStep5Pages(chapters) {
   if (hasTable) {
     await startNewPage(false);
     pageCtx.font=`bold 14px ${ff}`; pageCtx.fillStyle='#1a1a1a'; pageCtx.textAlign='left';
-    pageCtx.fillText('5.1 綜合判定總表', m, y);
+    pageCtx.fillText(`${ch5.numIndex}.1 綜合判定總表`, m, y);
     y += 14;
     y = drawTableHeader(pageCtx, y);
 
@@ -1825,7 +1825,7 @@ async function drawStep5Pages(chapters) {
     for (const row of s5TableRows) {
       const rowH = measureRowH(pageCtx, row);
       if (y + rowH > maxBottom) {
-        startNewPage(true);
+        await startNewPage(true);
         y = drawTableHeader(pageCtx, y);
       }
       drawTableRow(pageCtx, row, y, rowH);
@@ -1848,18 +1848,18 @@ async function drawStep5Pages(chapters) {
       return labelLineH + lines.length*lhF + 8;
     };
 
-    if (!pageCtx) startNewPage(false);
+    if (!pageCtx) await startNewPage(false);
     let estH = 30; // 「5.2 最終判定」標題
     estH += measureFieldH(cause) + fieldGap;
     estH += measureFieldH(type) + fieldGap;
     estH += measureFieldH(resp) + fieldGap;
 
     if (y + estH > maxBottom) {
-      startNewPage(true);
+      await startNewPage(true);
     }
 
     pageCtx.font=`bold 14px ${ff}`; pageCtx.fillStyle='#1a1a1a'; pageCtx.textAlign='left';
-    pageCtx.fillText('5.2 最終判定', m, y);
+    pageCtx.fillText(`${ch5.numIndex}.2 最終判定`, m, y);
     y += 18;
 
     const fields = [
@@ -1948,12 +1948,22 @@ async function drawFlowingPages(chapterTitle, blocks) {
     } else {
       const lineH = 20.5;
       pageCtx.font = `12px ${ff}`;
-      const lines = wrapText(pageCtx, block.text, cw - 4, `12px ${ff}`);
-      const h = lines.length*lineH + 24;
-      if (y + h > maxBottom) await startNewPage(true);
+      // 支援 \n 手動換行
+      const segments = block.text.split('\n');
+      let blockTotalH = 24;
+      const segmentLines = segments.map(seg => wrapText(pageCtx, seg || ' ', cw - 4, `12px ${ff}`));
+      segmentLines.forEach(lines => blockTotalH += lines.length * lineH);
+
+      if (y + blockTotalH > maxBottom) await startNewPage(true);
+      
       pageCtx.fillStyle = '#333'; pageCtx.textAlign='left';
-      lines.forEach((line,i)=> drawJustifiedText(pageCtx, line, m, y + lineH*(i+1) - 4, cw - 4, i < lines.length - 1));
-      y += h;
+      segmentLines.forEach(lines => {
+        lines.forEach((line, i) => {
+          drawJustifiedText(pageCtx, line, m, y + lineH - 4, cw - 4, i < lines.length - 1);
+          y += lineH;
+        });
+      });
+      y += 12; // 段落間距
     }
   }
 
