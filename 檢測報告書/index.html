@@ -160,6 +160,19 @@ select { cursor: pointer; }
 .s5-row-source { font-size: 10px; color: #999; white-space: nowrap; }
 .s5-empty-hint { font-size: 13px; color: #999; padding: 20px; text-align: center; background: #fafcff; border: 1px dashed #d0d9e8; border-radius: 8px; }
 
+/* ── Step6/7 建議事項／報告使用說明 ── */
+.card-title-s6 { font-size: 14px; font-weight: 700; color: #1871b5; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 2px solid #e8f0fb; }
+.s6-fixed-text { font-size: 13px; color: #444; line-height: 1.7; text-align: justify; margin-bottom: 24px; background: #fafcff; border: 1px solid #eef1f6; border-radius: 6px; padding: 10px 14px; }
+.s6-inline-input-wrap { color: #1871b5; font-weight: 600; }
+.s6-inline-input { display: inline-block; width: auto; min-width: 220px; border: none; border-bottom: 1.5px dashed #1871b5; background: #eef5ff; padding: 2px 6px; font-size: 13px; font-family: inherit; color: #1871b5; font-weight: 600; }
+.s6-inline-input:focus { outline: none; border-bottom: 1.5px solid #1871b5; background: #dcebfb; }
+.s6-preview-block { background: #fafcff; border: 1px solid #eef1f6; border-radius: 8px; padding: 16px 18px; }
+.s6-subitems { margin: -8px 0 24px 22px; padding-left: 18px; line-height: 1.7; text-align: justify; }
+.s6-subitem { font-size: 13px; color: #444; margin-bottom: 10px; padding-left: 4px; }
+.s6-subitem:last-child { margin-bottom: 0; }
+.s6-fixed-title { font-size: 14px; font-weight: 700; color: #1871b5; margin: 24px 0 8px; }
+.s6-fixed-title:first-child { margin-top: 0; }
+
 
 .hint { font-size: 11px; color: #999; margin-top: 4px; }
 </style>
@@ -191,9 +204,10 @@ select { cursor: pointer; }
   <div class="step-tab active" data-step="1" onclick="switchStep(1)">一、案例個資</div>
   <div class="step-tab" data-step="2" onclick="switchStep(2)">二、儀器檢查結果</div>
   <div class="step-tab" data-step="3" onclick="switchStep(3)">三、管線配置調查</div>
-  <div class="step-tab" data-step="4" onclick="switchStep(4)">四、其他</div>
+  <div class="step-tab" data-step="4" onclick="switchStep(4)">四、周遭環境與結構</div>
   <div class="step-tab" data-step="5" onclick="switchStep(5)">五、結論</div>
-  <div class="step-tab disabled" data-step="6">六、建議事項</div>
+  <div class="step-tab" data-step="6" onclick="switchStep(6)">六、建議事項</div>
+  <div class="step-tab" data-step="7" onclick="switchStep(7)">七、報告使用說明</div>
 </div>
 
 <div class="main-layout">
@@ -351,7 +365,7 @@ select { cursor: pointer; }
     <div class="step-panel" id="panel-4" style="display:none;">
 
       <div class="card">
-        <div class="card-title">📌 四、其他</div>
+        <div class="card-title">📌 四、周遭環境與結構</div>
         <p class="hint" style="margin-bottom:16px;">每張卡片代表一筆其他觀察紀錄，可自由新增。系統會自動每 3 張卡片分頁列印成一張 A4。</p>
         <div id="s4CardList"></div>
         <button type="button" class="add-card-btn" onclick="addCard(4)">＋ 新增觀察卡片</button>
@@ -365,7 +379,7 @@ select { cursor: pointer; }
 
       <div class="card">
         <div class="card-title">📊 5.1 綜合判定總表</div>
-        <p class="hint" style="margin-bottom:16px;">點擊下方按鈕，系統會依目前「二、檢測結果」「三、管線配置調查」「四、其他」已填寫的卡片資料，自動產生表格列（檢測項目＝位置、結果摘要＝紀錄內容）。表格內容可自由編輯，「判定」選擇「漏水存在」時會自動標示警示色。</p>
+        <p class="hint" style="margin-bottom:16px;">點擊下方按鈕，系統會依目前「二、檢測結果」「三、管線配置調查」「四、周遭環境與結構」已填寫的卡片資料，自動產生表格列（檢測項目＝位置、結果摘要＝紀錄內容）。表格內容可自由編輯，「判定」選擇「漏水存在」時會自動標示警示色。</p>
         <button type="button" class="add-card-btn" onclick="generateS5Table()">🔄 產生／重新產生總表</button>
         <div id="s5TableWrap" style="margin-top:16px;"></div>
       </div>
@@ -388,6 +402,70 @@ select { cursor: pointer; }
 
     </div>
     <!-- ════════ /STEP 5 ════════ -->
+
+    <!-- ════════ STEP 6：建議事項 ════════ -->
+    <div class="step-panel" id="panel-6" style="display:none;">
+
+      <div class="card">
+        <div class="card-title-s6">6.1 立即處置</div>
+        <div class="form-group">
+          <textarea id="s6Immediate" style="min-height:80px;">建議暫時減少3樓陽台之大量排水行為（如洗衣、洗地、澆花），避免持續補充結構體內積水，減緩2樓天花板滴水狀況。</textarea>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title-s6">6.2 後續修繕施工（由本檢測公司承接）</div>
+        <ol class="s6-subitems">
+          <li class="s6-subitem"><strong>優惠施工款：</strong>檢測費半數可折抵施工款，限總工程達 NT$50,000 以上案件，每筆限折抵一次。</li>
+          <li class="s6-subitem"><strong>三年保固：</strong>工程保固期為3年，並於完工時提供正式保固證明書。</li>
+          <li class="s6-subitem"><strong>獨立報價：</strong>隨本報告一併交付施工報價單，內容詳列各工項數量、單價、總價及付款方式。</li>
+          <li class="s6-subitem"><strong>自主決定：</strong>委託方可依報價決定是否委託本公司施工，無強制義務。</li>
+        </ol>
+</div>
+
+      <div class="card">
+        <div class="card-title-s6">6.3 法律與保險</div>
+        <p class="s6-fixed-text">若涉及管委會或鄰戶責任，本報告可作為協調、調解或訴訟之客觀證據。</p>
+        <p class="s6-fixed-text">若委託方有投保住宅保險，建議向保險公司申請理賠勘查，本報告可輔助理賠申請。</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title-s6">6.4 後續追蹤</div>
+        <div class="form-group">
+          <textarea id="s6Followup" style="min-height:70px;">修繕完成後，建議每半年自行檢查2樓天花板有無新生水漬或異味，並保持3樓陽台排水孔暢通。</textarea>
+        </div>
+      </div>
+
+    </div>
+    <!-- ════════ /STEP 6 ════════ -->
+
+    <!-- ════════ STEP 7：報告使用說明（固定頁，不需填寫） ════════ -->
+    <div class="step-panel" id="panel-7" style="display:none;">
+
+      <div class="card">
+        <div class="card-title">📄 七、報告使用說明</div>
+        <p class="hint" style="margin-bottom:16px;">此頁為固定法律文字頁，不需填寫，會直接列印於報告書最後。</p>
+
+        <div class="s6-preview-block">
+          <p class="s6-fixed-title">7.1 專業定位</p>
+          <p class="s6-fixed-text">本公司為通過信義房屋第三方認證之專業漏水檢測與修繕公司。本報告係依據檢測當日之科技儀器（熱顯像、濕度計、聽漏儀、水壓測試等）及現場狀況作成，客觀呈現漏水證據。</p>
+
+          <p class="s6-fixed-title">7.2 檢測範圍與判定依據</p>
+          <p class="s6-fixed-text">本報告已就委託範圍內進行非破壞性檢測，並盡可能釐清漏水位置、原因及責任歸屬。報告內容係基於現有證據之合理判定，可作為修繕、協調或釐清責任之依據。因未進行破壞性開挖，無法保證涵蓋所有隱蔽區域，但已力求最精確判斷。</p>
+
+          <p class="s6-fixed-title">7.3 資訊提供責任</p>
+          <p class="s6-fixed-text">委託方應於檢測前完整告知已知之漏水歷史、維修紀錄、管線配置及相關背景資訊。資訊越完整，越能協助快速鎖定漏源。若因未告知重要資訊或第三方阻礙檢測導致判定受限，本公司不承擔該部分責任。</p>
+
+          <p class="s6-fixed-title">7.4 時效與保固連結</p>
+          <p class="s6-fixed-text">本報告反映檢測當時之狀況。若後續發生地震、裝修、打鑿、鄰戶施工或管線自然老化等重大變動，建議委託複測以確保判定仍屬正確。本報告與施工報價單、保固證明書共同構成完整服務憑證：施工後若同一位置依本報告判定原因修繕後再漏，本公司依保固書負責。</p>
+
+          <p class="s6-fixed-title">7.5 法律使用</p>
+          <p class="s6-fixed-text">本報告可作為調解、協商、保險理賠或訴訟之參考證據。若需正式司法鑑定報告，建議另委託公會辦理，本公司可配合提供原始檢測資料。</p>
+        </div>
+      </div>
+
+    </div>
+    <!-- ════════ /STEP 7 ════════ -->
 
     <button class="generate-btn" id="generateBtn" onclick="generatePDF(false)">產生報告書 PDF</button>
     <div class="status-msg" id="statusMsg"></div>
@@ -752,15 +830,50 @@ function drawEntryToCtx(ctx, entry, dx, dy, dw, dh) {
 }
 
 /* ══════════════ 通用卡片引擎（Step2/3/4 共用） ══════════════ */
-// 每個步驟的差異設定：標題、檢測紀錄欄位名稱、是否顯示影像判讀／結論
+// 每個步驟的差異設定：標題（不含章節數字，數字於產生PDF時動態計算）、檢測紀錄欄位名稱、是否顯示影像判讀／結論
 const STEP_CONFIG = {
-  2: { title: '二、檢測結果', recordLabel: '檢測紀錄', hasAnalysis: true, hasConclusion: true, listId: 's2CardList', conclusionId: 's2Conclusion' },
-  3: { title: '三、管線配置調查', recordLabel: '走向與配置', hasAnalysis: false, hasConclusion: false, listId: 's3CardList', conclusionId: null },
-  4: { title: '四、其他', recordLabel: '觀察紀錄', hasAnalysis: false, hasConclusion: false, listId: 's4CardList', conclusionId: null },
+  2: { titleBase: '檢測結果', recordLabel: '檢測紀錄', hasAnalysis: true, hasConclusion: true, listId: 's2CardList', conclusionId: 's2Conclusion' },
+  3: { titleBase: '管線配置調查', recordLabel: '走向與配置', hasAnalysis: false, hasConclusion: false, listId: 's3CardList', conclusionId: null },
+  4: { titleBase: '周遭環境與結構', recordLabel: '觀察紀錄', hasAnalysis: false, hasConclusion: false, listId: 's4CardList', conclusionId: null },
 };
 
 const cardStore = { 2: [], 3: [], 4: [] }; // { id, template, position, recordA, recordB, analysis, photoTimeA, photoTimeB }
 const cardSeqStore = { 2: 0, 3: 0, 4: 0 };
+
+/* ══════════════ 動態章節編號（依實際填寫內容決定二/三是否存在，後續章節自動遞補） ══════════════ */
+const CN_NUM = ['','一','二','三','四','五','六','七','八','九','十'];
+
+// 回傳目前報告書的章節清單：[{ key, numIndex, cnNum, titleBase, kind }]
+// kind: 'card'(2/3/4 卡片步驟) | 'fixed5' | 'fixed6' | 'fixed7'
+function computeChapterPlan() {
+  const chapters = [];
+  chapters.push({ key: 'step2', kind: 'card', step: 2, titleBase: STEP_CONFIG[2].titleBase, exists: cardStore[2].length > 0 });
+  chapters.push({ key: 'step3', kind: 'card', step: 3, titleBase: STEP_CONFIG[3].titleBase, exists: cardStore[3].length > 0 });
+  chapters.push({ key: 'step4', kind: 'card', step: 4, titleBase: STEP_CONFIG[4].titleBase, exists: cardStore[4].length > 0 });
+  chapters.push({ key: 'step5', kind: 'fixed5', titleBase: '結論', exists: true });
+  chapters.push({ key: 'step6', kind: 'fixed6', titleBase: '建議事項', exists: true });
+  chapters.push({ key: 'step7', kind: 'fixed7', titleBase: '報告使用說明', exists: true });
+
+  let num = 2;
+  chapters.forEach(ch => {
+    if (ch.exists) {
+      ch.numIndex = num;
+      ch.cnNum = CN_NUM[num] || String(num);
+      num++;
+    } else {
+      ch.numIndex = null;
+      ch.cnNum = null;
+    }
+  });
+  return chapters;
+}
+
+function getChapterTitle(chapters, key) {
+  const ch = chapters.find(c => c.key === key);
+  if (!ch || !ch.exists) return null;
+  return `${ch.cnNum}、${ch.titleBase}`;
+}
+
 
 const FIELD_LIMITS = { position: 15, record: 30, analysis: 120 };
 
@@ -1039,11 +1152,13 @@ function buildCardSummary(card) {
 }
 
 function generateS5Table() {
+  const chapters = computeChapterPlan();
   const rows = [];
   for (const step of [2,3,4]) {
-    const cfg = STEP_CONFIG[step];
+    const ch = chapters.find(c => c.step === step);
+    if (!ch.exists) continue;
     cardStore[step].forEach((card, idx) => {
-      const labelBase = `${step}.${idx+1}`;
+      const labelBase = `${ch.numIndex}.${idx+1}`;
       rows.push({
         sourceLabel: `圖${labelBase}`,
         item: card.position || '',
@@ -1074,7 +1189,7 @@ function renderS5Table() {
   const wrap = document.getElementById('s5TableWrap');
   if (!wrap) return;
   if (s5TableRows.length === 0) {
-    wrap.innerHTML = `<div class="s5-empty-hint">尚未產生總表。請先在「二、檢測結果」「三、管線配置調查」「四、其他」新增卡片後，點擊上方按鈕產生總表。</div>`;
+    wrap.innerHTML = `<div class="s5-empty-hint">尚未產生總表。請先在「二、檢測結果」「三、管線配置調查」「四、周遭環境與結構」新增卡片後，點擊上方按鈕產生總表。</div>`;
     return;
   }
   const rowsHtml = s5TableRows.map((row, idx) => {
@@ -1358,7 +1473,7 @@ class ValidationError extends Error {}
 
 
 /* ══════════════ Step2 PDF 繪製：25mm標題區、3卡/頁自動分頁、雙模板 ══════════════ */
-async function drawCardStepPages(step) {
+async function drawCardStepPages(step, chapterTitle, chapterNumIndex) {
   const cfg = STEP_CONFIG[step];
   const cards = cardStore[step];
   const pages = [];
@@ -1397,14 +1512,14 @@ async function drawCardStepPages(step) {
     const { canvas, ctx } = newPageCanvas();
     await drawWatermark(ctx);
 
-    const titleLineY = drawTitleBar(ctx, cfg.title);
+    const titleLineY = drawTitleBar(ctx, chapterTitle);
     let cardTop = titleLineY + 10; // 緊接分隔線下方，不留多餘空白
     const cardsThisPage = cards.slice(p*cardsPerPage, p*cardsPerPage+cardsPerPage);
 
     cardsThisPage.forEach((card, idxInPage) => {
       const globalIdx = p*cardsPerPage + idxInPage; // 0-based 全卡片索引
-      const labelBase = `${step}.${globalIdx+1}`;
-      drawCardBox(ctx, card, labelBase, m, cardTop, cw, cardH, cfg, step);
+      const labelNum = `${chapterNumIndex}.${globalIdx+1}`;
+      drawCardBox(ctx, card, labelNum, m, cardTop, cw, cardH, cfg, step);
       cardTop += cardH + cardGap; // 固定間距累加（靠頂對齊，非分散對齊）
     });
 
@@ -1426,7 +1541,7 @@ async function drawCardStepPages(step) {
       } else {
         const { canvas, ctx } = newPageCanvas();
         await drawWatermark(ctx);
-        drawTitleBar(ctx, cfg.title + '（續）');
+        drawTitleBar(ctx, chapterTitle + '（續）');
         drawS2Conclusion(ctx, conclusionRaw, m, FIXED_TITLE_LINE_Y + 18, cw, maxBottom);
         pages.push({ canvas, ctx });
       }
@@ -1585,7 +1700,9 @@ function drawCardPhoto(ctx, entry, x, y, w, h, label, photoTimeStr) {
 }
 
 /* ══════════════ Step5 PDF 繪製：5.1 綜合判定總表 ＋ 5.2 最終判定 ══════════════ */
-async function drawStep5Pages() {
+async function drawStep5Pages(chapters) {
+  const ch5 = chapters.find(c => c.key === 'step5');
+  const chapterTitle = `${ch5.cnNum}、${ch5.titleBase}`;
   const pages = [];
   const hasTable = s5TableRows.length > 0;
   const cause = document.getElementById('s5Cause').value.trim();
@@ -1685,12 +1802,12 @@ async function drawStep5Pages() {
     const { canvas, ctx } = newS5Page();
     pages.push({ canvas, ctx });
     pageCtx = ctx;
-    titleLineY = drawTitleBar(ctx, '五、結論' + (continued ? '（續）' : ''));
+    titleLineY = drawTitleBar(ctx, chapterTitle + (continued ? '（續）' : ''));
     y = titleLineY + 18;
   }
 
   if (hasTable) {
-    startNewPage(false);
+    await startNewPage(false);
     pageCtx.font=`bold 14px ${ff}`; pageCtx.fillStyle='#1a1a1a'; pageCtx.textAlign='left';
     pageCtx.fillText('5.1 綜合判定總表', m, y);
     y += 14;
@@ -1769,28 +1886,162 @@ async function drawStep5Pages() {
   return pages.map(p => ({ canvas: p.canvas, ctx: p.ctx }));
 }
 
+/* ══════════════ Step6/7 PDF 繪製：流式段落排版（標題＋內文，自動換頁） ══════════════ */
+// blocks: [{ type:'h1'(章節大標題,16px) | 'h2'(子標題,14px) | 'p'(內文,12px), text }]
+async function drawFlowingPages(chapterTitle, blocks) {
+  const pages = [];
+  if (blocks.length === 0) return pages;
+
+  const m = mSide, cw = pageCW;
+  const maxBottom = PH - mBottom - 30;
+  let pageCtx = null, y = 0;
+
+  function drawTitleBar(ctx, titleText) {
+    const titleLineY = mTop + 24;
+    const titleY = titleLineY - 10;
+    ctx.font=`bold 16px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
+    ctx.fillText(titleText, m, titleY);
+    ctx.font=`10px ${ff}`; ctx.fillStyle='#555'; ctx.textAlign='right';
+    ctx.fillText(`編號：${currentCaseNo || '—'}`, PW-m, titleY);
+    ctx.textAlign='left';
+    ctx.strokeStyle='#1a1a1a'; ctx.lineWidth=0.75;
+    ctx.beginPath(); ctx.moveTo(m, titleLineY); ctx.lineTo(PW-m, titleLineY); ctx.stroke();
+    return titleLineY;
+  }
+
+  async function startNewPage(continued) {
+    const { canvas, ctx } = newPageCanvas();
+    await drawWatermark(ctx);
+    pages.push({ canvas, ctx });
+    pageCtx = ctx;
+    const titleLineY = drawTitleBar(ctx, chapterTitle + (continued ? '（續）' : ''));
+    y = titleLineY + 22;
+  }
+
+  await startNewPage(false);
+
+  for (const block of blocks) {
+    if (block.type === 'h2') {
+      pageCtx.font = `bold 14px ${ff}`;
+      const h = 14 + 8;
+      if (y + h > maxBottom) await startNewPage(true);
+      pageCtx.fillStyle = '#1871b5'; pageCtx.textAlign='left';
+      pageCtx.fillText(block.text, m, y+12);
+      y += h;
+    } else if (block.type === 'subitem') {
+      const lineH = 20.5;
+      pageCtx.font = `12px ${ff}`;
+      const lines = wrapText(pageCtx, block.text, cw - 28, `12px ${ff}`);
+      const h = lines.length*lineH + 10;
+      if (y + h > maxBottom) await startNewPage(true);
+      pageCtx.fillStyle = '#333'; pageCtx.textAlign='left';
+      lines.forEach((line,i)=> drawJustifiedText(pageCtx, line, m + 28, y + lineH*(i+1) - 4, cw - 28, i < lines.length - 1));
+      y += h;
+    } else {
+      const lineH = 20.5;
+      pageCtx.font = `12px ${ff}`;
+      const lines = wrapText(pageCtx, block.text, cw - 4, `12px ${ff}`);
+      const h = lines.length*lineH + 24;
+      if (y + h > maxBottom) await startNewPage(true);
+      pageCtx.fillStyle = '#333'; pageCtx.textAlign='left';
+      lines.forEach((line,i)=> drawJustifiedText(pageCtx, line, m, y + lineH*(i+1) - 4, cw - 4, i < lines.length - 1));
+      y += h;
+    }
+  }
+
+  return pages.map(p => ({ canvas: p.canvas, ctx: p.ctx }));
+}
+
+async function drawStep6Pages(chapters) {
+  const ch6 = chapters.find(c => c.key === 'step6');
+  const chapterTitle = `${ch6.cnNum}、${ch6.titleBase}`;
+
+  const blocks = [
+    { type: 'h2', text: `${ch6.numIndex}.1 立即處置` },
+    { type: 'p', text: document.getElementById('s6Immediate').value.trim() || '（尚未填寫）' },
+    { type: 'h2', text: `${ch6.numIndex}.2 後續修繕施工（由本檢測公司承接）` },
+    { type: 'subitem', text: '優惠施工款：檢測費半數可折抵施工款，限總工程達 NT$50,000 以上案件，每筆限折抵一次。' },
+    { type: 'subitem', text: '三年保固：工程保固期為3年，並於完工時提供正式保固證明書。' },
+    { type: 'subitem', text: '獨立報價：隨本報告一併交付施工報價單，內容詳列各工項數量、單價、總價及付款方式。' },
+    { type: 'subitem', text: '自主決定：委託方可依報價決定是否委託本公司施工，無強制義務。' },
+    { type: 'h2', text: `${ch6.numIndex}.3 法律與保險` },
+    { type: 'p', text: '若涉及管委會或鄰戶責任，本報告可作為協調、調解或訴訟之客觀證據。' },
+    { type: 'p', text: '若委託方有投保住宅保險，建議向保險公司申請理賠勘查，本報告可輔助理賠申請。' },
+    { type: 'h2', text: `${ch6.numIndex}.4 後續追蹤` },
+    { type: 'p', text: document.getElementById('s6Followup').value.trim() || '（尚未填寫）' },
+  ];
+
+  return drawFlowingPages(chapterTitle, blocks);
+}
+
+async function drawStep7Pages(chapters) {
+  const ch7 = chapters.find(c => c.key === 'step7');
+  const chapterTitle = `${ch7.cnNum}、${ch7.titleBase}`;
+
+  const blocks = [
+    { type: 'h2', text: `${ch7.numIndex}.1 專業定位` },
+    { type: 'p', text: '本公司為通過信義房屋第三方認證之專業漏水檢測與修繕公司。本報告係依據檢測當日之科技儀器（熱顯像、濕度計、聽漏儀、水壓測試等）及現場狀況作成，客觀呈現漏水證據。' },
+    { type: 'h2', text: `${ch7.numIndex}.2 檢測範圍與判定依據` },
+    { type: 'p', text: '本報告已就委託範圍內進行非破壞性檢測，並盡可能釐清漏水位置、原因及責任歸屬。報告內容係基於現有證據之合理判定，可作為修繕、協調或釐清責任之依據。因未進行破壞性開挖，無法保證涵蓋所有隱蔽區域，但已力求最精確判斷。' },
+    { type: 'h2', text: `${ch7.numIndex}.3 資訊提供責任` },
+    { type: 'p', text: '委託方應於檢測前完整告知已知之漏水歷史、維修紀錄、管線配置及相關背景資訊。資訊越完整，越能協助快速鎖定漏源。若因未告知重要資訊或第三方阻礙檢測導致判定受限，本公司不承擔該部分責任。' },
+    { type: 'h2', text: `${ch7.numIndex}.4 時效與保固連結` },
+    { type: 'p', text: '本報告反映檢測當時之狀況。若後續發生地震、裝修、打鑿、鄰戶施工或管線自然老化等重大變動，建議委託複測以確保判定仍屬正確。本報告與施工報價單、保固證明書共同構成完整服務憑證：施工後若同一位置依本報告判定原因修繕後再漏，本公司依保固書負責。' },
+    { type: 'h2', text: `${ch7.numIndex}.5 法律使用` },
+    { type: 'p', text: '本報告可作為調解、協商、保險理賠或訴訟之參考證據。若需正式司法鑑定報告，建議另委託公會辦理，本公司可配合提供原始檢測資料。' },
+  ];
+
+  return drawFlowingPages(chapterTitle, blocks);
+}
+
 /* ══════════════ 主流程：產生並合併所有步驟頁面 ══════════════ */
 async function generatePDF(isPreview = false) {
   const btn=document.getElementById('generateBtn');
   const msg=document.getElementById('statusMsg');
 
   if (!isPreview) {
+    const chapters = computeChapterPlan();
+    const missing = [];
+    if (cardStore[2].length === 0) missing.push('二、檢測結果');
+    if (cardStore[3].length === 0) missing.push('三、管線配置調查');
+    if (cardStore[4].length === 0) missing.push('四、周遭環境與結構');
+    if (missing.length > 0) {
+      const ok = confirm(
+        `以下區塊目前尚未填寫任何內容：\n\n${missing.map(s=>'・'+s).join('\n')}\n\n` +
+        `這些區塊將不會出現在報告書中，後續章節編號會自動往前遞補。\n\n是否仍要產生報告書？`
+      );
+      if (!ok) return;
+    }
+  }
+
+  if (!isPreview) {
     btn.disabled=true; msg.className='status-msg'; msg.textContent='正在產生報告書...';
   }
 
   try {
+    const chapters = computeChapterPlan();
+
     const pageObjs = [];
     const step1Page = await drawStep1Canvas();
     step1Page.step = 1;
     pageObjs.push(step1Page);
 
     for (const step of [2,3,4]) {
-      const pages = await drawCardStepPages(step);
+      const ch = chapters.find(c => c.step === step);
+      if (!ch.exists) continue;
+      const chapterTitle = `${ch.cnNum}、${ch.titleBase}`;
+      const pages = await drawCardStepPages(step, chapterTitle, ch.numIndex);
       pages.forEach(p => { p.step = step; pageObjs.push(p); });
     }
 
-    const s5Pages = await drawStep5Pages();
+    const s5Pages = await drawStep5Pages(chapters);
     s5Pages.forEach(p => { p.step = 5; pageObjs.push(p); });
+
+    const s6Pages = await drawStep6Pages(chapters);
+    s6Pages.forEach(p => { p.step = 6; pageObjs.push(p); });
+
+    const s7Pages = await drawStep7Pages(chapters);
+    s7Pages.forEach(p => { p.step = 7; pageObjs.push(p); });
 
     // 統一補畫頁碼（從封面開始算，格式：當頁／總頁數），置中於頁尾
     const totalPageCount = pageObjs.length;
@@ -1808,28 +2059,9 @@ async function generatePDF(isPreview = false) {
       doc.addImage(p.canvas.toDataURL('image/png',1.0),'PNG',0,0,210,297);
     });
 
-    const reportPdfBytes=doc.output('arraybuffer');
-
-    let finalPdfBytes;
-    try {
-      const resp=await fetch('terms.pdf');
-      if (!resp.ok) throw new Error('not found');
-      const termsBytes=await resp.arrayBuffer();
-      const { PDFDocument }=PDFLib;
-      const merged=await PDFDocument.create();
-      const rpdf=await PDFDocument.load(reportPdfBytes);
-      const tpdf=await PDFDocument.load(termsBytes);
-      (await merged.copyPages(rpdf,rpdf.getPageIndices())).forEach(p=>merged.addPage(p));
-      (await merged.copyPages(tpdf,tpdf.getPageIndices())).forEach(p=>merged.addPage(p));
-      finalPdfBytes=await merged.save();
-      if (!isPreview) {
-        msg.className='status-msg success'; msg.textContent='✅ 報告書已產生（含使用說明附頁）';
-      }
-    } catch(e) {
-      finalPdfBytes=reportPdfBytes;
-      if (!isPreview) {
-        msg.className='status-msg'; msg.textContent='⚠️ 找不到 terms.pdf，已產生報告書（不含使用說明附頁）';
-      }
+    const finalPdfBytes=doc.output('arraybuffer');
+    if (!isPreview) {
+      msg.className='status-msg success'; msg.textContent='✅ 報告書已產生';
     }
 
     const blob=new Blob([finalPdfBytes],{type:'application/pdf'});
@@ -1898,6 +2130,21 @@ function formatTimeCN(timeStr) {
     const h12 = h - 12;
     return `下午 ${h12}:${min}`;
   }
+}
+
+function drawJustifiedText(ctx, text, x, y, maxWidth, justify) {
+  const chars = Array.from(text);
+  if (!justify || chars.length < 2 || ctx.measureText(text).width >= maxWidth * 0.98) {
+    ctx.fillText(text, x, y);
+    return;
+  }
+  const textWidth = ctx.measureText(text).width;
+  const gap = (maxWidth - textWidth) / (chars.length - 1);
+  let cx = x;
+  chars.forEach(ch => {
+    ctx.fillText(ch, cx, y);
+    cx += ctx.measureText(ch).width + gap;
+  });
 }
 
 function wrapText(ctx, text, maxWidth, font) {
