@@ -9,8 +9,13 @@
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Microsoft JhengHei','微軟正黑體',Arial,sans-serif; background: #f0f4f8; color: #1a1a1a; min-height: 100vh; }
-header { background: #1871b5; color: white; padding: 20px 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+header { background: #1871b5; color: white; padding: 16px 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 header h1 { font-size: 20px; font-weight: 600; letter-spacing: 1px; }
+.header-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.header-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.35); color: white; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; white-space: nowrap; transition: background 0.15s; }
+.header-btn:hover { background: rgba(255,255,255,0.28); }
+.header-btn.accent { background: white; color: #1871b5; border-color: white; }
+.header-btn.accent:hover { background: #e8f0fb; }
 
 .step-bar { background: white; border-bottom: 1px solid #e0e6f0; padding: 0 40px; display: flex; gap: 4px; overflow-x: auto; }
 .step-tab { padding: 14px 18px; font-size: 13px; color: #888; cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; font-weight: 500; user-select: none; }
@@ -293,6 +298,58 @@ select { cursor: pointer; }
 }
 .fpm-export-btn:hover { background: #155fa0; }
 .fpm-export-btn:disabled { background: #aac4de; cursor: not-allowed; }
+/* ── 草稿管理 Modal ── */
+.draft-modal {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6); z-index: 3000;
+  align-items: center; justify-content: center;
+}
+.draft-modal.open { display: flex; }
+.dm-box {
+  background: white; border-radius: 14px;
+  width: 680px; max-width: 95vw; max-height: 88vh;
+  display: flex; flex-direction: column;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.3); overflow: hidden;
+}
+.dm-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 24px 14px; border-bottom: 1px solid #e0e6f0; flex-shrink: 0;
+}
+.dm-title { font-size: 16px; font-weight: 700; color: #1871b5; }
+.dm-body { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 12px; }
+.dm-footer {
+  display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+  padding: 14px 24px; border-top: 1px solid #e0e6f0; background: #fafcff; flex-shrink: 0;
+}
+.dm-hint { flex: 1; font-size: 12px; color: #999; }
+
+/* 草稿卡片 */
+.draft-card {
+  border: 1.5px solid #d0d9e8; border-radius: 10px;
+  padding: 16px 18px; background: #fafcff;
+  display: flex; align-items: center; gap: 14px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.draft-card:hover { border-color: #1871b5; box-shadow: 0 2px 10px rgba(24,113,181,0.1); }
+.draft-card.active-draft { border-color: #1871b5; background: #eef5ff; }
+.draft-card-icon { font-size: 26px; flex-shrink: 0; line-height: 1; }
+.draft-card-info { flex: 1; min-width: 0; }
+.draft-card-name { font-size: 14px; font-weight: 700; color: #1a1a1a; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.draft-card-meta { font-size: 12px; color: #888; }
+.draft-card-badge { font-size: 11px; background: #1871b5; color: white; border-radius: 10px; padding: 2px 8px; margin-left: 6px; font-weight: 600; }
+.draft-card-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.dm-load-btn { background: #1871b5; color: white; border: none; padding: 8px 18px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.dm-load-btn:hover { background: #155fa0; }
+.dm-del-btn { background: none; border: 1px solid #e57373; color: #e57373; padding: 8px 12px; border-radius: 7px; font-size: 13px; cursor: pointer; font-family: inherit; }
+.dm-del-btn:hover { background: #fdecea; }
+
+.draft-empty-slot {
+  border: 1.5px dashed #d0d9e8; border-radius: 10px;
+  padding: 20px; text-align: center;
+  font-size: 13px; color: #bbb; background: #fafcff;
+}
+
+.dm-current-tag { font-size: 11px; color: #1871b5; font-weight: 600; margin-left: 6px; }
 </style>
 </head>
 <body>
@@ -354,7 +411,13 @@ select { cursor: pointer; }
   </div>
 </div>
 
-<header><h1>詠順工程行｜漏水檢測報告書產生器</h1></header>
+<header>
+  <h1>詠順工程行｜漏水檢測報告書產生器</h1>
+  <div class="header-actions">
+    <button class="header-btn" onclick="openDraftManager()">📂 草稿管理</button>
+    <button class="header-btn accent" onclick="saveCurrentDraft()">💾 暫存草稿</button>
+  </div>
+</header>
 
 <div class="autosave-bar" id="autosaveBar">
   <div class="autosave-dot" id="autosaveDot"></div>
@@ -636,7 +699,25 @@ select { cursor: pointer; }
       </div>
 
     </div>
-    <!-- ════════ /STEP 7 ════════ -->
+    <!-- ════════ 草稿管理 Modal ════════ -->
+<div class="draft-modal" id="draftModal">
+  <div class="dm-box">
+    <div class="dm-header">
+      <div class="dm-title">📂 草稿管理</div>
+      <button class="fpm-close" onclick="closeDraftManager()">✕</button>
+    </div>
+    <div class="dm-body" id="dmBody">
+      <!-- 動態產生 -->
+    </div>
+    <div class="dm-footer">
+      <span class="dm-hint" id="dmHint"></span>
+      <button class="fpm-cancel-btn" onclick="closeDraftManager()">關閉</button>
+      <button class="fpm-export-btn" onclick="newBlankFile()" id="dmNewBtn">＋ 新建空白</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ /草稿管理 Modal ════════ -->
 
     <button class="generate-btn" id="generateBtn" onclick="openPreviewModal()">預覽全部頁面 →</button>
     <div class="status-msg" id="statusMsg"></div>
@@ -1479,10 +1560,41 @@ function updateStepBadges() {
   }
 }
 
-/* ══════════════ localStorage 自動暫存 ══════════════ */
-const DRAFT_KEY = 'leakReport_draft';
-let autosaveTimer = null;
-let autosaveBarTimer = null;
+/* ══════════════ 多草稿系統（最多 5 份） ══════════════ */
+const DRAFT_PREFIX = 'leakDraft_';
+const DRAFT_MAX = 5;
+const DRAFT_CURRENT_KEY = 'leakDraft_currentSlot';
+let currentDraftSlot = null; // null = 新建未儲存
+
+function getAllDrafts() {
+  const drafts = [];
+  for (let i = 0; i < DRAFT_MAX; i++) {
+    try {
+      const raw = localStorage.getItem(DRAFT_PREFIX + i);
+      drafts.push(raw ? { slot: i, data: JSON.parse(raw) } : null);
+    } catch(e) { drafts.push(null); }
+  }
+  return drafts;
+}
+
+function getDraftLabel(draft) {
+  if (!draft) return '（空白）';
+  const d = draft.data;
+  const name = d.clientName || '';
+  const addr = d.clientAddress || '';
+  if (name && addr) return `${name}・${addr}`;
+  if (name) return name;
+  if (addr) return addr;
+  return '（未填寫案件資訊）';
+}
+
+function getDraftMeta(draft) {
+  if (!draft || !draft.data.savedAt) return '';
+  const dt = new Date(draft.data.savedAt);
+  const dateStr = `${dt.getFullYear()}/${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
+  const cards = (draft.data.cardStore2||[]).length + (draft.data.cardStore3||[]).length + (draft.data.cardStore4||[]).length;
+  return `暫存於 ${dateStr}・${cards} 張卡片`;
+}
 
 function collectDraft() {
   return {
@@ -1506,44 +1618,12 @@ function collectDraft() {
     s6RepairTarget: document.getElementById('s6RepairTarget').value,
     s6Immediate: document.getElementById('s6Immediate').value,
     s6Followup: document.getElementById('s6Followup').value,
-    cardStore2: cardStore[2],
-    cardStore3: cardStore[3],
-    cardStore4: cardStore[4],
-    s5TableRows,
+    cardStore2: JSON.parse(JSON.stringify(cardStore[2])),
+    cardStore3: JSON.parse(JSON.stringify(cardStore[3])),
+    cardStore4: JSON.parse(JSON.stringify(cardStore[4])),
+    s5TableRows: JSON.parse(JSON.stringify(s5TableRows)),
     savedAt: new Date().toISOString(),
   };
-}
-
-function saveDraft() {
-  try {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(collectDraft()));
-    showAutosaveBar('已自動暫存', false);
-  } catch(e) { console.warn('暫存失敗', e); }
-}
-
-function showAutosaveBar(msg, showRestore) {
-  const bar = document.getElementById('autosaveBar');
-  const msgEl = document.getElementById('autosaveMsg');
-  const restoreBtn = document.getElementById('restoreBtn');
-  const dot = document.getElementById('autosaveDot');
-  msgEl.textContent = msg;
-  restoreBtn.style.display = showRestore ? '' : 'none';
-  dot.style.background = showRestore ? '#ff9800' : '#4caf50';
-  bar.classList.add('show');
-  clearTimeout(autosaveBarTimer);
-  if (!showRestore) {
-    autosaveBarTimer = setTimeout(() => bar.classList.remove('show'), 2500);
-  }
-}
-
-function dismissAutosave() {
-  document.getElementById('autosaveBar').classList.remove('show');
-}
-
-function triggerAutosave() {
-  clearTimeout(autosaveTimer);
-  autosaveTimer = setTimeout(saveDraft, 1500);
-  updateStepBadges();
 }
 
 function applyDraft(draft) {
@@ -1571,43 +1651,204 @@ function applyDraft(draft) {
   const bSel = document.getElementById('buildingType');
   if (bSel && draft.buildingType) bSel.value = draft.buildingType;
 
-  // 修繕目標預覽同步
   const rp = document.getElementById('s6RepairPreview');
   if (rp) rp.textContent = draft.s6RepairTarget || '（請填寫修繕目標）';
 
-  // 卡片
   if (Array.isArray(draft.cardStore2)) { cardStore[2] = draft.cardStore2; renderCards(2); }
   if (Array.isArray(draft.cardStore3)) { cardStore[3] = draft.cardStore3; renderCards(3); }
   if (Array.isArray(draft.cardStore4)) { cardStore[4] = draft.cardStore4; renderCards(4); }
-  if (Array.isArray(draft.s5TableRows)) { s5TableRows.length = 0; draft.s5TableRows.forEach(r => s5TableRows.push(r)); renderS5Table(); }
+  if (Array.isArray(draft.s5TableRows)) {
+    s5TableRows.length = 0;
+    draft.s5TableRows.forEach(r => s5TableRows.push(r));
+    renderS5Table();
+  }
 
   updateCaseNo();
   updateStepBadges();
   triggerLivePreview();
 }
 
-function restoreDraft() {
+// 「暫存草稿」按鈕：存入目前 slot（或找空位 / 覆蓋最舊）
+function saveCurrentDraft() {
+  const drafts = getAllDrafts();
+  let slot = currentDraftSlot;
+
+  if (slot === null) {
+    // 找第一個空位
+    slot = drafts.findIndex(d => d === null);
+    if (slot === -1) {
+      // 全滿：覆蓋最舊的
+      let oldest = 0, oldestTime = Infinity;
+      drafts.forEach((d, i) => {
+        if (d && d.data.savedAt) {
+          const t = new Date(d.data.savedAt).getTime();
+          if (t < oldestTime) { oldestTime = t; oldest = i; }
+        }
+      });
+      slot = oldest;
+    }
+  }
+
   try {
-    const raw = localStorage.getItem(DRAFT_KEY);
+    const data = collectDraft();
+    localStorage.setItem(DRAFT_PREFIX + slot, JSON.stringify(data));
+    currentDraftSlot = slot;
+    showAutosaveToast(`✅ 已暫存至草稿 ${slot + 1}`);
+  } catch(e) {
+    showAutosaveToast('❌ 暫存失敗（儲存空間不足）');
+    console.warn(e);
+  }
+}
+
+// 載入指定 slot
+function loadDraft(slot) {
+  try {
+    const raw = localStorage.getItem(DRAFT_PREFIX + slot);
     if (!raw) return;
     const draft = JSON.parse(raw);
     applyDraft(draft);
-    dismissAutosave();
-  } catch(e) { console.warn('還原失敗', e); }
+    currentDraftSlot = slot;
+    closeDraftManager();
+    showAutosaveToast(`📂 已載入草稿 ${slot + 1}`);
+  } catch(e) { console.warn('載入失敗', e); }
 }
 
-function checkDraftOnLoad() {
-  try {
-    const raw = localStorage.getItem(DRAFT_KEY);
-    if (!raw) return;
-    const draft = JSON.parse(raw);
-    if (!draft.savedAt) return;
-    const savedAt = new Date(draft.savedAt);
-    const mins = Math.round((Date.now() - savedAt) / 60000);
-    const label = mins < 1 ? '剛才' : mins < 60 ? `${mins} 分鐘前` : `${Math.round(mins/60)} 小時前`;
-    showAutosaveBar(`找到草稿（${label}暫存）`, true);
-  } catch(e) {}
+// 刪除指定 slot
+function deleteDraft(slot) {
+  if (!confirm(`確定要刪除草稿 ${slot + 1}？`)) return;
+  localStorage.removeItem(DRAFT_PREFIX + slot);
+  if (currentDraftSlot === slot) currentDraftSlot = null;
+  renderDraftManager();
 }
+
+// 新建空白
+function newBlankFile() {
+  const drafts = getAllDrafts();
+  const hasDrafts = drafts.some(d => d !== null);
+  if (hasDrafts) {
+    const ok = confirm('要先暫存目前的草稿嗎？\n\n確定：先暫存再新建\n取消：直接清空不暫存');
+    if (ok) saveCurrentDraft();
+  }
+  clearAllFields();
+  currentDraftSlot = null;
+  closeDraftManager();
+  showAutosaveToast('📄 已建立新空白檔案');
+}
+
+function clearAllFields() {
+  const fmt = d => d.toISOString().split('T')[0];
+  const today = new Date();
+  document.getElementById('issueDate').value = fmt(today);
+  document.getElementById('inspectDate').value = fmt(today);
+  document.getElementById('inspectTime').value = '';
+  document.getElementById('clientName').value = '';
+  document.getElementById('clientContact').value = '';
+  document.getElementById('clientPhone').value = '';
+  document.getElementById('inspectUnit').value = '詠順工程行';
+  document.getElementById('inspectStaff').value = '鍾師富';
+  document.getElementById('clientAddress').value = '';
+  document.getElementById('inspectScope').value = '';
+  document.getElementById('s1Position').value = '';
+  document.getElementById('clientDeclare').value = '';
+  document.getElementById('s2Conclusion').value = '';
+  document.getElementById('s5Cause').value = '';
+  document.getElementById('s5Type').value = '';
+  document.getElementById('s5Responsibility').value = '漏水點位於OOO。若為專有部分，由該住戶負責；若為共用部分，依《公寓大廈管理條例》第10條第2項由管委會負擔。';
+  document.getElementById('s6RepairTarget').value = '';
+  document.getElementById('s6Immediate').value = '建議暫時減少3樓陽台之大量排水行為（如洗衣、洗地、澆花），避免持續補充結構體內積水，減緩2樓天花板滴水狀況。';
+  document.getElementById('s6Followup').value = '修繕完成後，建議每半年自行檢查2樓天花板有無新生水漬或異味，並保持3樓陽台排水孔暢通。';
+  const rp = document.getElementById('s6RepairPreview');
+  if (rp) rp.textContent = '（請填寫修繕目標）';
+
+  cardStore[2] = []; cardStore[3] = []; cardStore[4] = [];
+  cardSeqStore[2] = 0; cardSeqStore[3] = 0; cardSeqStore[4] = 0;
+  renderCards(2); renderCards(3); renderCards(4);
+  s5TableRows.length = 0; renderS5Table();
+
+  updateCaseNo();
+  updateStepBadges();
+  triggerLivePreview();
+}
+
+// 草稿 Modal 開關
+function openDraftManager() {
+  renderDraftManager();
+  document.getElementById('draftModal').classList.add('open');
+}
+
+function closeDraftManager() {
+  document.getElementById('draftModal').classList.remove('open');
+}
+
+function renderDraftManager() {
+  const body = document.getElementById('dmBody');
+  const hint = document.getElementById('dmHint');
+  const drafts = getAllDrafts();
+  const usedCount = drafts.filter(Boolean).length;
+  hint.textContent = `已使用 ${usedCount} / ${DRAFT_MAX} 個草稿槽`;
+
+  body.innerHTML = '';
+  for (let i = 0; i < DRAFT_MAX; i++) {
+    const d = drafts[i];
+    const isCurrent = currentDraftSlot === i;
+    if (d) {
+      const card = document.createElement('div');
+      card.className = 'draft-card' + (isCurrent ? ' active-draft' : '');
+      card.innerHTML = `
+        <div class="draft-card-icon">📄</div>
+        <div class="draft-card-info">
+          <div class="draft-card-name">
+            草稿 ${i + 1}${isCurrent ? '<span class="dm-current-tag">▶ 目前編輯中</span>' : ''}
+            <span style="font-weight:400;color:#555;font-size:13px;margin-left:6px;">${getDraftLabel(d)}</span>
+          </div>
+          <div class="draft-card-meta">${getDraftMeta(d)}</div>
+        </div>
+        <div class="draft-card-actions">
+          ${isCurrent ? '' : `<button class="dm-load-btn" onclick="loadDraft(${i})">載入</button>`}
+          <button class="dm-del-btn" onclick="deleteDraft(${i})">刪除</button>
+        </div>`;
+      body.appendChild(card);
+    } else {
+      const empty = document.createElement('div');
+      empty.className = 'draft-empty-slot';
+      empty.textContent = `草稿槽 ${i + 1}（空白）`;
+      body.appendChild(empty);
+    }
+  }
+}
+
+/* ── 右下角 Toast 提示（取代舊 autosave-bar 的暫存訊息） ── */
+let autosaveBarTimer = null;
+function showAutosaveToast(msg) {
+  const bar = document.getElementById('autosaveBar');
+  const msgEl = document.getElementById('autosaveMsg');
+  const restoreBtn = document.getElementById('restoreBtn');
+  const dot = document.getElementById('autosaveDot');
+  msgEl.textContent = msg;
+  restoreBtn.style.display = 'none';
+  dot.style.background = msg.startsWith('✅') || msg.startsWith('📂') || msg.startsWith('📄') ? '#4caf50' : '#e53935';
+  bar.classList.add('show');
+  clearTimeout(autosaveBarTimer);
+  autosaveBarTimer = setTimeout(() => bar.classList.remove('show'), 2500);
+}
+
+function dismissAutosave() {
+  document.getElementById('autosaveBar').classList.remove('show');
+}
+
+// triggerAutosave 保留但改為只更新徽章（不再自動寫入，由使用者主動暫存）
+let autosaveTimer = null;
+function triggerAutosave() {
+  clearTimeout(autosaveTimer);
+  updateStepBadges();
+}
+
+function restoreDraft() {} // 保留空函式（舊 autosave bar 的 restore btn，已不使用）
+
+function checkDraftOnLoad() {
+  // 不再自動提示舊 DRAFT_KEY，改用草稿管理
+}
+
 
 /* ══════════════ 步驟切換 ══════════════ */
 let currentStep = 1;
