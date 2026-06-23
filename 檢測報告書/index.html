@@ -16,6 +16,29 @@ header h1 { font-size: 20px; font-weight: 600; letter-spacing: 1px; }
 .step-tab { padding: 14px 18px; font-size: 13px; color: #888; cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; font-weight: 500; user-select: none; }
 .step-tab.active { color: #1871b5; border-bottom-color: #1871b5; font-weight: 700; }
 .step-tab.disabled { color: #ccc; cursor: not-allowed; }
+.step-badge { display: inline-block; margin-left: 5px; font-size: 11px; vertical-align: middle; line-height: 1; }
+
+/* 自動暫存提示列 */
+.autosave-bar {
+  position: fixed; bottom: 16px; right: 20px; z-index: 500;
+  background: #1a2a3a; color: #c8d8e8; font-size: 12px;
+  padding: 8px 16px; border-radius: 20px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+  display: flex; align-items: center; gap: 10px;
+  opacity: 0; transition: opacity 0.3s;
+  pointer-events: none;
+}
+.autosave-bar.show { opacity: 1; pointer-events: auto; }
+.autosave-bar .restore-btn {
+  background: #1871b5; color: white; border: none;
+  padding: 4px 10px; border-radius: 12px; font-size: 11px;
+  cursor: pointer; font-family: inherit; white-space: nowrap;
+}
+.autosave-bar .dismiss-btn {
+  background: none; border: none; color: #8aaccc; cursor: pointer;
+  font-size: 14px; line-height: 1; padding: 0 2px;
+}
+.autosave-dot { width: 7px; height: 7px; border-radius: 50%; background: #4caf50; flex-shrink: 0; }
 
 .main-layout { display: grid; grid-template-columns: 1fr; gap: 24px; max-width: 1600px; margin: 36px auto; padding: 0 20px 60px; }
 @media (min-width: 1024px) { .main-layout { grid-template-columns: 1fr 1fr; } }
@@ -170,14 +193,147 @@ select { cursor: pointer; }
 .s6-subitems { margin: -8px 0 24px 22px; padding-left: 18px; line-height: 1.7; text-align: justify; }
 .s6-subitem { font-size: 13px; color: #444; margin-bottom: 10px; padding-left: 4px; }
 .s6-subitem:last-child { margin-bottom: 0; }
-.s6-fixed-title { font-size: 14px; font-weight: 700; color: #1871b5; margin: 24px 0 8px; }
+.s6-fixed-title { font-size: 14px; font-weight: 700; color: #1871b5; margin: 24px 0 6px; }
 .s6-fixed-title:first-child { margin-top: 0; }
+.s6-plain-text { font-size: 13px; color: #444; line-height: 1.8; text-align: justify; margin-bottom: 4px; }
 
 
 .hint { font-size: 11px; color: #999; margin-top: 4px; }
+
+/* ── 全頁預覽 Modal ── */
+.full-preview-modal {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.72); z-index: 2000;
+  align-items: center; justify-content: center;
+}
+.full-preview-modal.open { display: flex; }
+.fpm-box {
+  background: white; border-radius: 14px;
+  width: 92vw; max-width: 1200px;
+  height: 90vh; display: flex; flex-direction: column;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.35); overflow: hidden;
+}
+.fpm-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 24px 14px; border-bottom: 1px solid #e0e6f0;
+  flex-shrink: 0;
+}
+.fpm-title { font-size: 16px; font-weight: 700; color: #1871b5; }
+.fpm-close {
+  background: none; border: none; font-size: 20px; color: #999;
+  cursor: pointer; line-height: 1; padding: 4px 8px; border-radius: 6px;
+}
+.fpm-close:hover { background: #f0f4f8; color: #555; }
+.fpm-body {
+  display: flex; flex: 1; overflow: hidden; gap: 0;
+}
+.fpm-left {
+  flex: 1; position: relative; border-right: 1px solid #e0e6f0;
+  background: #f0f4f8;
+}
+.fpm-loading {
+  position: absolute; inset: 0; display: flex;
+  flex-direction: column; align-items: center; justify-content: center;
+  background: #f0f4f8; z-index: 5;
+}
+.fpm-loading.hidden { display: none; }
+.fpm-spinner {
+  width: 36px; height: 36px;
+  border: 4px solid #d0d9e8; border-top-color: #1871b5;
+  border-radius: 50%; animation: fpmSpin 0.8s linear infinite;
+}
+@keyframes fpmSpin { to { transform: rotate(360deg); } }
+.fpm-iframe { width: 100%; height: 100%; border: none; display: block; }
+.fpm-right {
+  width: 300px; flex-shrink: 0; overflow-y: auto;
+  padding: 20px 18px; display: flex; flex-direction: column; gap: 16px;
+}
+.fpm-warn-title {
+  font-size: 13px; font-weight: 700; color: #b45309; margin-bottom: 4px;
+}
+.fpm-warn-list { display: flex; flex-direction: column; gap: 8px; }
+.fpm-warn-item {
+  background: #fffbea; border: 1px solid #fde68a;
+  border-radius: 8px; padding: 10px 12px;
+  font-size: 12px; line-height: 1.6; color: #78350f;
+}
+.fpm-warn-item .warn-page { font-weight: 700; color: #92400e; margin-bottom: 3px; }
+.fpm-warn-item .warn-field { color: #78350f; }
+.fpm-warn-ok {
+  background: #f0fdf4; border: 1px solid #bbf7d0;
+  border-radius: 8px; padding: 12px 14px;
+  font-size: 12px; color: #166534; text-align: center; font-weight: 600;
+}
+.fpm-numbering-section {
+  border-top: 1px solid #e0e6f0; padding-top: 14px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.fpm-section-label { font-size: 12px; font-weight: 700; color: #555; margin-bottom: 4px; }
+.fpm-radio-row {
+  display: flex; align-items: flex-start; gap: 8px;
+  font-size: 12px; color: #444; cursor: pointer; line-height: 1.5;
+}
+.fpm-radio-row input { margin-top: 2px; accent-color: #1871b5; cursor: pointer; }
+.fpm-footer {
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: 12px; padding: 14px 24px; border-top: 1px solid #e0e6f0;
+  flex-shrink: 0; background: #fafcff;
+}
+.fpm-cancel-btn {
+  background: #f0f4f8; border: 1px solid #d0d9e8; color: #555;
+  padding: 10px 24px; border-radius: 8px; font-size: 14px;
+  cursor: pointer; font-family: inherit;
+}
+.fpm-cancel-btn:hover { background: #e4eaf3; }
+.fpm-export-btn {
+  background: #1871b5; border: none; color: white;
+  padding: 10px 28px; border-radius: 8px; font-size: 14px;
+  font-weight: 700; cursor: pointer; font-family: inherit;
+  box-shadow: 0 3px 10px rgba(24,113,181,0.3);
+}
+.fpm-export-btn:hover { background: #155fa0; }
+.fpm-export-btn:disabled { background: #aac4de; cursor: not-allowed; }
 </style>
 </head>
 <body>
+
+<!-- ════════ 全頁預覽 Modal ════════ -->
+<div class="full-preview-modal" id="fullPreviewModal">
+  <div class="fpm-box">
+    <div class="fpm-header">
+      <div class="fpm-title">📋 全部頁面預覽確認</div>
+      <button class="fpm-close" onclick="closePreviewModal()">✕</button>
+    </div>
+    <div class="fpm-body">
+      <div class="fpm-left">
+        <div class="fpm-loading" id="fpmLoading">
+          <div class="fpm-spinner"></div>
+          <div style="margin-top:12px;font-size:13px;color:#888;">正在產生預覽...</div>
+        </div>
+        <iframe class="fpm-iframe" id="fpmIframe" src="about:blank"></iframe>
+      </div>
+      <div class="fpm-right">
+        <div class="fpm-warn-title">⚠️ 欄位填寫提醒</div>
+        <div class="fpm-warn-list" id="fpmWarnList"></div>
+        <div class="fpm-numbering-section">
+          <div class="fpm-section-label">章節編號方式</div>
+          <label class="fpm-radio-row">
+            <input type="radio" name="fpmNumbering" id="fpmCompressed" value="compressed" checked>
+            <span>自動縮減（空白章節不顯示，編號遞補）</span>
+          </label>
+          <label class="fpm-radio-row">
+            <input type="radio" name="fpmNumbering" id="fpmFull" value="full">
+            <span>維持原編號（保留空白章節頁面）</span>
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="fpm-footer">
+      <button class="fpm-cancel-btn" onclick="closePreviewModal()">取消</button>
+      <button class="fpm-export-btn" id="fpmExportBtn" onclick="doExportPDF()">✅ 確認輸出 PDF</button>
+    </div>
+  </div>
+</div>
 
 <div class="crop-modal" id="cropModal">
   <div class="crop-box">
@@ -199,6 +355,13 @@ select { cursor: pointer; }
 </div>
 
 <header><h1>詠順工程行｜漏水檢測報告書產生器</h1></header>
+
+<div class="autosave-bar" id="autosaveBar">
+  <div class="autosave-dot" id="autosaveDot"></div>
+  <span id="autosaveMsg">已自動暫存</span>
+  <button class="restore-btn" id="restoreBtn" onclick="restoreDraft()" style="display:none;">還原草稿</button>
+  <button class="dismiss-btn" onclick="dismissAutosave()">✕</button>
+</div>
 
 <div class="step-bar" id="stepBar">
   <div class="step-tab active" data-step="1" onclick="switchStep(1)">一、案例個資</div>
@@ -415,8 +578,12 @@ select { cursor: pointer; }
 
       <div class="card">
         <div class="card-title-s6">6.2 後續修繕施工（由本檢測公司承接）</div>
-        <div class="s6-fixed-text">
-          依據本報告檢測結論，建議對<span class="s6-inline-input-wrap">【<input type="text" id="s6RepairTarget" class="s6-inline-input" value="3樓陽台地板結構體進行漏水修繕">】</span>。本公司提供後續施工服務，並針對委託本檢測之委託方給予專屬優惠。<br><br>
+        <div class="form-group" style="margin-bottom:14px;">
+          <label>建議修繕目標 <span style="color:#999;font-weight:400;">（填入後會嵌入下方文字）</span></label>
+          <input type="text" id="s6RepairTarget" value="" placeholder="例：3樓陽台地板結構體進行漏水修繕">
+        </div>
+        <div class="s6-plain-text">
+          依據本報告檢測結論，建議對【<span id="s6RepairPreview" style="color:#1871b5;font-weight:600;">（請填寫修繕目標）</span>】。本公司提供後續施工服務，並針對委託本檢測之委託方給予專屬優惠。<br><br>
           凡委託本檢測報告並由本公司進行修繕施工者，可享：<br>
           ▸優惠施工款：檢測費半數可折抵施工款，限總工程達 NT$50,000以上案件，每筆限折抵一次。<br>
           ▸三年保固：工程保固期為3年，並於完工時提供正式保固證明書。<br><br>
@@ -427,7 +594,7 @@ select { cursor: pointer; }
 
       <div class="card">
         <div class="card-title-s6">6.3 法律與保險</div>
-        <div class="s6-fixed-text">
+        <div class="s6-plain-text">
           ▸若涉及管委會或鄰戶責任，本報告可作為協調、調解或訴訟之客觀證據。<br>
           ▸若委託方有投保住宅保險，建議向保險公司申請理賠勘查，本報告可輔助理賠申請。
         </div>
@@ -450,28 +617,28 @@ select { cursor: pointer; }
         <div class="card-title">📄 七、報告使用說明</div>
         <p class="hint" style="margin-bottom:16px;">此頁為固定法律文字頁，不需填寫，會直接列印於報告書最後。</p>
 
-        <div class="s6-preview-block">
+        <div>
           <p class="s6-fixed-title">7.1 專業定位</p>
-          <p class="s6-fixed-text">本公司為通過信義房屋第三方認證之專業漏水檢測與修繕公司。本報告係依據檢測當日之科技儀器（熱顯像、濕度計、聽漏儀、水壓測試等）及現場狀況作成，客觀呈現漏水證據。</p>
+          <p class="s6-plain-text">本公司為通過信義房屋第三方認證之專業漏水檢測與修繕公司。本報告係依據檢測當日之科技儀器（熱顯像、濕度計、聽漏儀、水壓測試等）及現場狀況作成，客觀呈現漏水證據。</p>
 
           <p class="s6-fixed-title">7.2 檢測範圍與判定依據</p>
-          <p class="s6-fixed-text">本報告已就委託範圍內進行非破壞性檢測，並盡可能釐清漏水位置、原因及責任歸屬。報告內容係基於現有證據之合理判定，可作為修繕、協調或釐清責任之依據。因未進行破壞性開挖，無法保證涵蓋所有隱蔽區域，但已力求最精確判斷。</p>
+          <p class="s6-plain-text">本報告已就委託範圍內進行非破壞性檢測，並盡可能釐清漏水位置、原因及責任歸屬。報告內容係基於現有證據之合理判定，可作為修繕、協調或釐清責任之依據。因未進行破壞性開挖，無法保證涵蓋所有隱蔽區域，但已力求最精確判斷。</p>
 
           <p class="s6-fixed-title">7.3 資訊提供責任</p>
-          <p class="s6-fixed-text">委託方應於檢測前完整告知已知之漏水歷史、維修紀錄、管線配置及相關背景資訊。資訊越完整，越能協助快速鎖定漏源。若因未告知重要資訊或第三方阻礙檢測導致判定受限，本公司不承擔該部分責任。</p>
+          <p class="s6-plain-text">委託方應於檢測前完整告知已知之漏水歷史、維修紀錄、管線配置及相關背景資訊。資訊越完整，越能協助快速鎖定漏源。若因未告知重要資訊或第三方阻礙檢測導致判定受限，本公司不承擔該部分責任。</p>
 
           <p class="s6-fixed-title">7.4 時效與保固連結</p>
-          <p class="s6-fixed-text">本報告反映檢測當時之狀況。若後續發生地震、裝修、打鑿、鄰戶施工或管線自然老化等重大變動，建議委託複測以確保判定仍屬正確。本報告與施工報價單、保固證明書共同構成完整服務憑證：施工後若同一位置依本報告判定原因修繕後再漏，本公司依保固書負責。</p>
+          <p class="s6-plain-text">本報告反映檢測當時之狀況。若後續發生地震、裝修、打鑿、鄰戶施工或管線自然老化等重大變動，建議委託複測以確保判定仍屬正確。本報告與施工報價單、保固證明書共同構成完整服務憑證：施工後若同一位置依本報告判定原因修繕後再漏，本公司依保固書負責。</p>
 
           <p class="s6-fixed-title">7.5 法律使用</p>
-          <p class="s6-fixed-text">本報告可作為調解、協商、保險理賠或訴訟之參考證據。若需正式司法鑑定報告，建議另委託公會辦理，本公司可配合提供原始檢測資料。</p>
+          <p class="s6-plain-text">本報告可作為調解、協商、保險理賠或訴訟之參考證據。若需正式司法鑑定報告，建議另委託公會辦理，本公司可配合提供原始檢測資料。</p>
         </div>
       </div>
 
     </div>
     <!-- ════════ /STEP 7 ════════ -->
 
-    <button class="generate-btn" id="generateBtn" onclick="generatePDF(false)">產生報告書 PDF</button>
+    <button class="generate-btn" id="generateBtn" onclick="openPreviewModal()">預覽全部頁面 →</button>
     <div class="status-msg" id="statusMsg"></div>
 
   </div>
@@ -486,7 +653,8 @@ select { cursor: pointer; }
 
 <script>
 /* ══════════════ 頁面尺寸常數（全步驟共用，需在最前面宣告） ══════════════ */
-const SCALE=3, PW=794, PH=1123;
+const SCALE_EXPORT=3, SCALE_PREVIEW=1.5, PW=794, PH=1123;
+let currentScale = SCALE_PREVIEW;
 const ff='"Microsoft JhengHei","微軟正黑體","PingFang TC",Arial,sans-serif';
 const BLUE='#1871b5', LABEL_BLUE='#336590';
 // 頁邊距：上下 25mm(≈94px)、左右 20mm(≈75px)，固定數值（全部步驟共用）
@@ -849,11 +1017,12 @@ const CN_NUM = ['','一','二','三','四','五','六','七','八','九','十'];
 
 // 回傳目前報告書的章節清單：[{ key, numIndex, cnNum, titleBase, kind }]
 // kind: 'card'(2/3/4 卡片步驟) | 'fixed5' | 'fixed6' | 'fixed7'
-function computeChapterPlan() {
+// isFinal: 是否為最終輸出（如果是預覽，則編號固定為二三四五六七）
+function computeChapterPlan(isFinal = false) {
   const chapters = [];
-  chapters.push({ key: 'step2', kind: 'card', step: 2, titleBase: STEP_CONFIG[2].titleBase, exists: cardStore[2].length > 0 });
-  chapters.push({ key: 'step3', kind: 'card', step: 3, titleBase: STEP_CONFIG[3].titleBase, exists: cardStore[3].length > 0 });
-  chapters.push({ key: 'step4', kind: 'card', step: 4, titleBase: STEP_CONFIG[4].titleBase, exists: cardStore[4].length > 0 });
+  chapters.push({ key: 'step2', kind: 'card', step: 2, titleBase: STEP_CONFIG[2].titleBase, exists: isFinal ? cardStore[2].length > 0 : true });
+  chapters.push({ key: 'step3', kind: 'card', step: 3, titleBase: STEP_CONFIG[3].titleBase, exists: isFinal ? cardStore[3].length > 0 : true });
+  chapters.push({ key: 'step4', kind: 'card', step: 4, titleBase: STEP_CONFIG[4].titleBase, exists: isFinal ? cardStore[4].length > 0 : true });
   chapters.push({ key: 'step5', kind: 'fixed5', titleBase: '結論', exists: true });
   chapters.push({ key: 'step6', kind: 'fixed6', titleBase: '建議事項', exists: true });
   chapters.push({ key: 'step7', kind: 'fixed7', titleBase: '報告使用說明', exists: true });
@@ -1069,7 +1238,7 @@ function renderCards(step) {
         <div class="form-group">
           <label>位置</label>
           <input type="text" maxlength="${FIELD_LIMITS.position}" value="${escapeHtml(card.position)}"
-            oninput="cardFieldChange(${step},${card.id},'position',this.value); updateCounter(this,${FIELD_LIMITS.position}); triggerLivePreview();"
+            oninput="cardFieldChange(${step},${card.id},'position',this.value); updateCounter(this,${FIELD_LIMITS.position});"
             placeholder="樓層-空間-位置">
           <div class="field-counter">${card.position.length}/${FIELD_LIMITS.position} 字</div>
         </div>
@@ -1077,7 +1246,7 @@ function renderCards(step) {
         <div class="form-group">
           <label>${cfg.recordLabel}</label>
           <input type="text" maxlength="${FIELD_LIMITS.record}" value="${escapeHtml(card.recordA)}"
-            oninput="cardFieldChange(${step},${card.id},'recordA',this.value); updateCounter(this,${FIELD_LIMITS.record}); triggerLivePreview();"
+            oninput="cardFieldChange(${step},${card.id},'recordA',this.value); updateCounter(this,${FIELD_LIMITS.record});"
             placeholder="例：濕度計讀數 82%RH">
           <div class="field-counter">${card.recordA.length}/${FIELD_LIMITS.record} 字</div>
         </div>
@@ -1085,7 +1254,7 @@ function renderCards(step) {
         <div class="form-group">
           <label>影像判讀</label>
           <textarea maxlength="${FIELD_LIMITS.analysis}"
-            oninput="cardFieldChange(${step},${card.id},'analysis',this.value); updateCounter(this,${FIELD_LIMITS.analysis}); triggerLivePreview();"
+            oninput="cardFieldChange(${step},${card.id},'analysis',this.value); updateCounter(this,${FIELD_LIMITS.analysis});"
             placeholder="例：熱顯像顯示該處溫度明顯低於周圍區域，研判有持續性水分滲入……">${escapeHtml(card.analysis)}</textarea>
           <div class="field-counter">${card.analysis.length}/${FIELD_LIMITS.analysis} 字</div>
         </div>` : ``}` : `
@@ -1093,14 +1262,14 @@ function renderCards(step) {
           <div>
             <label>${cfg.recordLabel}（圖${labelBase}-1）</label>
             <input type="text" maxlength="${FIELD_LIMITS.record}" value="${escapeHtml(card.recordA)}"
-              oninput="cardFieldChange(${step},${card.id},'recordA',this.value); updateCounter(this,${FIELD_LIMITS.record}); triggerLivePreview();"
+              oninput="cardFieldChange(${step},${card.id},'recordA',this.value); updateCounter(this,${FIELD_LIMITS.record});"
               placeholder="例：處理前">
             <div class="field-counter">${card.recordA.length}/${FIELD_LIMITS.record} 字</div>
           </div>
           <div>
             <label>${cfg.recordLabel}（圖${labelBase}-2）</label>
             <input type="text" maxlength="${FIELD_LIMITS.record}" value="${escapeHtml(card.recordB)}"
-              oninput="cardFieldChange(${step},${card.id},'recordB',this.value); updateCounter(this,${FIELD_LIMITS.record}); triggerLivePreview();"
+              oninput="cardFieldChange(${step},${card.id},'recordB',this.value); updateCounter(this,${FIELD_LIMITS.record});"
               placeholder="例：處理後">
             <div class="field-counter">${card.recordB.length}/${FIELD_LIMITS.record} 字</div>
           </div>
@@ -1230,6 +1399,216 @@ function renderS5Table() {
     </table>`;
 }
 
+/* ══════════════ 步驟完成度徽章 ══════════════ */
+function computeStepStatus() {
+  const status = {};
+
+  // Step 1
+  const s1Fields = [
+    document.getElementById('issueDate').value,
+    document.getElementById('inspectDate').value,
+    document.getElementById('inspectTime').value,
+    document.getElementById('clientName').value.trim(),
+    document.getElementById('clientAddress').value.trim(),
+    document.getElementById('inspectScope').value.trim(),
+    document.getElementById('clientDeclare').value.trim(),
+  ];
+  const s1Filled = s1Fields.filter(Boolean).length;
+  const s1HasPhoto = imgStore['s1_1'] || imgStore['s1_2'];
+  const s1Total = s1Fields.length + 1;
+  const s1Done = s1Filled + (s1HasPhoto ? 1 : 0);
+  status[1] = s1Done === s1Total ? 'done' : s1Done > 0 ? 'partial' : 'empty';
+
+  // Step 2
+  if (cardStore[2].length === 0) {
+    status[2] = 'empty';
+  } else {
+    const allOk = cardStore[2].every(c => c.position && c.recordA);
+    const hasConcl = document.getElementById('s2Conclusion').value.trim();
+    status[2] = (allOk && hasConcl) ? 'done' : 'partial';
+  }
+
+  // Step 3
+  if (cardStore[3].length === 0) {
+    status[3] = 'skip'; // 可省略
+  } else {
+    const allOk = cardStore[3].every(c => c.position && c.recordA);
+    status[3] = allOk ? 'done' : 'partial';
+  }
+
+  // Step 4
+  if (cardStore[4].length === 0) {
+    status[4] = 'skip';
+  } else {
+    const allOk = cardStore[4].every(c => c.position && c.recordA);
+    status[4] = allOk ? 'done' : 'partial';
+  }
+
+  // Step 5
+  const hasCause = document.getElementById('s5Cause').value.trim();
+  const hasType  = document.getElementById('s5Type').value.trim();
+  const hasResp  = document.getElementById('s5Responsibility').value.trim();
+  const hasTable = s5TableRows.length > 0;
+  if (!hasCause && !hasType && !hasResp && !hasTable) status[5] = 'empty';
+  else if (hasCause && hasType && hasResp && hasTable) status[5] = 'done';
+  else status[5] = 'partial';
+
+  // Step 6
+  const hasRepair = document.getElementById('s6RepairTarget').value.trim();
+  const hasImmed  = document.getElementById('s6Immediate').value.trim();
+  const hasFollow = document.getElementById('s6Followup').value.trim();
+  if (!hasRepair && !hasImmed && !hasFollow) status[6] = 'empty';
+  else if (hasRepair && hasImmed && hasFollow) status[6] = 'done';
+  else status[6] = 'partial';
+
+  // Step 7 — 固定頁，永遠完成
+  status[7] = 'done';
+
+  return status;
+}
+
+function updateStepBadges() {
+  const status = computeStepStatus();
+  const badgeMap = { done: '✅', partial: '⚠️', empty: '○', skip: '—' };
+  for (let s = 1; s <= 7; s++) {
+    const tab = document.querySelector(`.step-tab[data-step="${s}"]`);
+    if (!tab) continue;
+    let badge = tab.querySelector('.step-badge');
+    if (!badge) { badge = document.createElement('span'); badge.className = 'step-badge'; tab.appendChild(badge); }
+    badge.textContent = badgeMap[status[s]] || '';
+  }
+}
+
+/* ══════════════ localStorage 自動暫存 ══════════════ */
+const DRAFT_KEY = 'leakReport_draft';
+let autosaveTimer = null;
+let autosaveBarTimer = null;
+
+function collectDraft() {
+  return {
+    issueDate: document.getElementById('issueDate').value,
+    inspectDate: document.getElementById('inspectDate').value,
+    inspectTime: document.getElementById('inspectTime').value,
+    clientName: document.getElementById('clientName').value,
+    clientContact: document.getElementById('clientContact').value,
+    clientPhone: document.getElementById('clientPhone').value,
+    inspectUnit: document.getElementById('inspectUnit').value,
+    inspectStaff: document.getElementById('inspectStaff').value,
+    clientAddress: document.getElementById('clientAddress').value,
+    inspectScope: document.getElementById('inspectScope').value,
+    buildingType: document.getElementById('buildingType').value,
+    s1Position: document.getElementById('s1Position').value,
+    clientDeclare: document.getElementById('clientDeclare').value,
+    s2Conclusion: document.getElementById('s2Conclusion').value,
+    s5Cause: document.getElementById('s5Cause').value,
+    s5Type: document.getElementById('s5Type').value,
+    s5Responsibility: document.getElementById('s5Responsibility').value,
+    s6RepairTarget: document.getElementById('s6RepairTarget').value,
+    s6Immediate: document.getElementById('s6Immediate').value,
+    s6Followup: document.getElementById('s6Followup').value,
+    cardStore2: cardStore[2],
+    cardStore3: cardStore[3],
+    cardStore4: cardStore[4],
+    s5TableRows,
+    savedAt: new Date().toISOString(),
+  };
+}
+
+function saveDraft() {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(collectDraft()));
+    showAutosaveBar('已自動暫存', false);
+  } catch(e) { console.warn('暫存失敗', e); }
+}
+
+function showAutosaveBar(msg, showRestore) {
+  const bar = document.getElementById('autosaveBar');
+  const msgEl = document.getElementById('autosaveMsg');
+  const restoreBtn = document.getElementById('restoreBtn');
+  const dot = document.getElementById('autosaveDot');
+  msgEl.textContent = msg;
+  restoreBtn.style.display = showRestore ? '' : 'none';
+  dot.style.background = showRestore ? '#ff9800' : '#4caf50';
+  bar.classList.add('show');
+  clearTimeout(autosaveBarTimer);
+  if (!showRestore) {
+    autosaveBarTimer = setTimeout(() => bar.classList.remove('show'), 2500);
+  }
+}
+
+function dismissAutosave() {
+  document.getElementById('autosaveBar').classList.remove('show');
+}
+
+function triggerAutosave() {
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(saveDraft, 1500);
+  updateStepBadges();
+}
+
+function applyDraft(draft) {
+  const set = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined) el.value = val; };
+  set('issueDate', draft.issueDate);
+  set('inspectDate', draft.inspectDate);
+  set('inspectTime', draft.inspectTime);
+  set('clientName', draft.clientName);
+  set('clientContact', draft.clientContact);
+  set('clientPhone', draft.clientPhone);
+  set('inspectUnit', draft.inspectUnit);
+  set('inspectStaff', draft.inspectStaff);
+  set('clientAddress', draft.clientAddress);
+  set('inspectScope', draft.inspectScope);
+  set('s1Position', draft.s1Position);
+  set('clientDeclare', draft.clientDeclare);
+  set('s2Conclusion', draft.s2Conclusion);
+  set('s5Cause', draft.s5Cause);
+  set('s5Type', draft.s5Type);
+  set('s5Responsibility', draft.s5Responsibility);
+  set('s6RepairTarget', draft.s6RepairTarget);
+  set('s6Immediate', draft.s6Immediate);
+  set('s6Followup', draft.s6Followup);
+
+  const bSel = document.getElementById('buildingType');
+  if (bSel && draft.buildingType) bSel.value = draft.buildingType;
+
+  // 修繕目標預覽同步
+  const rp = document.getElementById('s6RepairPreview');
+  if (rp) rp.textContent = draft.s6RepairTarget || '（請填寫修繕目標）';
+
+  // 卡片
+  if (Array.isArray(draft.cardStore2)) { cardStore[2] = draft.cardStore2; renderCards(2); }
+  if (Array.isArray(draft.cardStore3)) { cardStore[3] = draft.cardStore3; renderCards(3); }
+  if (Array.isArray(draft.cardStore4)) { cardStore[4] = draft.cardStore4; renderCards(4); }
+  if (Array.isArray(draft.s5TableRows)) { s5TableRows.length = 0; draft.s5TableRows.forEach(r => s5TableRows.push(r)); renderS5Table(); }
+
+  updateCaseNo();
+  updateStepBadges();
+  triggerLivePreview();
+}
+
+function restoreDraft() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return;
+    const draft = JSON.parse(raw);
+    applyDraft(draft);
+    dismissAutosave();
+  } catch(e) { console.warn('還原失敗', e); }
+}
+
+function checkDraftOnLoad() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return;
+    const draft = JSON.parse(raw);
+    if (!draft.savedAt) return;
+    const savedAt = new Date(draft.savedAt);
+    const mins = Math.round((Date.now() - savedAt) / 60000);
+    const label = mins < 1 ? '剛才' : mins < 60 ? `${mins} 分鐘前` : `${Math.round(mins/60)} 小時前`;
+    showAutosaveBar(`找到草稿（${label}暫存）`, true);
+  } catch(e) {}
+}
+
 /* ══════════════ 步驟切換 ══════════════ */
 let currentStep = 1;
 function switchStep(n) {
@@ -1249,6 +1628,8 @@ let lastPreviewObjectURL = null;
 function triggerLivePreview() {
   clearTimeout(previewTimeout);
   previewTimeout = setTimeout(() => { generatePDF(true); }, 500);
+  triggerAutosave();
+  updateStepBadges();
 }
 
 /* ══════════════ 初始化 ══════════════ */
@@ -1262,20 +1643,31 @@ window.onload = () => {
 
   updateCaseNo();
 
+  // 統一由 input 觸發預覽即可，change 在某些情況下會重複觸發
   document.querySelectorAll('.container input, .container select, .container textarea').forEach(el => {
     el.addEventListener('input', triggerLivePreview);
-    el.addEventListener('change', triggerLivePreview);
   });
 
+  // 6.2 修繕目標即時同步預覽文字
+  const repairInput = document.getElementById('s6RepairTarget');
+  const repairPreview = document.getElementById('s6RepairPreview');
+  if (repairInput && repairPreview) {
+    repairInput.addEventListener('input', () => {
+      repairPreview.textContent = repairInput.value || '（請填寫修繕目標）';
+    });
+  }
+
+  updateStepBadges();
+  checkDraftOnLoad();
   triggerLivePreview();
 };
 
 /* ══════════════ PDF 產生（Canvas 繪製 → jsPDF → pdf-lib 合併） ══════════════ */
 function newPageCanvas() {
   const canvas=document.createElement('canvas');
-  canvas.width=PW*SCALE; canvas.height=PH*SCALE;
+  canvas.width=PW*currentScale; canvas.height=PH*currentScale;
   const ctx=canvas.getContext('2d');
-  ctx.scale(SCALE,SCALE);
+  ctx.scale(currentScale,currentScale);
   return { canvas, ctx };
 }
 
@@ -1790,6 +2182,7 @@ async function drawStep5Pages(chapters) {
     // 結果摘要
     ctx.fillStyle = bg; ctx.fillRect(x, y, widths[2], rowH);
     ctx.strokeRect(x, y, widths[2], rowH);
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
     const summaryLines = wrapText(ctx, row.summary || '—', widths[2]-12, `12px ${ff}`);
     summaryLines.forEach((line,i)=> ctx.fillText(line, x+6, y+rowPad+lh*(i+1)-3));
     x += widths[2];
@@ -2013,57 +2406,76 @@ async function drawStep7Pages(chapters) {
 async function generatePDF(isPreview = false) {
   const btn=document.getElementById('generateBtn');
   const msg=document.getElementById('statusMsg');
+  let useCompressedNumbering = false;
 
   if (!isPreview) {
-    const chapters = computeChapterPlan();
     const missing = [];
     if (cardStore[2].length === 0) missing.push('二、檢測結果');
     if (cardStore[3].length === 0) missing.push('三、管線配置調查');
     if (cardStore[4].length === 0) missing.push('四、周遭環境與結構');
+    
     if (missing.length > 0) {
       const ok = confirm(
-        `以下區塊目前尚未填寫任何內容：\n\n${missing.map(s=>'・'+s).join('\n')}\n\n` +
-        `這些區塊將不會出現在報告書中，後續章節編號會自動往前遞補。\n\n是否仍要產生報告書？`
+        `檢測到以下區塊為空白：\n\n${missing.map(s=>'・'+s).join('\n')}\n\n` +
+        `是否要自動縮減編號輸出？\n（確定：空白章節不顯示，編號自動遞補；取消：維持原編號）`
       );
-      if (!ok) return;
+      useCompressedNumbering = ok;
+    } else {
+      useCompressedNumbering = true;
     }
   }
 
   if (!isPreview) {
     btn.disabled=true; msg.className='status-msg'; msg.textContent='正在產生報告書...';
+    currentScale = SCALE_EXPORT;
+  } else {
+    currentScale = SCALE_PREVIEW;
   }
 
   try {
-    const chapters = computeChapterPlan();
-
+    const chapters = computeChapterPlan(!isPreview && useCompressedNumbering);
     const pageObjs = [];
-    const step1Page = await drawStep1Canvas();
-    step1Page.step = 1;
-    pageObjs.push(step1Page);
 
-    for (const step of [2,3,4]) {
-      const ch = chapters.find(c => c.step === step);
-      if (!ch.exists) continue;
-      const chapterTitle = `${ch.cnNum}、${ch.titleBase}`;
-      const pages = await drawCardStepPages(step, chapterTitle, ch.numIndex);
-      pages.forEach(p => { p.step = step; pageObjs.push(p); });
+    // ── 預覽優化：僅繪製當前步驟 ──
+    if (isPreview) {
+      if (currentStep === 1) {
+        const p = await drawStep1Canvas(); p.step = 1; pageObjs.push(p);
+      } else if (currentStep >= 2 && currentStep <= 4) {
+        const ch = chapters.find(c => c.step === currentStep);
+        const pages = await drawCardStepPages(currentStep, `${ch.cnNum}、${ch.titleBase}`, ch.numIndex);
+        pages.forEach(p => { p.step = currentStep; pageObjs.push(p); });
+      } else if (currentStep === 5) {
+        const pages = await drawStep5Pages(chapters);
+        pages.forEach(p => { p.step = 5; pageObjs.push(p); });
+      } else if (currentStep === 6) {
+        const pages = await drawStep6Pages(chapters);
+        pages.forEach(p => { p.step = 6; pageObjs.push(p); });
+      } else if (currentStep === 7) {
+        const pages = await drawStep7Pages(chapters);
+        pages.forEach(p => { p.step = 7; pageObjs.push(p); });
+      }
+    } else {
+      // 最終輸出：繪製所有頁面
+      const step1Page = await drawStep1Canvas();
+      step1Page.step = 1; pageObjs.push(step1Page);
+      for (const step of [2,3,4]) {
+        const ch = chapters.find(c => c.step === step);
+        if (!ch.exists) continue;
+        const pages = await drawCardStepPages(step, `${ch.cnNum}、${ch.titleBase}`, ch.numIndex);
+        pages.forEach(p => { p.step = step; pageObjs.push(p); });
+      }
+      (await drawStep5Pages(chapters)).forEach(p => { p.step = 5; pageObjs.push(p); });
+      (await drawStep6Pages(chapters)).forEach(p => { p.step = 6; pageObjs.push(p); });
+      (await drawStep7Pages(chapters)).forEach(p => { p.step = 7; pageObjs.push(p); });
     }
 
-    const s5Pages = await drawStep5Pages(chapters);
-    s5Pages.forEach(p => { p.step = 5; pageObjs.push(p); });
-
-    const s6Pages = await drawStep6Pages(chapters);
-    s6Pages.forEach(p => { p.step = 6; pageObjs.push(p); });
-
-    const s7Pages = await drawStep7Pages(chapters);
-    s7Pages.forEach(p => { p.step = 7; pageObjs.push(p); });
-
-    // 統一補畫頁碼（從封面開始算，格式：當頁／總頁數），置中於頁尾
+    // 統一補畫頁碼（正式輸出才補全，預覽僅顯示當前頁碼提示）
     const totalPageCount = pageObjs.length;
     pageObjs.forEach((p, i) => {
       const pc = p.ctx;
       pc.font=`11px ${ff}`; pc.fillStyle='#999'; pc.textAlign='center';
-      pc.fillText(`${i+1} / ${totalPageCount}`, PW/2, PH - mBottom + 30);
+      const label = isPreview ? `預覽：第 ${i+1} 頁` : `${i+1} / ${totalPageCount}`;
+      pc.fillText(label, PW/2, PH - mBottom + 30);
       pc.textAlign='left';
     });
 
@@ -2071,7 +2483,7 @@ async function generatePDF(isPreview = false) {
     const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
     pageObjs.forEach((p, i) => {
       if (i > 0) doc.addPage();
-      doc.addImage(p.canvas.toDataURL('image/png',1.0),'PNG',0,0,210,297);
+      doc.addImage(p.canvas.toDataURL('image/png', 0.8), 'PNG', 0, 0, 210, 297);
     });
 
     const finalPdfBytes=doc.output('arraybuffer');
@@ -2110,6 +2522,244 @@ async function generatePDF(isPreview = false) {
   }
 
   if (!isPreview) { btn.disabled=false; }
+}
+
+/* ══════════════ 全頁預覽 Modal 邏輯 ══════════════ */
+
+function collectFieldWarnings() {
+  const warnings = [];
+
+  // ── Step 1 ──
+  const s1Warns = [];
+  if (!document.getElementById('issueDate').value) s1Warns.push('出具日期');
+  if (!document.getElementById('inspectDate').value) s1Warns.push('檢測時間');
+  if (!document.getElementById('inspectTime').value) s1Warns.push('檢測時刻');
+  if (!document.getElementById('clientName').value.trim()) s1Warns.push('委託方');
+  if (!document.getElementById('clientContact').value.trim()) s1Warns.push('負責人');
+  if (!document.getElementById('clientPhone').value.trim()) s1Warns.push('聯絡電話');
+  if (!document.getElementById('clientAddress').value.trim()) s1Warns.push('地址');
+  if (!document.getElementById('inspectScope').value.trim()) s1Warns.push('檢測範圍');
+  if (!document.getElementById('s1Position').value.trim()) s1Warns.push('現場照片拍攝位置');
+  if (!imgStore['s1_1'] && !imgStore['s1_2']) s1Warns.push('現場照片（未上傳任何圖片）');
+  if (!document.getElementById('clientDeclare').value.trim()) s1Warns.push('委託方漏水狀況陳述');
+  if (s1Warns.length) warnings.push({ page: '一、案例個資', fields: s1Warns });
+
+  // ── Step 2 ──
+  if (cardStore[2].length === 0) {
+    warnings.push({ page: '二、儀器檢查結果', fields: ['尚未新增任何檢測卡片'] });
+  } else {
+    const s2CardWarns = [];
+    cardStore[2].forEach((card, i) => {
+      const cardNo = `第 ${i+1} 張卡片`;
+      if (!card.position) s2CardWarns.push(`${cardNo}：位置（空白）`);
+      if (!card.recordA) s2CardWarns.push(`${cardNo}：檢測紀錄（空白）`);
+      if (!card.analysis) s2CardWarns.push(`${cardNo}：影像判讀（空白）`);
+      if (card.template === 'A' && !imgStore[`s2_${card.id}_A`]) s2CardWarns.push(`${cardNo}：圖片（未上傳）`);
+      if (card.template === 'B' && !imgStore[`s2_${card.id}_B1`] && !imgStore[`s2_${card.id}_B2`]) s2CardWarns.push(`${cardNo}：圖片（未上傳）`);
+    });
+    const s2Conclusion = document.getElementById('s2Conclusion').value.trim();
+    if (!s2Conclusion) s2CardWarns.push('檢測結果結論（空白）');
+    if (s2CardWarns.length) warnings.push({ page: '二、儀器檢查結果', fields: s2CardWarns });
+  }
+
+  // ── Step 3 ──
+  if (cardStore[3].length === 0) {
+    warnings.push({ page: '三、管線配置調查', fields: ['尚未新增任何卡片（章節將省略）'] });
+  } else {
+    const s3Warns = [];
+    cardStore[3].forEach((card, i) => {
+      const cardNo = `第 ${i+1} 張卡片`;
+      if (!card.position) s3Warns.push(`${cardNo}：位置（空白）`);
+      if (!card.recordA) s3Warns.push(`${cardNo}：走向與配置（空白）`);
+      if (card.template === 'A' && !imgStore[`s3_${card.id}_A`]) s3Warns.push(`${cardNo}：圖片（未上傳）`);
+      if (card.template === 'B' && !imgStore[`s3_${card.id}_B1`] && !imgStore[`s3_${card.id}_B2`]) s3Warns.push(`${cardNo}：圖片（未上傳）`);
+    });
+    if (s3Warns.length) warnings.push({ page: '三、管線配置調查', fields: s3Warns });
+  }
+
+  // ── Step 4 ──
+  if (cardStore[4].length === 0) {
+    warnings.push({ page: '四、周遭環境與結構', fields: ['尚未新增任何卡片（章節將省略）'] });
+  } else {
+    const s4Warns = [];
+    cardStore[4].forEach((card, i) => {
+      const cardNo = `第 ${i+1} 張卡片`;
+      if (!card.position) s4Warns.push(`${cardNo}：位置（空白）`);
+      if (!card.recordA) s4Warns.push(`${cardNo}：觀察紀錄（空白）`);
+      if (card.template === 'A' && !imgStore[`s4_${card.id}_A`]) s4Warns.push(`${cardNo}：圖片（未上傳）`);
+      if (card.template === 'B' && !imgStore[`s4_${card.id}_B1`] && !imgStore[`s4_${card.id}_B2`]) s4Warns.push(`${cardNo}：圖片（未上傳）`);
+    });
+    if (s4Warns.length) warnings.push({ page: '四、周遭環境與結構', fields: s4Warns });
+  }
+
+  // ── Step 5 ──
+  const s5Warns = [];
+  if (!document.getElementById('s5Cause').value.trim()) s5Warns.push('漏水原因');
+  if (!document.getElementById('s5Type').value.trim()) s5Warns.push('漏水型態');
+  const s5Resp = document.getElementById('s5Responsibility').value.trim();
+  if (!s5Resp || s5Resp.includes('OOO')) s5Warns.push('責任歸屬（含「OOO」佔位文字，請修改）');
+  const s5TableWrap = document.getElementById('s5TableWrap');
+  if (!s5TableWrap || !s5TableWrap.querySelector('table')) s5Warns.push('綜合判定總表（尚未產生）');
+  if (s5Warns.length) warnings.push({ page: '五、結論', fields: s5Warns });
+
+  // ── Step 6 ──
+  const s6Warns = [];
+  const s6Repair = document.getElementById('s6RepairTarget').value.trim();
+  if (!s6Repair || s6Repair === '3樓陽台地板結構體進行漏水修繕') s6Warns.push('修繕目標（尚為預設值，請確認是否需要修改）');
+  if (!document.getElementById('s6Immediate').value.trim()) s6Warns.push('立即處置（空白）');
+  if (!document.getElementById('s6Followup').value.trim()) s6Warns.push('後續追蹤（空白）');
+  if (s6Warns.length) warnings.push({ page: '六、建議事項', fields: s6Warns });
+
+  return warnings;
+}
+
+async function openPreviewModal() {
+  const modal = document.getElementById('fullPreviewModal');
+  const loading = document.getElementById('fpmLoading');
+  const iframe = document.getElementById('fpmIframe');
+  const warnList = document.getElementById('fpmWarnList');
+
+  modal.classList.add('open');
+  loading.classList.remove('hidden');
+  iframe.src = 'about:blank';
+
+  // 渲染警告欄位
+  const warnings = collectFieldWarnings();
+  warnList.innerHTML = '';
+  if (warnings.length === 0) {
+    warnList.innerHTML = '<div class="fpm-warn-ok">✅ 所有欄位均已填寫，可直接輸出！</div>';
+  } else {
+    warnings.forEach(w => {
+      const div = document.createElement('div');
+      div.className = 'fpm-warn-item';
+      div.innerHTML = `<div class="warn-page">📄 ${w.page}</div>` +
+        w.fields.map(f => `<div class="warn-field">・${f}</div>`).join('');
+      warnList.appendChild(div);
+    });
+  }
+
+  // 產生全頁預覽 PDF
+  try {
+    const savedStep = currentStep;
+    currentScale = SCALE_PREVIEW;
+    const chapters = computeChapterPlan(false); // 預覽用非壓縮
+    const pageObjs = [];
+
+    const step1Page = await drawStep1Canvas();
+    step1Page.step = 1; pageObjs.push(step1Page);
+    for (const step of [2,3,4]) {
+      const ch = chapters.find(c => c.step === step);
+      if (!ch || cardStore[step].length === 0) continue;
+      const pages = await drawCardStepPages(step, `${ch.cnNum}、${ch.titleBase}`, ch.numIndex);
+      pages.forEach(p => { p.step = step; pageObjs.push(p); });
+    }
+    (await drawStep5Pages(chapters)).forEach(p => { p.step = 5; pageObjs.push(p); });
+    (await drawStep6Pages(chapters)).forEach(p => { p.step = 6; pageObjs.push(p); });
+    (await drawStep7Pages(chapters)).forEach(p => { p.step = 7; pageObjs.push(p); });
+
+    const totalPageCount = pageObjs.length;
+    pageObjs.forEach((p, i) => {
+      const pc = p.ctx;
+      pc.font = `11px ${ff}`; pc.fillStyle = '#999'; pc.textAlign = 'center';
+      pc.fillText(`預覽：第 ${i+1} 頁 / 共 ${totalPageCount} 頁`, PW/2, PH - mBottom + 30);
+      pc.textAlign = 'left';
+    });
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    pageObjs.forEach((p, i) => {
+      if (i > 0) doc.addPage();
+      doc.addImage(p.canvas.toDataURL('image/png', 0.8), 'PNG', 0, 0, 210, 297);
+    });
+
+    const blob = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    iframe.src = url + '#toolbar=1&navpanes=0&view=FitH';
+
+    if (lastPreviewObjectURL) URL.revokeObjectURL(lastPreviewObjectURL);
+    lastPreviewObjectURL = url;
+
+  } catch(err) {
+    console.error('預覽產生失敗', err);
+  } finally {
+    loading.classList.add('hidden');
+  }
+}
+
+function closePreviewModal() {
+  document.getElementById('fullPreviewModal').classList.remove('open');
+}
+
+async function doExportPDF() {
+  const btn = document.getElementById('fpmExportBtn');
+  const useCompressed = document.getElementById('fpmCompressed').checked;
+
+  btn.disabled = true;
+  btn.textContent = '⏳ 正在輸出...';
+
+  try {
+    closePreviewModal();
+    const mainBtn = document.getElementById('generateBtn');
+    const msg = document.getElementById('statusMsg');
+    mainBtn.disabled = true;
+    msg.className = 'status-msg'; msg.textContent = '正在產生報告書...';
+    currentScale = SCALE_EXPORT;
+
+    const chapters = computeChapterPlan(useCompressed);
+    const pageObjs = [];
+
+    const step1Page = await drawStep1Canvas();
+    step1Page.step = 1; pageObjs.push(step1Page);
+    for (const step of [2,3,4]) {
+      const ch = chapters.find(c => c.step === step);
+      if (!ch.exists) continue;
+      const pages = await drawCardStepPages(step, `${ch.cnNum}、${ch.titleBase}`, ch.numIndex);
+      pages.forEach(p => { p.step = step; pageObjs.push(p); });
+    }
+    (await drawStep5Pages(chapters)).forEach(p => { p.step = 5; pageObjs.push(p); });
+    (await drawStep6Pages(chapters)).forEach(p => { p.step = 6; pageObjs.push(p); });
+    (await drawStep7Pages(chapters)).forEach(p => { p.step = 7; pageObjs.push(p); });
+
+    const totalPageCount = pageObjs.length;
+    pageObjs.forEach((p, i) => {
+      const pc = p.ctx;
+      pc.font = `11px ${ff}`; pc.fillStyle = '#999'; pc.textAlign = 'center';
+      pc.fillText(`${i+1} / ${totalPageCount}`, PW/2, PH - mBottom + 30);
+      pc.textAlign = 'left';
+    });
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    pageObjs.forEach((p, i) => {
+      if (i > 0) doc.addPage();
+      doc.addImage(p.canvas.toDataURL('image/png', 0.8), 'PNG', 0, 0, 210, 297);
+    });
+
+    commitSeq();
+    updateCaseNo();
+
+    const finalBytes = doc.output('arraybuffer');
+    const blob = new Blob([finalBytes], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const fileName = currentCaseNo ? `${currentCaseNo}_檢測報告書.pdf` : '檢測報告書.pdf';
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    msg.className = 'status-msg success'; msg.textContent = '✅ 報告書已產生';
+    mainBtn.disabled = false;
+
+  } catch(err) {
+    console.error(err);
+    const msg = document.getElementById('statusMsg');
+    msg.className = 'status-msg error'; msg.textContent = '❌ 輸出失敗：' + err.message;
+    document.getElementById('generateBtn').disabled = false;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✅ 確認輸出 PDF';
+  }
 }
 
 // 固定高度照片區塊：等比例縮放置中（不裁切、不拉伸），空白處用淺灰底色呈現裝裱感
