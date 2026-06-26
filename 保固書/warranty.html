@@ -365,7 +365,7 @@ async function generatePDF(isPreview = false) {
     };
 
     ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#333';
-    const scopeText = '於保固期間內，若同一漏水位置因施工品質不良導致再度滲漏水，本公司將免費修復。但下列情形不在此限：天災、人為破壞、鄰戶或第三方影響、保固期內裝修改造、地震或結構受損所致。上述除外情況，本公司仍會盡速協助修繕（費用另計），絕不拖延。';
+    const scopeText = '本公司依據檢測報告判定原因完成修繕，於保固期間內，如因相同原因再次滲漏，免費修復。但下列情形不在此限：天災、人為破壞、鄰戶或第三方影響、保固期內裝修改造、地震或結構受損所致。上述除外情況，本公司仍會盡速協助修繕（費用另計），絕不拖延。';
     wrapText(scopeText, CW).forEach(line => { ctx.fillText(line, M, y); y += LH * 1.2; });
     y += 10;
 
