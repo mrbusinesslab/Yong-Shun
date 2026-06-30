@@ -254,7 +254,7 @@ async function generatePDF(isPreview = false) {
     const MB = 113;  // 下邊距 40mm
     const CW = PW - M * 2;
     const ff = '"Microsoft JhengHei","微軟正黑體","PingFang TC",Arial,sans-serif';
-    const FS = 12;   // 全局字體 12px
+    const FS = 12.5;   // 全局字體
     const LH = 23;   // 行高
 
     // 白底
@@ -285,7 +285,7 @@ async function generatePDF(isPreview = false) {
 
     // 右上角：編號 — 單行，基線對齊分隔線上緣
     const warrantyNo = document.getElementById('warrantyNo').value || '—';
-    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#555'; ctx.textAlign = 'right';
+    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#333'; ctx.textAlign = 'right';
     ctx.fillText(`編號：${warrantyNo}`, PW - M, DIVIDER_Y - 5);
     ctx.textAlign = 'left';
 
@@ -299,7 +299,7 @@ async function generatePDF(isPreview = false) {
     const projVal = projSel === '__custom__'
       ? (document.getElementById('projectNameCustom').value || '　　　　　　')
       : (projSel || '　　　　　　');
-    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#222'; ctx.textAlign = 'left';
+    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#111'; ctx.textAlign = 'left';
     ctx.fillText(`保固工程：${projVal}`, M, y);
     y += LH * 1.4;
 
@@ -328,7 +328,7 @@ async function generatePDF(isPreview = false) {
           ctx.strokeStyle = '#1871b5'; ctx.lineWidth = 1.7;
           ctx.beginPath(); ctx.moveTo(cx+2.5, yy-BOX*0.4); ctx.lineTo(cx+4.5, yy-0.5); ctx.lineTo(cx+BOX-1, yy-BOX+2.5); ctx.stroke();
         }
-        ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#222'; ctx.textAlign = 'left';
+        ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#111'; ctx.textAlign = 'left';
         ctx.fillText(opt, cx + BOX + 4, yy);
         cx += CELL_W;
       });
@@ -346,7 +346,7 @@ async function generatePDF(isPreview = false) {
       ctx.strokeStyle = '#1871b5'; ctx.lineWidth = 1.7;
       ctx.beginPath(); ctx.moveTo(cx2+2.5, y-BOX*0.4); ctx.lineTo(cx2+4.5, y-0.5); ctx.lineTo(cx2+BOX-1, y-BOX+2.5); ctx.stroke();
     }
-    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#222'; ctx.textAlign = 'left';
+    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#111'; ctx.textAlign = 'left';
     ctx.fillText('其他：', cx2 + BOX + 4, y);
     if (hasOther && otherTxt) {
       ctx.fillText(otherTxt, cx2 + BOX + 4 + ctx.measureText('其他：').width + 2, y);
@@ -356,7 +356,7 @@ async function generatePDF(isPreview = false) {
     // 具體位置描述
     const locDesc = document.getElementById('locationDesc').value || '';
     const sqm = document.getElementById('sqm').value || '';
-    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#222'; ctx.textAlign = 'left';
+    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#111'; ctx.textAlign = 'left';
     ctx.fillText(`具體位置描述：${locDesc}，合計：約 ${sqm} 平方公尺。`, M, y);
     y += LH * 1.3;
 
@@ -395,7 +395,7 @@ async function generatePDF(isPreview = false) {
       return lines;
     };
 
-    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#333';
+    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#111';
     const scopeText = '本公司依據本次檢測報告判定之漏水原因完成修繕。於保固期間內，如經本公司檢測確認因本次修繕之相同漏水原因再次滲漏者，本公司將免費修復。';
     wrapText(scopeText, CW).forEach(line => { ctx.fillText(line, M, y); y += LH * 1.05; });
     y += 6;
@@ -407,7 +407,7 @@ async function generatePDF(isPreview = false) {
 
     const exclusions = ['天災', '人為破壞', '管線自然老化', '第三人施工或其他外力影響', '保固期間內裝修修改', '地震或建築結構受損'];
     // 兩列三欄排列
-    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#333';
+    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#111';
     const colW3 = CW / 3;
     for (let i = 0; i < exclusions.length; i += 3) {
       ctx.fillText(`・${exclusions[i]}`, M + 8, y);
@@ -417,7 +417,7 @@ async function generatePDF(isPreview = false) {
     }
     y += 6;
 
-    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#333';
+    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#111';
     const scopeLimitText = '本保固僅適用於本次施工範圍及本次檢測判定之漏水原因，不適用於建築物其他部位或其他漏水原因。';
     wrapText(scopeLimitText, CW).forEach(line => { ctx.fillText(line, M, y); y += LH * 1.05; });
     y += 8;
@@ -467,7 +467,7 @@ async function generatePDF(isPreview = false) {
       ctx.fillText(String(i + 1), centerX, badgeCY + 4);
 
       // 說明文字（手動分行，置中）
-      ctx.font = `8.5px ${ff}`; ctx.fillStyle = '#444';
+      ctx.font = `8.5px ${ff}`; ctx.fillStyle = '#222';
       let sty = startY + 20 + 8 + 8;
       s.lines.forEach(line => {
         ctx.fillText(line, centerX, sty);
@@ -514,7 +514,7 @@ async function generatePDF(isPreview = false) {
     ctx.textAlign = 'left';
     ny += NLH + 4;
 
-    ctx.font = `${FS - 1}px ${ff}`; ctx.fillStyle = '#333';
+    ctx.font = `${FS - 1}px ${ff}`; ctx.fillStyle = '#111';
     noticeWrapped.forEach(lines => {
       lines.forEach(line => { ctx.fillText(line, M + NP_H, ny); ny += NLH; });
     });
@@ -542,7 +542,7 @@ async function generatePDF(isPreview = false) {
     const colW = (CW - 40) / 2;
 
     // 名稱行
-    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#333'; ctx.textAlign = 'left';
+    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#111'; ctx.textAlign = 'left';
     ctx.fillText('詠順工程行', M, y);
     ctx.fillText('委託方', midX + 20, y);
     y += LH * 0.5;
@@ -567,7 +567,7 @@ async function generatePDF(isPreview = false) {
       const [iy, im, id] = issueDateVal.split('-').map(Number);
       issueDateText = `中　　華　　民　　國　　${iy - 1911}　　年　　${im}　　月　　${id}　　日`;
     }
-    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#333'; ctx.textAlign = 'center';
+    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#111'; ctx.textAlign = 'center';
     ctx.fillText(issueDateText, PW / 2, y);
     ctx.textAlign = 'left';
 
