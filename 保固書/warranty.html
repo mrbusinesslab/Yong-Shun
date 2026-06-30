@@ -65,11 +65,28 @@ input:focus, select:focus { outline: none; border-color: #1871b5; background: wh
       <div class="form-grid">
         <div class="form-group">
           <label>保固書編號</label>
-          <input type="text" id="warrantyNo" placeholder="例：TCG-202601-001-W">
+          <input type="text" id="warrantyNo" placeholder="例：與檢測報告書編號一致">
         </div>
         <div class="form-group">
-          <label>保固工程名稱</label>
-          <input type="text" id="projectName" placeholder="例：外牆防水工程">
+          <label>保固工程</label>
+          <select id="projectName" onchange="toggleProjectCustom(); triggerLivePreview();">
+            <option value="">請選擇保固工程</option>
+            <option value="陽台防水修繕">陽台防水修繕</option>
+            <option value="管道間止漏工程">管道間止漏工程</option>
+            <option value="外牆裂縫修補">外牆裂縫修補</option>
+            <option value="浴室防水修繕">浴室防水修繕</option>
+            <option value="屋頂防水修繕">屋頂防水修繕</option>
+            <option value="天花板止漏工程">天花板止漏工程</option>
+            <option value="窗框防水修繕">窗框防水修繕</option>
+            <option value="地面防水修繕">地面防水修繕</option>
+            <option value="牆面裂縫修補">牆面裂縫修補</option>
+            <option value="__custom__">其他（自行輸入）</option>
+          </select>
+          <input type="text" id="projectNameCustom" placeholder="請輸入保固工程名稱" style="display:none;margin-top:6px;" oninput="triggerLivePreview()">
+        </div>
+        <div class="form-group">
+          <label>保固書出具日期</label>
+          <input type="date" id="issueDate">
         </div>
         <div class="form-group full">
           <label>施工位置（地址）</label>
@@ -95,11 +112,11 @@ input:focus, select:focus { outline: none; border-color: #1871b5; background: wh
         <label><input type="checkbox" value="外牆"> 外牆</label>
         <label><input type="checkbox" value="管道間"> 管道間</label>
         <label><input type="checkbox" value="管線周邊"> 管線周邊</label>
-        <label style="align-items:center;"><input type="checkbox" id="otherCheck" value="其他"> 其他：<input type="text" id="otherText" class="other-input" placeholder="請說明"></label>
+        <label style="align-items:center;"><input type="checkbox" id="otherCheck" value="其他"> 其他：<input type="text" id="otherText" class="other-input" placeholder="請說明" style="width:160px;"></label>
       </div>
       <div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;margin-top:16px;font-size:13px;color:#444;">
         <span>具體位置描述：</span>
-        <input type="text" id="locationDesc" placeholder="例：三樓陽台外側" style="width:180px;padding:4px 8px;font-size:13px;border:1px solid #d0d9e8;border-radius:6px;font-family:inherit;">
+        <input type="text" id="locationDesc" placeholder="例：三樓陽台外側" style="width:340px;padding:4px 8px;font-size:13px;border:1px solid #d0d9e8;border-radius:6px;font-family:inherit;">
         <span>，合計：約</span>
         <input type="number" id="sqm" placeholder="0" style="width:70px;padding:4px 8px;font-size:13px;text-align:center;border:1px solid #d0d9e8;border-radius:6px;font-family:inherit;">
         <span>平方公尺。</span>
@@ -187,6 +204,7 @@ window.onload = () => {
   document.getElementById('startYear').value = rocYear;
   document.getElementById('startMonth').value = today.getMonth() + 1;
   document.getElementById('startDay').value = today.getDate();
+  document.getElementById('issueDate').value = today.toISOString().split('T')[0];
   // 觸發自動計算結束日
   autoCalcEnd();
 
@@ -202,6 +220,11 @@ window.onload = () => {
   });
   generatePDF(true);
 };
+
+function toggleProjectCustom() {
+  const sel = document.getElementById('projectName').value;
+  document.getElementById('projectNameCustom').style.display = sel === '__custom__' ? '' : 'none';
+}
 
 function getCheckedSet() {
   const result = new Set();
@@ -272,7 +295,10 @@ async function generatePDF(isPreview = false) {
     let y = DIVIDER_Y + 30; // 分隔線與保固工程之間充足間距
 
     // 保固工程
-    const projVal = document.getElementById('projectName').value;
+    const projSel = document.getElementById('projectName').value;
+    const projVal = projSel === '__custom__'
+      ? (document.getElementById('projectNameCustom').value || '　　　　　　')
+      : (projSel || '　　　　　　');
     ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#222'; ctx.textAlign = 'left';
     ctx.fillText(`保固工程：${projVal}`, M, y);
     y += LH * 1.4;
@@ -332,11 +358,16 @@ async function generatePDF(isPreview = false) {
     const sqm = document.getElementById('sqm').value || '';
     ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#222'; ctx.textAlign = 'left';
     ctx.fillText(`具體位置描述：${locDesc}，合計：約 ${sqm} 平方公尺。`, M, y);
-    y += LH * 1.6;
+    y += LH * 1.3;
 
-    // 保固時間（顯示保固年數）
+    // 分隔線（保固期限上方）
+    ctx.strokeStyle = '#d0dcea'; ctx.lineWidth = 0.6;
+    ctx.beginPath(); ctx.moveTo(M, y); ctx.lineTo(PW - M, y); ctx.stroke();
+    y += LH * 0.9;
+
+    // 保固期限
     const wyears = document.getElementById('warrantyYears').value || '3';
-    ctx.fillText(`保固時間：為期 ${wyears} 年。`, M, y);
+    ctx.fillText(`保固期限：自施工驗收完成日起 ${wyears} 年。`, M, y);
     y += LH * 1.3;
 
     // 保固日期
@@ -347,12 +378,12 @@ async function generatePDF(isPreview = false) {
     const eM = document.getElementById('endMonth').value || '　';
     const eD = document.getElementById('endDay').value || '　';
     ctx.fillText(`保固日期：自民國 ${sY} 年 ${sM} 月 ${sD} 日起至民國 ${eY} 年 ${eM} 月 ${eD} 日止。`, M, y);
-    y += LH * 1.7;
+    y += LH * 1.4;
 
     // 保固範圍
     ctx.font = `bold ${FS}px ${ff}`; ctx.fillStyle = '#1a1a1a';
-    ctx.fillText('保固範圍與除外條款：', M, y);
-    y += LH * 1.2;
+    ctx.fillText('保固範圍：', M, y);
+    y += LH * 1.05;
 
     const wrapText = (text, maxW) => {
       const lines = []; let cur = '';
@@ -365,106 +396,146 @@ async function generatePDF(isPreview = false) {
     };
 
     ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#333';
-    const scopeText = '本公司依據檢測報告判定原因完成修繕，於保固期間內，如因相同原因再次滲漏，免費修復。但下列情形不在此限：天災、人為破壞、鄰戶或第三方影響、保固期內裝修改造、地震或結構受損所致。上述除外情況，本公司仍會盡速協助修繕（費用另計），絕不拖延。';
-    wrapText(scopeText, CW).forEach(line => { ctx.fillText(line, M, y); y += LH * 1.2; });
-    y += 10;
+    const scopeText = '本公司依據本次檢測報告判定之漏水原因完成修繕。於保固期間內，如經本公司檢測確認因本次修繕之相同漏水原因再次滲漏者，本公司將免費修復。';
+    wrapText(scopeText, CW).forEach(line => { ctx.fillText(line, M, y); y += LH * 1.05; });
+    y += 6;
+
+    // 不適用保固情形（兩行三欄，無框，緊湊排版）
+    ctx.font = `bold ${FS}px ${ff}`; ctx.fillStyle = '#1a1a1a';
+    ctx.fillText('不適用保固情形：', M, y);
+    y += LH * 1.0;
+
+    const exclusions = ['天災', '人為破壞', '管線自然老化', '第三人施工或其他外力影響', '保固期間內裝修修改', '地震或建築結構受損'];
+    // 兩列三欄排列
+    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#333';
+    const colW3 = CW / 3;
+    for (let i = 0; i < exclusions.length; i += 3) {
+      ctx.fillText(`・${exclusions[i]}`, M + 8, y);
+      if (exclusions[i+1]) ctx.fillText(`・${exclusions[i+1]}`, M + colW3 + 8, y);
+      if (exclusions[i+2]) ctx.fillText(`・${exclusions[i+2]}`, M + colW3 * 2 + 8, y);
+      y += LH * 0.95;
+    }
+    y += 6;
+
+    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#333';
+    const scopeLimitText = '本保固僅適用於本次施工範圍及本次檢測判定之漏水原因，不適用於建築物其他部位或其他漏水原因。';
+    wrapText(scopeLimitText, CW).forEach(line => { ctx.fillText(line, M, y); y += LH * 1.05; });
+    y += 8;
 
     // ════════════════════════════════════════
-    // 3. 注意事項框（淺藍邊框，無底色，全部置中）
+    // 3. 保固服務流程（取代原優惠表格）
+    // ════════════════════════════════════════
+    ctx.font = `bold ${FS}px ${ff}`; ctx.fillStyle = '#1a1a1a'; ctx.textAlign = 'left';
+    ctx.fillText('保固服務流程', M, y);
+    y += LH * 0.75;
+
+    const steps = [
+      { lines: ['聯繫詠順工程官方 LINE', '（@799ydgjw）'] },
+      { lines: ['提供保固證明書', '及現場照片'] },
+      { lines: ['安排現場勘查', '確認是否屬保固範圍'] },
+      { lines: ['屬保固範圍', '免費安排修復'] },
+      { lines: ['修復完成', '持續提供售後服務'] },
+    ];
+
+    // 橫向 5 欄排列，節省直向空間
+    const stepColW = CW / steps.length;
+    const stepBoxH = 62;
+    const stepY = y;
+    const badgeR = 10; // 圓形徽章半徑
+
+    steps.forEach((s, i) => {
+      const cx = M + i * stepColW;
+      const centerX = cx + stepColW / 2;
+
+      // 卡片底色
+      ctx.fillStyle = '#f5f9ff';
+      ctx.fillRect(cx + 3, stepY, stepColW - 6, stepBoxH);
+      ctx.strokeStyle = '#d8e6f5'; ctx.lineWidth = 0.7;
+      ctx.strokeRect(cx + 3, stepY, stepColW - 6, stepBoxH);
+
+      // 整體內容高度：徽章(20) + 間距(8) + 文字行(11 each)
+      const contentH = 20 + 8 + s.lines.length * 11;
+      const startY = stepY + (stepBoxH - contentH) / 2;
+
+      // 圓形數字徽章（藍底白字）— 置中起點
+      const badgeCY = startY + badgeR;
+      ctx.beginPath();
+      ctx.arc(centerX, badgeCY, badgeR, 0, Math.PI * 2);
+      ctx.fillStyle = '#5d89bd';
+      ctx.fill();
+      ctx.font = `bold 11px ${ff}`; ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
+      ctx.fillText(String(i + 1), centerX, badgeCY + 4);
+
+      // 說明文字（手動分行，置中）
+      ctx.font = `8.5px ${ff}`; ctx.fillStyle = '#444';
+      let sty = startY + 20 + 8 + 8;
+      s.lines.forEach(line => {
+        ctx.fillText(line, centerX, sty);
+        sty += 11;
+      });
+
+      // 箭頭（除最後一個）
+      if (i < steps.length - 1) {
+        ctx.fillStyle = '#aac4de'; ctx.font = `12px ${ff}`;
+        ctx.fillText('→', cx + stepColW - 2, stepY + stepBoxH / 2 + 4);
+      }
+    });
+    ctx.textAlign = 'left';
+
+    y = stepY + stepBoxH + LH * 1.1;
+
+    // ════════════════════════════════════════
+    // 4. 注意事項框（淺藍邊框，無底色，靠左排列）
     // ════════════════════════════════════════
     const noticeItems = [
-      { text: '注意事項', bold: true },
-      { text: '1. 保固證明書請與施工報價單、檢測報告書一併保存，作為後續服務憑證。', bold: false },
-      { text: '2. 若委託方將房屋所有權轉移，本保固不得轉讓予新屋主（須事先取得本公司之書面同意）。', bold: false },
-      { text: '3. 任何保固服務前，本公司得先行檢測確認責任歸屬。', bold: false },
+      '1. 本保固證明書須搭配本次《檢測報告》及《施工報價單》共同使用，作為保固範圍、施工內容及保固認定之依據。',
+      '2. 本保固原則上僅適用於原委託方。如房屋所有權移轉，須經本公司書面同意後始得移轉保固權利。',
+      '3. 申請保固服務前，本公司將安排現場檢測，確認是否屬本保固範圍。',
+      '4. 保固期間內如發現異常滲漏情形，請儘速通知本公司處理，避免因持續滲漏造成損害擴大。',
+      '5. 紙本：一式兩份，雙方簽名後各執一份為憑；電子檔：委託方回覆「同意」即視同親簽，雙方各自留存對話紀錄。',
     ];
-    const NP_V = 9;   // 上下內距
-    const NLH = 19;   // 行高
-    const noticeH = NP_V + NLH * noticeItems.length + NP_V; // 上下對稱
-    const noticeY = y;
+    const NP_V = 10;   // 上下內距
+    const NLH = 17;    // 行高（緊縮）
+    const NP_H = 14;   // 左右內距
 
-    // 藍框（無底色）
+    // 先量總行數（含換行）
+    ctx.font = `${FS - 1}px ${ff}`;
+    const noticeWrapped = noticeItems.map(t => wrapText(t, CW - NP_H * 2));
+    const totalNoticeLines = noticeWrapped.reduce((sum, lines) => sum + lines.length, 0);
+    const noticeH = NP_V + totalNoticeLines * NLH + NP_V + 18; // +18 給標題行
+
+    const noticeY = y;
     ctx.strokeStyle = '#52c3f1'; ctx.lineWidth = 1.5;
     ctx.strokeRect(M, noticeY, CW, noticeH);
 
-    // 內容：從頂部 NP_V 開始，等間距往下
-    let ny = noticeY + NP_V + NLH * 0.82;
-    ctx.textAlign = 'center';
-    noticeItems.forEach(({ text, bold }) => {
-      ctx.font = bold ? `bold ${FS}px ${ff}` : `${FS}px ${ff}`;
-      ctx.fillStyle = '#222';
-      ctx.fillText(text, M + CW / 2, ny);
-      ny += NLH;
-    });
+    let ny = noticeY + NP_V + 13;
+    ctx.font = `bold ${FS}px ${ff}`; ctx.fillStyle = '#1a1a1a'; ctx.textAlign = 'center';
+    ctx.fillText('注意事項', M + CW / 2, ny);
     ctx.textAlign = 'left';
+    ny += NLH + 4;
 
-    const BLOCK_GAP = LH * 2.4; // 兩行跨行間距
-    y = noticeY + noticeH + BLOCK_GAP;
-
-    // ════════════════════════════════════════
-    // 4. 二次檢測優惠價格表（上下外側 = BLOCK_GAP）
-    // ════════════════════════════════════════
-    const tableRows = [
-      { area: '區域', orig: '原檢測費', disc: '優惠後金額', isHeader: true },
-      { area: '臺中市同地址（一般檢測）', orig: '$18,000', disc: '$0 元（免費）', isHeader: false },
-      { area: '外縣市同地址（一般檢測）', orig: '$18,000', disc: '$9,000（半價）', isHeader: false },
-      { area: '不分縣市同社區（公共管道間）', orig: '$28,000', disc: '$20,000', isHeader: false },
-    ];
-    const COL = [Math.round(CW * 0.50), Math.round(CW * 0.24), Math.round(CW * 0.26)];
-    const ROW_H = 28;
-
-    // 說明文字（區塊頂部）
-    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#333'; ctx.textAlign = 'left';
-    ctx.fillText('若同地址日後出現其他疑似漏水情形，第二次檢測費用優惠如下：', M, y);
-
-    // 表格接在說明文字下方 14px
-    let ty = y + 14;
-    tableRows.forEach((row, ri) => {
-      let rx = M;
-      const isH = row.isHeader;
-      ctx.fillStyle = isH ? '#e8edf5' : (ri % 2 === 1 ? '#f5f8ff' : '#fafcff');
-      ctx.fillRect(rx, ty, CW, ROW_H);
-      ctx.strokeStyle = '#c8d4e4'; ctx.lineWidth = 0.7;
-      COL.forEach(w => { ctx.strokeRect(rx, ty, w, ROW_H); rx += w; });
-      const vals = [row.area, row.orig, row.disc];
-      rx = M;
-      COL.forEach((w, ci) => {
-        const tx = ci === 0 ? rx + 10 : rx + w / 2;
-        ctx.textAlign = ci === 0 ? 'left' : 'center';
-        if (isH) {
-          ctx.font = `bold ${FS}px ${ff}`; ctx.fillStyle = '#2a3a5a';
-        } else if (ci === 2) {
-          ctx.font = `bold ${FS + 1}px ${ff}`; ctx.fillStyle = '#1871b5';
-        } else if (ci === 1) {
-          ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#777';
-        } else {
-          ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#333';
-        }
-        ctx.fillText(vals[ci], tx, ty + ROW_H / 2 + 4);
-        rx += w;
-      });
-      ty += ROW_H;
+    ctx.font = `${FS - 1}px ${ff}`; ctx.fillStyle = '#333';
+    noticeWrapped.forEach(lines => {
+      lines.forEach(line => { ctx.fillText(line, M + NP_H, ny); ny += NLH; });
     });
+
+    y = noticeY + noticeH + LH * 0.7;
+
+    // ── 金句（放在簽名分隔線正上方） ──
+    ctx.font = `bold 11.5px ${ff}`; ctx.fillStyle = '#1871b5'; ctx.textAlign = 'center';
+    ctx.fillText('依據檢測、精準修繕、誠信保固，是詠順工程對每一位委託人的承諾', PW / 2, y);
     ctx.textAlign = 'left';
-
-    // ※ 備注：緊貼表格下方 13px，不黏框線
-    ctx.font = `10.5px ${ff}`; ctx.fillStyle = '#888';
-    ctx.fillText('※ 優惠僅適用於原委託者，且限於同上施工地址。檢測前須先預約，本公司保留優惠解釋與調整權利。', M, ty + 13);
-
-    // 表格區塊下方 = 兩行（跨行感）
-    y = ty + 13 + LH * 1.3;
+    y += LH * 0.75;
 
     // ════════════════════════════════════════
     // 5. 簽章區
     // ════════════════════════════════════════
-    const CONTENT_BOTTOM = PH - MB;
-    const SIG_H = LH * 1.2 + 56 + LH * 1.0 + LH * 1.4; // 加高簽名空間
-    const sigAreaY = Math.max(y, CONTENT_BOTTOM - SIG_H);
+    const sigAreaY = y;
 
-    // 分隔線（淡灰，距離上方內容兩行）
+    // 分隔線（淡灰，緊接金句下方）
     ctx.strokeStyle = '#c8c8c8'; ctx.lineWidth = 0.8;
     ctx.beginPath(); ctx.moveTo(M, sigAreaY); ctx.lineTo(PW - M, sigAreaY); ctx.stroke();
-    y = sigAreaY + LH * 1.2;
+    y = sigAreaY + LH * 1.3;
 
     // ── 左欄：詠順工程行　右欄：委託方
     const midX = M + CW / 2;
@@ -477,7 +548,7 @@ async function generatePDF(isPreview = false) {
     y += LH * 0.5;
 
     // 簽名底線（加高，留更多手寫空間）
-    const lineY = y + 44;
+    const lineY = y + 30;
     ctx.strokeStyle = '#333'; ctx.lineWidth = 0.9;
     ctx.beginPath(); ctx.moveTo(M, lineY); ctx.lineTo(M + colW, lineY); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(midX + 20, lineY); ctx.lineTo(midX + 20 + colW, lineY); ctx.stroke();
@@ -489,9 +560,15 @@ async function generatePDF(isPreview = false) {
     ctx.fillText('簽名 / 蓋章', midX + 20, subY);
     y = subY + LH * 1.4;
 
-    // 備注小字（置中）
-    ctx.font = `10px ${ff}`; ctx.fillStyle = '#999'; ctx.textAlign = 'center';
-    ctx.fillText('※ 紙本：一式兩份，雙方簽名後各執一份為憑。　　※ 電子檔：委託方回覆「同意」即視同親簽，雙方各自留存對話紀錄。', PW / 2, y);
+    // 保固書出具日期（中華民國紀年，置中）
+    const issueDateVal = document.getElementById('issueDate').value;
+    let issueDateText = '中　　華　　民　　國　　　　　　年　　　　月　　　　日';
+    if (issueDateVal) {
+      const [iy, im, id] = issueDateVal.split('-').map(Number);
+      issueDateText = `中　　華　　民　　國　　${iy - 1911}　　年　　${im}　　月　　${id}　　日`;
+    }
+    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#333'; ctx.textAlign = 'center';
+    ctx.fillText(issueDateText, PW / 2, y);
     ctx.textAlign = 'left';
 
     // ── 輸出 PDF ──
@@ -507,7 +584,7 @@ async function generatePDF(isPreview = false) {
       lastPreviewObjectURL = url;
     } else {
       const a = document.createElement('a');
-      a.href = url; a.download = `${warrantyNo || 'warranty'}_保固書.pdf`;
+      a.href = url; a.download = `${warrantyNo !== '—' ? warrantyNo : '保固書'}_保固書.pdf`;
       a.click(); URL.revokeObjectURL(url);
       msg.className = 'status-msg success'; msg.textContent = '✅ 保固書已產生';
     }
