@@ -1949,7 +1949,7 @@ async function drawStep1Canvas() {
     ctx.textAlign='right';
     ctx.font=`bold 13px ${ff}`; ctx.fillStyle='#1a1a1a';
     ctx.fillText(`編　　號：${caseNoText}`, PW-m, headerLineY-22);
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#555';
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#444';
     ctx.fillText(`出具日期：${issueDate}`, PW-m, headerLineY-4);
     ctx.textAlign='left';
 
@@ -1982,7 +1982,7 @@ async function drawStep1Canvas() {
     ctx.font=labelFont; ctx.fillStyle='#1a1a1a';
     ctx.fillText('檢測方資訊', leftX, y);
     ctx.fillText('委託方資訊', rightX2, y);
-    ctx.font=bodyFont; ctx.fillStyle='#333';
+    ctx.font=bodyFont; ctx.fillStyle='#111';
     [
       `檢測時間：${inspectDate}${inspectTime ? ' '+inspectTime : ''}`,
       `檢測單位：${inspectUnit}`,
@@ -2021,7 +2021,7 @@ async function drawStep1Canvas() {
     const infoBlockH = rowH*2;
     let by = y + boxH/2 - infoBlockH/2 + rowH*0.75;
     ctx.textAlign='left';
-    ctx.font=bodyFont; ctx.fillStyle='#333';
+    ctx.font=bodyFont; ctx.fillStyle='#111';
     ctx.fillText(`地址：${clientAddress}`, infoX1, by);
     by += rowH;
     ctx.fillText(`檢測範圍：${inspectScope}`, infoX1, by);
@@ -2089,7 +2089,7 @@ async function drawStep1Canvas() {
     ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
     ctx.fillText(declareLabel, m+photoPad, iy);
     const declareContentStartY = iy + declareLineH;
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#111';
     const wrapLines = wrapText(ctx, declareText, cw - photoPad*2 - 4, `12px ${ff}`);
     wrapLines.forEach((line,i)=>{ ctx.fillText(line, m+photoPad, declareContentStartY + i*declareLineH); });
     const declareBottom = declareContentStartY + wrapLines.length*declareLineH;
@@ -2137,7 +2137,7 @@ async function drawCardStepPages(step, chapterTitle, chapterNumIndex) {
     const titleY = titleLineY - 10;
     ctx.font=`bold 16px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
     ctx.fillText(titleText, m, titleY);
-    ctx.font=`10px ${ff}`; ctx.fillStyle='#555'; ctx.textAlign='right';
+    ctx.font=`10px ${ff}`; ctx.fillStyle='#444'; ctx.textAlign='right';
     ctx.fillText(`編號：${currentCaseNo || '—'}`, PW-m, titleY);
     ctx.textAlign='left';
     ctx.strokeStyle='#1a1a1a'; ctx.lineWidth=0.75;
@@ -2208,7 +2208,7 @@ function drawS2Conclusion(ctx, text, x, y, w, maxBottom) {
   ctx.font=`bold 13px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
   ctx.fillText('結論：', x+padLeft, y+18);
 
-  ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
+  ctx.font=`12px ${ff}`; ctx.fillStyle='#111';
   lines.forEach((line,i)=> ctx.fillText(line, x+padLeft, y+18 + lh*(i+1)));
 
   if (y + 18 + lh*(lines.length+1) > maxBottom) {
@@ -2261,7 +2261,7 @@ function drawCardBox(ctx, card, labelBase, x, y, w, h, cfg, step) {
   if (isA) {
     ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#1a1a1a';
     ctx.fillText(`【${recordLabel}】`, textColX, ty);
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#111';
     const recLines = wrapText(ctx, card.recordA || '—', textColW, `12px ${ff}`);
     recLines.forEach((line,i)=> ctx.fillText(line, textColX, ty + lh*(i+1)));
     ty += lh*(recLines.length+1) + 4;
@@ -2269,7 +2269,7 @@ function drawCardBox(ctx, card, labelBase, x, y, w, h, cfg, step) {
     if (cfg.hasAnalysis) {
       ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#1a1a1a';
       ctx.fillText('【影像判讀】', textColX, ty);
-      ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
+      ctx.font=`12px ${ff}`; ctx.fillStyle='#111';
       const anaLines = wrapText(ctx, card.analysis || '—', textColW, `12px ${ff}`);
       const maxAnaLines = Math.max(0, Math.floor((y+h-pad - (ty+lh)) / lh));
       anaLines.slice(0, maxAnaLines).forEach((line,i)=> ctx.fillText(line, textColX, ty + lh*(i+1)));
@@ -2287,14 +2287,14 @@ function drawCardBox(ctx, card, labelBase, x, y, w, h, cfg, step) {
   } else {
     ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#1a1a1a';
     ctx.fillText(`【${recordLabel}（${labelBase}-1）】`, textColX, ty);
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#111';
     const recALines = wrapText(ctx, card.recordA || '—', textColW, `12px ${ff}`);
     recALines.forEach((line,i)=> ctx.fillText(line, textColX, ty + lh*(i+1)));
     ty += lh*(recALines.length+1) + 4;
 
     ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#1a1a1a';
     ctx.fillText(`【${recordLabel}（${labelBase}-2）】`, textColX, ty);
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#111';
     const recBLines = wrapText(ctx, card.recordB || '—', textColW, `12px ${ff}`);
     recBLines.forEach((line,i)=> ctx.fillText(line, textColX, ty + lh*(i+1)));
 
@@ -2366,7 +2366,7 @@ async function drawStep5Pages(chapters) {
     const titleY = titleLineY - 10;
     ctx.font=`bold 16px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
     ctx.fillText(titleText, m, titleY);
-    ctx.font=`10px ${ff}`; ctx.fillStyle='#555'; ctx.textAlign='right';
+    ctx.font=`10px ${ff}`; ctx.fillStyle='#444'; ctx.textAlign='right';
     ctx.fillText(`編號：${currentCaseNo || '—'}`, PW-m, titleY);
     ctx.textAlign='left';
     ctx.strokeStyle='#1a1a1a'; ctx.lineWidth=0.75;
@@ -2415,7 +2415,7 @@ async function drawStep5Pages(chapters) {
     // 檢測項目
     ctx.fillStyle = bg; ctx.fillRect(x, y, widths[1], rowH);
     ctx.strokeRect(x, y, widths[1], rowH);
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#111';
     const itemLines = wrapText(ctx, row.item || '—', widths[1]-12, `12px ${ff}`);
     itemLines.forEach((line,i)=> ctx.fillText(line, x+6, y+rowPad+lh*(i+1)-3));
     x += widths[1];
@@ -2423,7 +2423,7 @@ async function drawStep5Pages(chapters) {
     // 結果摘要
     ctx.fillStyle = bg; ctx.fillRect(x, y, widths[2], rowH);
     ctx.strokeRect(x, y, widths[2], rowH);
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#111';
     const summaryLines = wrapText(ctx, row.summary || '—', widths[2]-12, `12px ${ff}`);
     summaryLines.forEach((line,i)=> ctx.fillText(line, x+6, y+rowPad+lh*(i+1)-3));
     x += widths[2];
@@ -2432,7 +2432,7 @@ async function drawStep5Pages(chapters) {
     ctx.fillStyle = isExists ? '#f5c6cb' : bg; ctx.fillRect(x, y, widths[3], rowH);
     ctx.strokeRect(x, y, widths[3], rowH);
     ctx.font = isExists ? `bold 12px ${ff}` : `12px ${ff}`;
-    ctx.fillStyle = isExists ? '#c0392b' : '#333';
+    ctx.fillStyle = isExists ? '#c0392b' : '#111';
     ctx.textAlign='center';
     ctx.fillText(row.verdict || '—', x+widths[3]/2, y+rowH/2+4);
     ctx.textAlign='left';
@@ -2517,7 +2517,7 @@ async function drawStep5Pages(chapters) {
       pageCtx.fillText(label, m+padLeft, fy+16);
 
       // 內容換行後開始
-      pageCtx.font=`12px ${ff}`; pageCtx.fillStyle='#333';
+      pageCtx.font=`12px ${ff}`; pageCtx.fillStyle='#111';
       const contentStartY = fy + labelLineH + lhF;
       lines.forEach((line,i)=> pageCtx.fillText(line, m+padLeft, contentStartY + i*lhF));
 
@@ -2543,7 +2543,7 @@ async function drawFlowingPages(chapterTitle, blocks) {
     const titleY = titleLineY - 10;
     ctx.font=`bold 16px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
     ctx.fillText(titleText, m, titleY);
-    ctx.font=`10px ${ff}`; ctx.fillStyle='#555'; ctx.textAlign='right';
+    ctx.font=`10px ${ff}`; ctx.fillStyle='#444'; ctx.textAlign='right';
     ctx.fillText(`編號：${currentCaseNo || '—'}`, PW-m, titleY);
     ctx.textAlign='left';
     ctx.strokeStyle='#1a1a1a'; ctx.lineWidth=0.75;
@@ -2576,7 +2576,7 @@ async function drawFlowingPages(chapterTitle, blocks) {
       const lines = wrapText(pageCtx, block.text, cw - 28, `12px ${ff}`);
       const h = lines.length*lineH + 10;
       if (y + h > maxBottom) await startNewPage(true);
-      pageCtx.fillStyle = '#333'; pageCtx.textAlign='left';
+      pageCtx.fillStyle = '#111'; pageCtx.textAlign='left';
       lines.forEach((line,i)=> drawJustifiedText(pageCtx, line, m + 28, y + lineH*(i+1) - 4, cw - 28, i < lines.length - 1));
       y += h;
     } else {
@@ -2590,7 +2590,7 @@ async function drawFlowingPages(chapterTitle, blocks) {
 
       if (y + blockTotalH > maxBottom) await startNewPage(true);
       
-      pageCtx.fillStyle = '#333'; pageCtx.textAlign='left';
+      pageCtx.fillStyle = '#111'; pageCtx.textAlign='left';
       segmentLines.forEach(lines => {
         lines.forEach((line, i) => {
           drawJustifiedText(pageCtx, line, m, y + lineH - 4, cw - 4, i < lines.length - 1);
