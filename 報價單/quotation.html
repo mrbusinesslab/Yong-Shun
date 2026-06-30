@@ -613,14 +613,14 @@ async function generatePDF(isPreview = false) {
 
     ctx.font=`bold 14px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='right';
     ctx.fillText(`編號：${document.getElementById('quoteNo').value||'—'}`, PW-m, y);
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#555';
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#222';
     ctx.fillText(`報價日期：${document.getElementById('quoteDate').value||'—'}`, PW-m, y + lineH*2);
     ctx.fillText(`報價單失效日：${document.getElementById('expireDate').value||'—'}`, PW-m, y + lineH*3);
     ctx.textAlign='left';
 
     ctx.font=`bold 13px ${ff}`; ctx.fillStyle='#1a1a1a';
     ctx.fillText('委託方資訊', m, y);
-    ctx.font=`13px ${ff}`; ctx.fillStyle='#333';
+    ctx.font=`13px ${ff}`; ctx.fillStyle='#111';
     [
       `委託方：${document.getElementById('clientName').value||'—'}`,
       `負責人：${document.getElementById('clientContact').value||'—'}`,
@@ -647,7 +647,7 @@ async function generatePDF(isPreview = false) {
         ctx.fillRect(m,y+ci*rowH,cw,rowH);
         ctx.fillStyle=loc.color;
         ctx.beginPath(); ctx.arc(m+14,y+ci*rowH+rowH/2,3.5,0,Math.PI*2); ctx.fill();
-        ctx.font=`13px ${ff}`; ctx.fillStyle='#333'; ctx.textAlign='left';
+        ctx.font=`13px ${ff}`; ctx.fillStyle='#111'; ctx.textAlign='left';
         ctx.fillText(loc.contents[ci], m+26, y+ci*rowH+rowH/2+5);
       }
       if (loc.contents.length===0) { ctx.fillStyle=c1; ctx.fillRect(m,y,cw,rowH); }
@@ -656,7 +656,7 @@ async function generatePDF(isPreview = false) {
       ctx.strokeStyle='#e0e6f0'; ctx.lineWidth=0.5;
       ctx.beginPath(); ctx.moveTo(m,y); ctx.lineTo(PW-m,y); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(m,y+costH); ctx.lineTo(PW-m,y+costH); ctx.stroke();
-      ctx.font=`13px ${ff}`; ctx.fillStyle='#555'; ctx.textAlign='left';
+      ctx.font=`13px ${ff}`; ctx.fillStyle='#222'; ctx.textAlign='left';
       let cx=m+10;
       [`數量：${loc.qty||'—'}`,`單位：${loc.unit||'—'}`,`單價：${loc.price>0?'$'+Math.round(loc.price).toLocaleString():'—'}`]
         .forEach(item=>{ ctx.fillText(item,cx,y+costH/2+5); cx+=ctx.measureText(item).width+28; });
@@ -702,7 +702,7 @@ async function generatePDF(isPreview = false) {
      {l:'稅額(5%)：',v:'$'+tax.toLocaleString(),c:'#333'},
      {l:'施工優惠：',v:'-$'+Math.round(disc).toLocaleString(),c:'#e53935'},
     ].forEach(row=>{
-      ctx.font=`13px ${ff}`; ctx.fillStyle='#666'; ctx.textAlign='left'; ctx.fillText(row.l,rx2,sy);
+      ctx.font=`13px ${ff}`; ctx.fillStyle='#222'; ctx.textAlign='left'; ctx.fillText(row.l,rx2,sy);
       ctx.fillStyle=row.c; ctx.textAlign='right'; ctx.fillText(row.v,PW-m,sy); sy+=24;
     });
     ctx.strokeStyle='#1871b5'; ctx.lineWidth=1;
@@ -746,7 +746,7 @@ async function generatePDF(isPreview = false) {
         const drawn=drawEntryToCtx(targetCtx,item.entry,ix,iy,imgW,imgH);
         if (!drawn) { targetCtx.fillStyle='#e0eaf5'; targetCtx.fillRect(ix,iy,imgW,imgH); }
         targetCtx.strokeStyle='#d0d9e8'; targetCtx.lineWidth=0.5; targetCtx.strokeRect(ix,iy,imgW,imgH);
-        targetCtx.font=`12px ${ff}`; targetCtx.fillStyle='#555'; targetCtx.textAlign='center';
+        targetCtx.font=`12px ${ff}`; targetCtx.fillStyle='#222'; targetCtx.textAlign='center';
         targetCtx.fillText(item.label||'', ix+imgW/2, iy+imgH+15);
       });
 
