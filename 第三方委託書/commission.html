@@ -397,7 +397,7 @@ async function drawPage() {
   /* ══ 標題 + 編號 + 分隔線 ══ */
   ctx.font = `bold 21px ${ff}`; ctx.fillStyle = '#1a1a1a'; ctx.textAlign = 'left';
   ctx.fillText(`第三方委託書${typeLabel}`, M, y + 22);
-  ctx.font = `11px ${ff}`; ctx.fillStyle = '#555'; ctx.textAlign = 'right';
+  ctx.font = `11px ${ff}`; ctx.fillStyle = '#222'; ctx.textAlign = 'right';
   ctx.fillText(`編號：${docNo}`, PW - M, y + 22);
   ctx.textAlign = 'left';
   y += 34;
@@ -408,7 +408,7 @@ async function drawPage() {
   /* ══ 受委託方固定欄 ══ */
   function drawKV(label, value) {
     const LABEL_W = 90; // 固定 label 欄寬，對齊 value
-    ctx.font = boldFont; ctx.fillStyle = '#555';
+    ctx.font = boldFont; ctx.fillStyle = '#222';
     ctx.fillText(label, M, y);
     ctx.font = bodyFont; ctx.fillStyle = '#1a1a1a';
     wrapText(ctx, value, CW - LABEL_W, bodyFont).forEach((line, i) => {
@@ -461,7 +461,7 @@ async function drawPage() {
 
     ctx.font = boldFont; ctx.fillStyle = '#1a1a1a';
     ctx.fillText('檢測範圍：', M, y); y += LH;
-    ctx.font = bodyFont; ctx.fillStyle = '#333';
+    ctx.font = bodyFont; ctx.fillStyle = '#111';
     wrapText(ctx, scope, CW - 20, bodyFont).forEach(line => {
       ctx.fillText(line, M + 12, y); y += LH;
     });
@@ -469,7 +469,7 @@ async function drawPage() {
 
     ctx.font = boldFont; ctx.fillStyle = '#1a1a1a';
     ctx.fillText('檢測目的：', M, y); y += LH;
-    ctx.font = bodyFont; ctx.fillStyle = '#333';
+    ctx.font = bodyFont; ctx.fillStyle = '#111';
     wrapText(ctx, purpose, CW - 20, bodyFont).forEach(line => {
       ctx.fillText(line, M + 12, y); y += LH;
     });
@@ -482,7 +482,7 @@ async function drawPage() {
     if (note) {
       y += 4;
       drawSection('備　　　註');
-      ctx.font = bodyFont; ctx.fillStyle = '#333';
+      ctx.font = bodyFont; ctx.fillStyle = '#111';
       wrapText(ctx, note, CW, bodyFont).forEach(line => {
         ctx.fillText(line, M, y); y += LH;
       });
@@ -504,7 +504,7 @@ async function drawPage() {
     y += 4;
 
     drawSection('工程範圍');
-    ctx.font = bodyFont; ctx.fillStyle = '#333';
+    ctx.font = bodyFont; ctx.fillStyle = '#111';
     if (scopes.length === 0) {
       ctx.fillText('（未填寫）', M + 12, y); y += LH;
     } else {
@@ -512,7 +512,7 @@ async function drawPage() {
         const bullet = `${i + 1}.`;
         ctx.font = boldFont; ctx.fillStyle = BLUE;
         ctx.fillText(bullet, M + 4, y);
-        ctx.font = bodyFont; ctx.fillStyle = '#333';
+        ctx.font = bodyFont; ctx.fillStyle = '#111';
         const bw = ctx.measureText(bullet).width;
         wrapText(ctx, s, CW - bw - 16, bodyFont).forEach((line, li) => {
           ctx.fillText(line, M + bw + 12, y); y += LH;
@@ -530,7 +530,7 @@ async function drawPage() {
     if (note) {
       y += 4;
       drawSection('備　　　註');
-      ctx.font = bodyFont; ctx.fillStyle = '#333';
+      ctx.font = bodyFont; ctx.fillStyle = '#111';
       wrapText(ctx, note, CW, bodyFont).forEach(line => {
         ctx.fillText(line, M, y); y += LH;
       });
@@ -540,7 +540,7 @@ async function drawPage() {
   /* ══ 授權聲明 ══ */
   y += 8;
   drawSection('授權聲明');
-  ctx.font = bodyFont; ctx.fillStyle = '#333';
+  ctx.font = bodyFont; ctx.fillStyle = '#111';
   const declare = isInspect
     ? '甲方聲明已取得實際屋主同意，授權乙方（詠順工程行）進場進行漏水檢測。甲方應確保乙方人員得以順利進入現場，並對所提供之屋主資訊之真實性負責。'
     : '甲方確認已獲授權委託乙方（詠順工程行）於上列地址進行修繕施工，並同意依本委託書所載條件執行。甲方應協助乙方人員順利進場施工，並依約定付款。';
@@ -558,7 +558,7 @@ async function drawPage() {
   const colW = (CW - 40) / 2;
   const midX = M + colW + 40;
 
-  ctx.font = bodyFont; ctx.fillStyle = '#333';
+  ctx.font = bodyFont; ctx.fillStyle = '#111';
   ctx.fillText('甲方（委託方）', M, y);
   ctx.fillText('乙方（詠順工程行）', midX, y);
   y += LH * 0.5;
