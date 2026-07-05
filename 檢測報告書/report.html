@@ -6,6 +6,8 @@
 <title>詠順工程行｜漏水檢測報告書產生器</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Microsoft JhengHei','微軟正黑體',Arial,sans-serif; background: #f0f4f8; color: #1a1a1a; min-height: 100vh; }
@@ -621,8 +623,11 @@ select { cursor: pointer; }
           <textarea id="s5Type" placeholder="例：持續性滲漏（非一次性瞬間漏水）" style="min-height:50px;"></textarea>
         </div>
         <div class="form-group">
-          <label>責任歸屬</label>
-          <textarea id="s5Responsibility" style="min-height:70px;">漏水點位於OOO。若為專有部分，由該住戶負責；若為共用部分，依《公寓大廈管理條例》第10條第2項由管委會負擔。</textarea>
+          <label>責任範圍 <span style="color:#999;font-weight:400;">（僅需填寫漏水來源，其餘為固定文字）</span></label>
+          <input type="text" id="s5Source" value="" placeholder="例：3樓陽台排水管接頭">
+          <div class="s6-plain-text" style="margin-top:8px;">
+            責任範圍：依現場檢測，漏水來源位於<span id="s5SourcePreview" style="color:#1871b5;font-weight:600;">（請填寫漏水來源）</span>，專有或共用部分仍須依建物權屬確認。
+          </div>
         </div>
       </div>
 
@@ -633,40 +638,49 @@ select { cursor: pointer; }
     <div class="step-panel" id="panel-6" style="display:none;">
 
       <div class="card">
-        <div class="card-title-s6">6.1 立即處置</div>
+        <div class="card-title-s6">6.1 修繕建議</div>
         <div class="form-group">
-          <textarea id="s6Immediate" style="min-height:80px;">建議暫時減少3樓陽台之大量排水行為（如洗衣、洗地、澆花），避免持續補充結構體內積水，減緩2樓天花板滴水狀況。</textarea>
+          <label>建議施工項目</label>
+          <select id="s6RepairItem" onchange="toggleRepairOther()">
+            <option value="地坪防水重作">地坪防水重作</option>
+            <option value="排水改善">排水改善</option>
+            <option value="管線修復">管線修復</option>
+            <option value="止漏灌注">止漏灌注</option>
+            <option value="牆面防水施作">牆面防水施作</option>
+            <option value="其他">其他</option>
+          </select>
+        </div>
+        <div class="form-group" id="s6RepairOtherWrap" style="display:none;">
+          <label>請說明施工項目</label>
+          <input type="text" id="s6RepairOther" placeholder="請輸入建議施工項目">
         </div>
       </div>
 
       <div class="card">
-        <div class="card-title-s6">6.2 後續修繕施工（由本檢測公司承接）</div>
-        <div class="form-group" style="margin-bottom:14px;">
-          <label>建議修繕目標 <span style="color:#999;font-weight:400;">（填入後會嵌入下方文字）</span></label>
-          <input type="text" id="s6RepairTarget" value="" placeholder="例：3樓陽台地板結構體進行漏水修繕">
-        </div>
+        <div class="card-title-s6">6.2 注意事項</div>
         <div class="s6-plain-text">
-          依據本報告檢測結論，建議對【<span id="s6RepairPreview" style="color:#1871b5;font-weight:600;">（請填寫修繕目標）</span>】。本公司提供後續施工服務，並針對委託本檢測之委託方給予專屬優惠。<br><br>
-          凡委託本檢測報告並由本公司進行修繕施工者，可享：<br>
-          ▸優惠施工款：檢測費半數可折抵施工款，限總工程達 NT$50,000以上案件，每筆限折抵一次。<br>
-          ▸三年保固：工程保固期為3年，並於完工時提供正式保固證明書。<br><br>
-          隨本報告一併交付施工報價單，內容詳列各工項數量、單價、總價及付款方式。<br>
-          委託方可依報價單決定是否委託本公司施工，無強制義務。
+          修繕前：<br>
+          ⚠️避免大量用水<br>
+          ⚠️保持排水孔暢通<br>
+          ⚠️避免持續積水
         </div>
       </div>
 
       <div class="card">
-        <div class="card-title-s6">6.3 法律與保險</div>
+        <div class="card-title-s6">6.3 保固與施工</div>
+        <div class="s6-plain-text">
+          若委託本公司施工：<br>
+          ✓ 檢測費折抵<br>
+          ✓ 保固三年<br>
+          ✓ 提供正式保固書
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title-s6">6.4 法律與保險</div>
         <div class="s6-plain-text">
           ▸若涉及管委會或鄰戶責任，本報告可作為協調、調解或訴訟之客觀證據。<br>
           ▸若委託方有投保住宅保險，建議向保險公司申請理賠勘查，本報告可輔助理賠申請。
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title-s6">6.4 後續追蹤</div>
-        <div class="form-group">
-          <textarea id="s6Followup" style="min-height:70px;">修繕完成後，建議每半年自行檢查2樓天花板有無新生水漬或異味，並保持3樓陽台排水孔暢通。</textarea>
         </div>
       </div>
 
@@ -740,6 +754,53 @@ const ff='"Microsoft JhengHei","微軟正黑體","PingFang TC",Arial,sans-serif'
 const BLUE='#1871b5', LABEL_BLUE='#336590';
 // 頁邊距：上下 25mm(≈94px)、左右 20mm(≈75px)，固定數值（全部步驟共用）
 const mTop = 94, mBottom = 94, mSide = 75, pageCW = PW - mSide*2;
+
+/* ══════════════ Firebase 初始化（案件雲端資料庫，供 Portal / 其他文件產生器共用） ══════════════ */
+const firebaseConfig = {
+  apiKey: "AIzaSyD2wWHP27kqd005xAuz-DEuEg_z9A8YCVc",
+  authDomain: "yong-shun.firebaseapp.com",
+  projectId: "yong-shun",
+  storageBucket: "yong-shun.firebasestorage.app",
+  messagingSenderId: "530988019396",
+  appId: "1:530988019396:web:6554ce1e9f977bd5182391"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const CASES_COLLECTION = 'cases';
+
+function sanitizeDocId(str) {
+  return (str || '').trim().replace(/[\/\.\#\$\[\]\s]+/g, '_') || ('case_' + Date.now());
+}
+
+// 每次「暫存草稿」時，同步一份精簡資料（不含照片）到雲端案件庫，
+// 讓 Portal「最近項目」與其他文件產生器（報價單／保固書／驗收報告／委託書）都能查到這筆案件。
+async function syncCaseToCloud() {
+  try {
+    updateCaseNo(); // 確保案號是最新的
+    const clientName = (document.getElementById('clientName').value || '').trim();
+    const clientAddress = (document.getElementById('clientAddress').value || '').trim();
+    if (!clientName && !clientAddress) return; // 資料太空，不建立雲端案件
+
+    const docId = sanitizeDocId(currentCaseNo || clientName || clientAddress);
+    const detectionPoints = (cardStore[2] || []).map(card => ({
+      position: card.position || '', recordA: card.recordA || '', recordB: card.recordB || '', analysis: card.analysis || ''
+    }));
+
+    await db.collection(CASES_COLLECTION).doc(docId).set({
+      caseNumber: currentCaseNo || '',
+      clientName: clientName,
+      clientAddress: clientAddress,
+      phone: document.getElementById('clientPhone').value || '',
+      detection: { points: detectionPoints },
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    console.log('已同步案件到雲端：' + docId);
+  } catch (err) {
+    // 雲端同步失敗不影響本機暫存草稿的正常運作
+    console.warn('雲端同步失敗（不影響本機暫存）：', err);
+  }
+}
 
 /* ══════════════ 地區 / 建築類型 對照表 ══════════════ */
 const REGIONS = [
@@ -1528,19 +1589,18 @@ function computeStepStatus() {
   // Step 5
   const hasCause = document.getElementById('s5Cause').value.trim();
   const hasType  = document.getElementById('s5Type').value.trim();
-  const hasResp  = document.getElementById('s5Responsibility').value.trim();
+  const hasResp  = document.getElementById('s5Source').value.trim();
   const hasTable = s5TableRows.length > 0;
   if (!hasCause && !hasType && !hasResp && !hasTable) status[5] = 'empty';
   else if (hasCause && hasType && hasResp && hasTable) status[5] = 'done';
   else status[5] = 'partial';
 
   // Step 6
-  const hasRepair = document.getElementById('s6RepairTarget').value.trim();
-  const hasImmed  = document.getElementById('s6Immediate').value.trim();
-  const hasFollow = document.getElementById('s6Followup').value.trim();
-  if (!hasRepair && !hasImmed && !hasFollow) status[6] = 'empty';
-  else if (hasRepair && hasImmed && hasFollow) status[6] = 'done';
-  else status[6] = 'partial';
+  const repairSel = document.getElementById('s6RepairItem').value;
+  const repairOtherVal = document.getElementById('s6RepairOther').value.trim();
+  const hasRepair = repairSel === '其他' ? !!repairOtherVal : !!repairSel;
+  if (!hasRepair) status[6] = 'partial';
+  else status[6] = 'done';
 
   // Step 7 — 固定頁，永遠完成
   status[7] = 'done';
@@ -1614,10 +1674,9 @@ function collectDraft() {
     s2Conclusion: document.getElementById('s2Conclusion').value,
     s5Cause: document.getElementById('s5Cause').value,
     s5Type: document.getElementById('s5Type').value,
-    s5Responsibility: document.getElementById('s5Responsibility').value,
-    s6RepairTarget: document.getElementById('s6RepairTarget').value,
-    s6Immediate: document.getElementById('s6Immediate').value,
-    s6Followup: document.getElementById('s6Followup').value,
+    s5Source: document.getElementById('s5Source').value,
+    s6RepairItem: document.getElementById('s6RepairItem').value,
+    s6RepairOther: document.getElementById('s6RepairOther').value,
     cardStore2: JSON.parse(JSON.stringify(cardStore[2])),
     cardStore3: JSON.parse(JSON.stringify(cardStore[3])),
     cardStore4: JSON.parse(JSON.stringify(cardStore[4])),
@@ -1643,16 +1702,16 @@ function applyDraft(draft) {
   set('s2Conclusion', draft.s2Conclusion);
   set('s5Cause', draft.s5Cause);
   set('s5Type', draft.s5Type);
-  set('s5Responsibility', draft.s5Responsibility);
-  set('s6RepairTarget', draft.s6RepairTarget);
-  set('s6Immediate', draft.s6Immediate);
-  set('s6Followup', draft.s6Followup);
+  set('s5Source', draft.s5Source);
+  set('s6RepairItem', draft.s6RepairItem);
+  set('s6RepairOther', draft.s6RepairOther);
 
   const bSel = document.getElementById('buildingType');
   if (bSel && draft.buildingType) bSel.value = draft.buildingType;
 
-  const rp = document.getElementById('s6RepairPreview');
-  if (rp) rp.textContent = draft.s6RepairTarget || '（請填寫修繕目標）';
+  const sp = document.getElementById('s5SourcePreview');
+  if (sp) sp.textContent = draft.s5Source || '（請填寫漏水來源）';
+  if (typeof toggleRepairOther === 'function') toggleRepairOther();
 
   if (Array.isArray(draft.cardStore2)) { cardStore[2] = draft.cardStore2; renderCards(2); }
   if (Array.isArray(draft.cardStore3)) { cardStore[3] = draft.cardStore3; renderCards(3); }
@@ -1694,6 +1753,7 @@ function saveCurrentDraft() {
     localStorage.setItem(DRAFT_PREFIX + slot, JSON.stringify(data));
     currentDraftSlot = slot;
     showAutosaveToast(`✅ 已暫存至草稿 ${slot + 1}`);
+    syncCaseToCloud(); // 同步一份到雲端案件庫，供 Portal／其他文件產生器查詢
   } catch(e) {
     showAutosaveToast('❌ 暫存失敗（儲存空間不足）');
     console.warn(e);
@@ -1753,12 +1813,12 @@ function clearAllFields() {
   document.getElementById('s2Conclusion').value = '';
   document.getElementById('s5Cause').value = '';
   document.getElementById('s5Type').value = '';
-  document.getElementById('s5Responsibility').value = '漏水點位於OOO。若為專有部分，由該住戶負責；若為共用部分，依《公寓大廈管理條例》第10條第2項由管委會負擔。';
-  document.getElementById('s6RepairTarget').value = '';
-  document.getElementById('s6Immediate').value = '建議暫時減少3樓陽台之大量排水行為（如洗衣、洗地、澆花），避免持續補充結構體內積水，減緩2樓天花板滴水狀況。';
-  document.getElementById('s6Followup').value = '修繕完成後，建議每半年自行檢查2樓天花板有無新生水漬或異味，並保持3樓陽台排水孔暢通。';
-  const rp = document.getElementById('s6RepairPreview');
-  if (rp) rp.textContent = '（請填寫修繕目標）';
+  document.getElementById('s5Source').value = '';
+  document.getElementById('s6RepairItem').value = '地坪防水重作';
+  document.getElementById('s6RepairOther').value = '';
+  const sp = document.getElementById('s5SourcePreview');
+  if (sp) sp.textContent = '（請填寫漏水來源）';
+  toggleRepairOther();
 
   cardStore[2] = []; cardStore[3] = []; cardStore[4] = [];
   cardSeqStore[2] = 0; cardSeqStore[3] = 0; cardSeqStore[4] = 0;
@@ -1873,9 +1933,18 @@ function triggerLivePreview() {
   updateStepBadges();
 }
 
+/* ══════════════ 6.1 修繕建議：選擇「其他」時顯示自填欄位 ══════════════ */
+function toggleRepairOther() {
+  const sel = document.getElementById('s6RepairItem');
+  const wrap = document.getElementById('s6RepairOtherWrap');
+  if (!sel || !wrap) return;
+  wrap.style.display = sel.value === '其他' ? 'block' : 'none';
+}
+
 /* ══════════════ 初始化 ══════════════ */
 window.onload = () => {
   populateSelect('buildingType', BUILDING_TYPES, 0); // 預設公寓
+  toggleRepairOther();
 
   const fmt = d => d.toISOString().split('T')[0];
   const today = new Date();
@@ -1889,12 +1958,12 @@ window.onload = () => {
     el.addEventListener('input', triggerLivePreview);
   });
 
-  // 6.2 修繕目標即時同步預覽文字
-  const repairInput = document.getElementById('s6RepairTarget');
-  const repairPreview = document.getElementById('s6RepairPreview');
-  if (repairInput && repairPreview) {
-    repairInput.addEventListener('input', () => {
-      repairPreview.textContent = repairInput.value || '（請填寫修繕目標）';
+  // 5.2 漏水來源即時同步預覽文字
+  const sourceInput = document.getElementById('s5Source');
+  const sourcePreview = document.getElementById('s5SourcePreview');
+  if (sourceInput && sourcePreview) {
+    sourceInput.addEventListener('input', () => {
+      sourcePreview.textContent = sourceInput.value || '（請填寫漏水來源）';
     });
   }
 
@@ -1949,7 +2018,7 @@ async function drawStep1Canvas() {
     ctx.textAlign='right';
     ctx.font=`bold 13px ${ff}`; ctx.fillStyle='#1a1a1a';
     ctx.fillText(`編　　號：${caseNoText}`, PW-m, headerLineY-22);
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#444';
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#555';
     ctx.fillText(`出具日期：${issueDate}`, PW-m, headerLineY-4);
     ctx.textAlign='left';
 
@@ -1982,7 +2051,7 @@ async function drawStep1Canvas() {
     ctx.font=labelFont; ctx.fillStyle='#1a1a1a';
     ctx.fillText('檢測方資訊', leftX, y);
     ctx.fillText('委託方資訊', rightX2, y);
-    ctx.font=bodyFont; ctx.fillStyle='#111';
+    ctx.font=bodyFont; ctx.fillStyle='#333';
     [
       `檢測時間：${inspectDate}${inspectTime ? ' '+inspectTime : ''}`,
       `檢測單位：${inspectUnit}`,
@@ -2021,7 +2090,7 @@ async function drawStep1Canvas() {
     const infoBlockH = rowH*2;
     let by = y + boxH/2 - infoBlockH/2 + rowH*0.75;
     ctx.textAlign='left';
-    ctx.font=bodyFont; ctx.fillStyle='#111';
+    ctx.font=bodyFont; ctx.fillStyle='#333';
     ctx.fillText(`地址：${clientAddress}`, infoX1, by);
     by += rowH;
     ctx.fillText(`檢測範圍：${inspectScope}`, infoX1, by);
@@ -2089,7 +2158,7 @@ async function drawStep1Canvas() {
     ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
     ctx.fillText(declareLabel, m+photoPad, iy);
     const declareContentStartY = iy + declareLineH;
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#111';
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
     const wrapLines = wrapText(ctx, declareText, cw - photoPad*2 - 4, `12px ${ff}`);
     wrapLines.forEach((line,i)=>{ ctx.fillText(line, m+photoPad, declareContentStartY + i*declareLineH); });
     const declareBottom = declareContentStartY + wrapLines.length*declareLineH;
@@ -2137,7 +2206,7 @@ async function drawCardStepPages(step, chapterTitle, chapterNumIndex) {
     const titleY = titleLineY - 10;
     ctx.font=`bold 16px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
     ctx.fillText(titleText, m, titleY);
-    ctx.font=`10px ${ff}`; ctx.fillStyle='#444'; ctx.textAlign='right';
+    ctx.font=`10px ${ff}`; ctx.fillStyle='#555'; ctx.textAlign='right';
     ctx.fillText(`編號：${currentCaseNo || '—'}`, PW-m, titleY);
     ctx.textAlign='left';
     ctx.strokeStyle='#1a1a1a'; ctx.lineWidth=0.75;
@@ -2208,7 +2277,7 @@ function drawS2Conclusion(ctx, text, x, y, w, maxBottom) {
   ctx.font=`bold 13px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
   ctx.fillText('結論：', x+padLeft, y+18);
 
-  ctx.font=`12px ${ff}`; ctx.fillStyle='#111';
+  ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
   lines.forEach((line,i)=> ctx.fillText(line, x+padLeft, y+18 + lh*(i+1)));
 
   if (y + 18 + lh*(lines.length+1) > maxBottom) {
@@ -2261,7 +2330,7 @@ function drawCardBox(ctx, card, labelBase, x, y, w, h, cfg, step) {
   if (isA) {
     ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#1a1a1a';
     ctx.fillText(`【${recordLabel}】`, textColX, ty);
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#111';
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
     const recLines = wrapText(ctx, card.recordA || '—', textColW, `12px ${ff}`);
     recLines.forEach((line,i)=> ctx.fillText(line, textColX, ty + lh*(i+1)));
     ty += lh*(recLines.length+1) + 4;
@@ -2269,7 +2338,7 @@ function drawCardBox(ctx, card, labelBase, x, y, w, h, cfg, step) {
     if (cfg.hasAnalysis) {
       ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#1a1a1a';
       ctx.fillText('【影像判讀】', textColX, ty);
-      ctx.font=`12px ${ff}`; ctx.fillStyle='#111';
+      ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
       const anaLines = wrapText(ctx, card.analysis || '—', textColW, `12px ${ff}`);
       const maxAnaLines = Math.max(0, Math.floor((y+h-pad - (ty+lh)) / lh));
       anaLines.slice(0, maxAnaLines).forEach((line,i)=> ctx.fillText(line, textColX, ty + lh*(i+1)));
@@ -2287,14 +2356,14 @@ function drawCardBox(ctx, card, labelBase, x, y, w, h, cfg, step) {
   } else {
     ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#1a1a1a';
     ctx.fillText(`【${recordLabel}（${labelBase}-1）】`, textColX, ty);
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#111';
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
     const recALines = wrapText(ctx, card.recordA || '—', textColW, `12px ${ff}`);
     recALines.forEach((line,i)=> ctx.fillText(line, textColX, ty + lh*(i+1)));
     ty += lh*(recALines.length+1) + 4;
 
     ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#1a1a1a';
     ctx.fillText(`【${recordLabel}（${labelBase}-2）】`, textColX, ty);
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#111';
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
     const recBLines = wrapText(ctx, card.recordB || '—', textColW, `12px ${ff}`);
     recBLines.forEach((line,i)=> ctx.fillText(line, textColX, ty + lh*(i+1)));
 
@@ -2346,7 +2415,8 @@ async function drawStep5Pages(chapters) {
   const hasTable = s5TableRows.length > 0;
   const cause = document.getElementById('s5Cause').value.trim();
   const type = document.getElementById('s5Type').value.trim();
-  const resp = document.getElementById('s5Responsibility').value.trim();
+  const source = document.getElementById('s5Source').value.trim();
+  const resp = source ? `依現場檢測，漏水來源位於${source}，專有或共用部分仍須依建物權屬確認。` : '';
   const hasFinalVerdict = cause || type || resp;
   if (!hasTable && !hasFinalVerdict) return pages;
 
@@ -2366,7 +2436,7 @@ async function drawStep5Pages(chapters) {
     const titleY = titleLineY - 10;
     ctx.font=`bold 16px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
     ctx.fillText(titleText, m, titleY);
-    ctx.font=`10px ${ff}`; ctx.fillStyle='#444'; ctx.textAlign='right';
+    ctx.font=`10px ${ff}`; ctx.fillStyle='#555'; ctx.textAlign='right';
     ctx.fillText(`編號：${currentCaseNo || '—'}`, PW-m, titleY);
     ctx.textAlign='left';
     ctx.strokeStyle='#1a1a1a'; ctx.lineWidth=0.75;
@@ -2415,7 +2485,7 @@ async function drawStep5Pages(chapters) {
     // 檢測項目
     ctx.fillStyle = bg; ctx.fillRect(x, y, widths[1], rowH);
     ctx.strokeRect(x, y, widths[1], rowH);
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#111';
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
     const itemLines = wrapText(ctx, row.item || '—', widths[1]-12, `12px ${ff}`);
     itemLines.forEach((line,i)=> ctx.fillText(line, x+6, y+rowPad+lh*(i+1)-3));
     x += widths[1];
@@ -2423,7 +2493,7 @@ async function drawStep5Pages(chapters) {
     // 結果摘要
     ctx.fillStyle = bg; ctx.fillRect(x, y, widths[2], rowH);
     ctx.strokeRect(x, y, widths[2], rowH);
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#111';
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
     const summaryLines = wrapText(ctx, row.summary || '—', widths[2]-12, `12px ${ff}`);
     summaryLines.forEach((line,i)=> ctx.fillText(line, x+6, y+rowPad+lh*(i+1)-3));
     x += widths[2];
@@ -2432,7 +2502,7 @@ async function drawStep5Pages(chapters) {
     ctx.fillStyle = isExists ? '#f5c6cb' : bg; ctx.fillRect(x, y, widths[3], rowH);
     ctx.strokeRect(x, y, widths[3], rowH);
     ctx.font = isExists ? `bold 12px ${ff}` : `12px ${ff}`;
-    ctx.fillStyle = isExists ? '#c0392b' : '#111';
+    ctx.fillStyle = isExists ? '#c0392b' : '#333';
     ctx.textAlign='center';
     ctx.fillText(row.verdict || '—', x+widths[3]/2, y+rowH/2+4);
     ctx.textAlign='left';
@@ -2499,7 +2569,7 @@ async function drawStep5Pages(chapters) {
     const fields = [
       ['漏水原因：', cause],
       ['漏水型態：', type],
-      ['責任歸屬：', resp],
+      ['責任範圍：', resp],
     ];
 
     let fy = y;
@@ -2517,7 +2587,7 @@ async function drawStep5Pages(chapters) {
       pageCtx.fillText(label, m+padLeft, fy+16);
 
       // 內容換行後開始
-      pageCtx.font=`12px ${ff}`; pageCtx.fillStyle='#111';
+      pageCtx.font=`12px ${ff}`; pageCtx.fillStyle='#333';
       const contentStartY = fy + labelLineH + lhF;
       lines.forEach((line,i)=> pageCtx.fillText(line, m+padLeft, contentStartY + i*lhF));
 
@@ -2543,7 +2613,7 @@ async function drawFlowingPages(chapterTitle, blocks) {
     const titleY = titleLineY - 10;
     ctx.font=`bold 16px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
     ctx.fillText(titleText, m, titleY);
-    ctx.font=`10px ${ff}`; ctx.fillStyle='#444'; ctx.textAlign='right';
+    ctx.font=`10px ${ff}`; ctx.fillStyle='#555'; ctx.textAlign='right';
     ctx.fillText(`編號：${currentCaseNo || '—'}`, PW-m, titleY);
     ctx.textAlign='left';
     ctx.strokeStyle='#1a1a1a'; ctx.lineWidth=0.75;
@@ -2576,7 +2646,7 @@ async function drawFlowingPages(chapterTitle, blocks) {
       const lines = wrapText(pageCtx, block.text, cw - 28, `12px ${ff}`);
       const h = lines.length*lineH + 10;
       if (y + h > maxBottom) await startNewPage(true);
-      pageCtx.fillStyle = '#111'; pageCtx.textAlign='left';
+      pageCtx.fillStyle = '#333'; pageCtx.textAlign='left';
       lines.forEach((line,i)=> drawJustifiedText(pageCtx, line, m + 28, y + lineH*(i+1) - 4, cw - 28, i < lines.length - 1));
       y += h;
     } else {
@@ -2590,7 +2660,7 @@ async function drawFlowingPages(chapterTitle, blocks) {
 
       if (y + blockTotalH > maxBottom) await startNewPage(true);
       
-      pageCtx.fillStyle = '#111'; pageCtx.textAlign='left';
+      pageCtx.fillStyle = '#333'; pageCtx.textAlign='left';
       segmentLines.forEach(lines => {
         lines.forEach((line, i) => {
           drawJustifiedText(pageCtx, line, m, y + lineH - 4, cw - 4, i < lines.length - 1);
@@ -2607,17 +2677,19 @@ async function drawFlowingPages(chapterTitle, blocks) {
 async function drawStep6Pages(chapters) {
   const ch6 = chapters.find(c => c.key === 'step6');
   const chapterTitle = `${ch6.cnNum}、${ch6.titleBase}`;
-  const repairTarget = document.getElementById('s6RepairTarget').value.trim() || '相關區域';
+  const repairSel = document.getElementById('s6RepairItem').value;
+  const repairOther = document.getElementById('s6RepairOther').value.trim();
+  const repairItemText = repairSel === '其他' ? (repairOther || '（未填寫）') : repairSel;
 
   const blocks = [
-    { type: 'h2', text: `${ch6.numIndex}.1 立即處置` },
-    { type: 'p', text: document.getElementById('s6Immediate').value.trim() || '（尚未填寫）' },
-    { type: 'h2', text: `${ch6.numIndex}.2 後續修繕施工（由本檢測公司承接）` },
-    { type: 'p', text: `依據本報告檢測結論，建議對【${repairTarget}】。本公司提供後續施工服務，並針對委託本檢測之委託方給予專屬優惠。\n\n凡委託本檢測報告並由本公司進行修繕施工者，可享：\n▸優惠施工款：檢測費半數可折抵施工款，限總工程達 NT$50,000以上案件，每筆限折抵一次。\n▸三年保固：工程保固期為3年，並於完工時提供正式保固證明書。\n\n隨本報告一併交付施工報價單，內容詳列各工項數量、單價、總價及付款方式。\n委託方可依報價單決定是否委託本公司施工，無強制義務。` },
-    { type: 'h2', text: `${ch6.numIndex}.3 法律與保險` },
+    { type: 'h2', text: `${ch6.numIndex}.1 修繕建議` },
+    { type: 'p', text: `建議施工項目：${repairItemText}` },
+    { type: 'h2', text: `${ch6.numIndex}.2 注意事項` },
+    { type: 'p', text: '修繕前：\n⚠️避免大量用水\n⚠️保持排水孔暢通\n⚠️避免持續積水' },
+    { type: 'h2', text: `${ch6.numIndex}.3 保固與施工` },
+    { type: 'p', text: '若委託本公司施工：\n✓ 檢測費折抵\n✓ 保固三年\n✓ 提供正式保固書' },
+    { type: 'h2', text: `${ch6.numIndex}.4 法律與保險` },
     { type: 'p', text: '▸若涉及管委會或鄰戶責任，本報告可作為協調、調解或訴訟之客觀證據。\n▸若委託方有投保住宅保險，建議向保險公司申請理賠勘查，本報告可輔助理賠申請。' },
-    { type: 'h2', text: `${ch6.numIndex}.4 後續追蹤` },
-    { type: 'p', text: document.getElementById('s6Followup').value.trim() || '（尚未填寫）' },
   ];
 
   return drawFlowingPages(chapterTitle, blocks);
@@ -2837,18 +2909,17 @@ function collectFieldWarnings() {
   const s5Warns = [];
   if (!document.getElementById('s5Cause').value.trim()) s5Warns.push('漏水原因');
   if (!document.getElementById('s5Type').value.trim()) s5Warns.push('漏水型態');
-  const s5Resp = document.getElementById('s5Responsibility').value.trim();
-  if (!s5Resp || s5Resp.includes('OOO')) s5Warns.push('責任歸屬（含「OOO」佔位文字，請修改）');
+  const s5Source = document.getElementById('s5Source').value.trim();
+  if (!s5Source) s5Warns.push('責任範圍（漏水來源未填寫）');
   const s5TableWrap = document.getElementById('s5TableWrap');
   if (!s5TableWrap || !s5TableWrap.querySelector('table')) s5Warns.push('綜合判定總表（尚未產生）');
   if (s5Warns.length) warnings.push({ page: '五、結論', fields: s5Warns });
 
   // ── Step 6 ──
   const s6Warns = [];
-  const s6Repair = document.getElementById('s6RepairTarget').value.trim();
-  if (!s6Repair || s6Repair === '3樓陽台地板結構體進行漏水修繕') s6Warns.push('修繕目標（尚為預設值，請確認是否需要修改）');
-  if (!document.getElementById('s6Immediate').value.trim()) s6Warns.push('立即處置（空白）');
-  if (!document.getElementById('s6Followup').value.trim()) s6Warns.push('後續追蹤（空白）');
+  const repairSel = document.getElementById('s6RepairItem').value;
+  const repairOther = document.getElementById('s6RepairOther').value.trim();
+  if (repairSel === '其他' && !repairOther) s6Warns.push('修繕建議（選擇「其他」但未填寫說明）');
   if (s6Warns.length) warnings.push({ page: '六、建議事項', fields: s6Warns });
 
   return warnings;
