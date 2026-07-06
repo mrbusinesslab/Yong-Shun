@@ -193,7 +193,7 @@ input:focus { outline: none; border-color: #1871b5; background: white; }
       <div class="form-grid">
         <div class="form-group">
           <label>報價單編號</label>
-          <input type="text" id="quoteNo" placeholder="例：TCG-202601-001">
+          <input type="text" id="quoteNo" placeholder="例：TCG-202607-301">
         </div>
         <div class="form-group">
           <label>報價日期</label>
@@ -338,8 +338,10 @@ async function loadCaseFromUrl() {
     currentCaseId = caseId;
 
     document.getElementById('clientName').value = c.clientName || '';
+    document.getElementById('clientContact').value = c.clientContact || '';
     document.getElementById('clientAddress').value = c.clientAddress || '';
     document.getElementById('clientPhone').value = c.phone || '';
+    if (c.caseNumber) document.getElementById('quoteNo').value = c.caseNumber;
 
     // 若檢測報告已有問題點位，帶入作為施工位置起點（僅檢測報告書會寫入雲端，其餘文件只讀取）
     if (c.detection && Array.isArray(c.detection.points) && c.detection.points.length > 0) {
