@@ -355,6 +355,8 @@
     text-decoration: none; white-space: nowrap; transition: background .15s;
   }
   .recent-btn:hover { background: var(--blue); color: #fff; }
+  .recent-btn.edit-btn { background: #fdf0e0; color: #b56a1a; }
+  .recent-btn.edit-btn:hover { background: #e8a13c; color: #fff; }
   .recent-empty, .recent-loading { font-size: 13px; color: var(--sub); padding: 16px; text-align: center; background: var(--white); border-radius: 10px; border: 1.5px dashed var(--line); }
 </style>
 </head>
@@ -563,6 +565,7 @@
   // 各文件產生器的網址（沿用你現有的資料夾與檔名規則）
   // ※ 若之後路徑有調整，只要改這裡即可，其他地方不用動
   const DOC_URLS = {
+    report:     'https://mrbusinesslab.github.io/Yong-Shun/%E6%AA%A2%E6%B8%AC%E5%A0%B1%E5%91%8A%E6%9B%B8/report.html',
     quotation:  'https://mrbusinesslab.github.io/Yong-Shun/%E5%A0%B1%E5%83%B9%E5%96%AE/quotation.html',
     warranty:   'https://mrbusinesslab.github.io/Yong-Shun/%E4%BF%9D%E5%9B%BA%E6%9B%B8/warranty.html',
     commission: 'https://mrbusinesslab.github.io/Yong-Shun/%E7%AC%AC%E4%B8%89%E6%96%B9%E5%A7%94%E8%A8%97%E6%9B%B8/commission.html',
@@ -571,11 +574,29 @@
 
   let allRecentCases = [];
 
+  // 依「委託方＋地址」判斷是否為同一案件，只保留最新更新的一筆，避免重複的舊版本
+  function dedupeCases(list) {
+    const map = new Map();
+    list.forEach(c => {
+      const key = `${(c.clientName||'').trim()}|${(c.clientAddress||'').trim()}` || c.id;
+      const existing = map.get(key);
+      const t = c.updatedAt && c.updatedAt.toMillis ? c.updatedAt.toMillis() : 0;
+      const existingT = existing && existing.updatedAt && existing.updatedAt.toMillis ? existing.updatedAt.toMillis() : -1;
+      if (!existing || t > existingT) map.set(key, c);
+    });
+    return Array.from(map.values()).sort((a, b) => {
+      const ta = a.updatedAt && a.updatedAt.toMillis ? a.updatedAt.toMillis() : 0;
+      const tb = b.updatedAt && b.updatedAt.toMillis ? b.updatedAt.toMillis() : 0;
+      return tb - ta;
+    });
+  }
+
   async function loadRecentCases() {
     const listEl = document.getElementById('recentList');
     try {
-      const snap = await db.collection('cases').orderBy('updatedAt', 'desc').limit(15).get();
-      allRecentCases = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const snap = await db.collection('cases').orderBy('updatedAt', 'desc').limit(30).get();
+      const raw = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      allRecentCases = dedupeCases(raw).slice(0, 15);
       renderRecentList(allRecentCases);
     } catch (err) {
       console.error(err);
@@ -601,6 +622,7 @@
             <div class="recent-meta">${esc(c.clientAddress || '')}　｜　更新於 ${dateStr}</div>
           </div>
           <div class="recent-actions">
+            <a class="recent-btn edit-btn" href="${DOC_URLS.report}?case=${caseParam}" target="_blank" rel="noopener">✏️ 編輯報告書</a>
             <a class="recent-btn" href="${DOC_URLS.quotation}?case=${caseParam}" target="_blank" rel="noopener">建立報價單</a>
             <a class="recent-btn" href="${DOC_URLS.warranty}?case=${caseParam}" target="_blank" rel="noopener">建立保固書</a>
             <a class="recent-btn" href="${DOC_URLS.acceptance}?case=${caseParam}" target="_blank" rel="noopener">建立驗收報告</a>
