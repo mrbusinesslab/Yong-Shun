@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>詠順工程行｜施工保固書產生器</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Microsoft JhengHei','微軟正黑體',Arial,sans-serif; background: #f0f4f8; color: #1a1a1a; min-height: 100vh; }
@@ -47,6 +49,11 @@ input:focus, select:focus { outline: none; border-color: #1871b5; background: wh
 .status-msg.error { color: #e53935; }
 .status-msg.success { color: #2e7d32; }
 
+/* 雲端案件狀態 */
+.cloud-status { font-size: 11.5px; color: #999; margin-top: 8px; }
+.cloud-status.ok { color: #2e7d32; }
+.cloud-status.err { color: #e53935; }
+
 .date-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; color: #444; }
 .date-row input[type="number"] { width: 60px; padding: 5px 8px; font-size: 13px; text-align: center; }
 .date-row input.y-input { width: 70px; }
@@ -58,6 +65,20 @@ input:focus, select:focus { outline: none; border-color: #1871b5; background: wh
 
 <div class="main-layout">
   <div class="container">
+
+    <!-- 案件資料 -->
+    <div class="card">
+      <div class="card-title">📂 案件資料</div>
+      <div id="caseLoadedBanner" style="display:none; background:#eaf7ec; border:1.5px solid #2e7d32; border-radius:8px; padding:14px 16px; margin-bottom:16px;">
+        <div style="font-size:13.5px; font-weight:700; color:#256a2a;" id="caseLoadedText"></div>
+        <div style="font-size:12px; color:#5a8a5e; margin-top:4px;">施工地址已自動帶入。</div>
+      </div>
+      <div id="caseNotLoadedNotice" style="background:#fff8e6; border:1.5px solid #e0a82e; border-radius:8px; padding:14px 16px;">
+        <div style="font-size:13px; color:#8a6d1a; line-height:1.7;">
+          請回到<strong>文件產生器首頁</strong>的「最近項目」，點選委託方旁的「建立保固書」按鈕，會自動帶入該案件的施工地址。
+        </div>
+      </div>
+    </div>
 
     <!-- 保固書資訊 -->
     <div class="card">
@@ -179,6 +200,41 @@ function triggerLivePreview() {
   previewTimeout = setTimeout(() => generatePDF(true), 600);
 }
 
+/* ══════════════ Firebase 初始化（僅用於讀取案件資料，不寫回） ══════════════ */
+const firebaseConfig = {
+  apiKey: "AIzaSyD2wWHP27kqd005xAuz-DEuEg_z9A8YCVc",
+  authDomain: "yong-shun.firebaseapp.com",
+  projectId: "yong-shun",
+  storageBucket: "yong-shun.firebasestorage.app",
+  messagingSenderId: "530988019396",
+  appId: "1:530988019396:web:6554ce1e9f977bd5182391"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+/* ══════════════ 從 Portal 網址參數自動載入案件（?case=xxx，僅讀取） ══════════════ */
+async function loadCaseFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const caseId = params.get('case');
+  if (!caseId) return; // 沒有帶參數，維持顯示提示
+
+  try {
+    const doc = await db.collection('cases').doc(caseId).get();
+    if (!doc.exists) return;
+    const c = doc.data();
+
+    document.getElementById('clientAddress').value = c.clientAddress || '';
+
+    document.getElementById('caseNotLoadedNotice').style.display = 'none';
+    document.getElementById('caseLoadedText').textContent = `✅ 已從 Portal 載入案件：${c.clientName || ''}　${c.caseNumber || ''}`;
+    document.getElementById('caseLoadedBanner').style.display = 'block';
+
+    triggerLivePreview();
+  } catch (err) {
+    console.error('載入案件失敗：', err);
+  }
+}
+
 function autoCalcEnd() {
   const sy = parseInt(document.getElementById('startYear').value) || 0;
   const sm = parseInt(document.getElementById('startMonth').value) || 1;
@@ -207,6 +263,7 @@ window.onload = () => {
   document.getElementById('issueDate').value = today.toISOString().split('T')[0];
   // 觸發自動計算結束日
   autoCalcEnd();
+  loadCaseFromUrl();
 
   document.querySelectorAll('.container input, .container select').forEach(el => {
     el.addEventListener('input', () => {
@@ -557,7 +614,7 @@ async function generatePDF(isPreview = false) {
     const subY = lineY + LH * 0.9;
     ctx.font = `10.5px ${ff}`; ctx.fillStyle = '#888';
     ctx.fillText('鍾師富', M, subY);
-    ctx.fillText('簽名 / 蓋章', midX + 20, subY);
+    ctx.fillText('負責人簽名 / 蓋章', midX + 20, subY);
     y = subY + LH * 1.4;
 
     // 保固書出具日期（中華民國紀年，置中）
