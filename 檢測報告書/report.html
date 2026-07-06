@@ -767,13 +767,20 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const CASES_COLLECTION = 'cases';
+let cloudCaseId = null; // 這筆草稿對應的雲端案件識別碼，一旦產生就固定不變
 
 function sanitizeDocId(str) {
   return (str || '').trim().replace(/[\/\.\#\$\[\]\s]+/g, '_') || ('case_' + Date.now());
 }
 
+function generateCloudCaseId() {
+  return 'case_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+}
+
 // 每次「暫存草稿」時，同步一份精簡資料（不含照片）到雲端案件庫，
 // 讓 Portal「最近項目」與其他文件產生器（報價單／保固書／驗收報告／委託書）都能查到這筆案件。
+// 重點：雲端文件 ID 一旦產生就固定不變，之後案號、客戶姓名等內容有變動，
+// 都是「更新同一份文件」，而不是產生新的一份 —— 這樣其他文件產生器抓到的永遠是最新資料。
 async function syncCaseToCloud() {
   try {
     updateCaseNo(); // 確保案號是最新的
@@ -781,7 +788,8 @@ async function syncCaseToCloud() {
     const clientAddress = (document.getElementById('clientAddress').value || '').trim();
     if (!clientName && !clientAddress) return; // 資料太空，不建立雲端案件
 
-    const docId = sanitizeDocId(currentCaseNo || clientName || clientAddress);
+    if (!cloudCaseId) cloudCaseId = generateCloudCaseId();
+    const docId = cloudCaseId;
     const detectionPoints = (cardStore[2] || []).map(card => ({
       position: card.position || '', recordA: card.recordA || '', recordB: card.recordB || '', analysis: card.analysis || ''
     }));
@@ -1682,11 +1690,13 @@ function collectDraft() {
     cardStore3: JSON.parse(JSON.stringify(cardStore[3])),
     cardStore4: JSON.parse(JSON.stringify(cardStore[4])),
     s5TableRows: JSON.parse(JSON.stringify(s5TableRows)),
+    cloudCaseId: cloudCaseId,
     savedAt: new Date().toISOString(),
   };
 }
 
 function applyDraft(draft) {
+  cloudCaseId = draft.cloudCaseId || null;
   const set = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined) el.value = val; };
   set('issueDate', draft.issueDate);
   set('inspectDate', draft.inspectDate);
@@ -1792,6 +1802,7 @@ function newBlankFile() {
   }
   clearAllFields();
   currentDraftSlot = null;
+  cloudCaseId = null;
   closeDraftManager();
   showAutosaveToast('📄 已建立新空白檔案');
 }
