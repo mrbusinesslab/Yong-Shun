@@ -800,6 +800,12 @@ async function syncCaseToCloud() {
       clientContact: document.getElementById('clientContact').value || '',
       clientAddress: clientAddress,
       phone: document.getElementById('clientPhone').value || '',
+      inspectScope: document.getElementById('inspectScope').value || '',
+      conclusion: {
+        source: document.getElementById('s5Source').value || '',
+        repairItem: document.getElementById('s6RepairItem').value || '',
+        repairOther: document.getElementById('s6RepairOther').value || '',
+      },
       detection: { points: detectionPoints },
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
