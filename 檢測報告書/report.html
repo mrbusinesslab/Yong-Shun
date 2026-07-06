@@ -789,6 +789,7 @@ async function syncCaseToCloud() {
     await db.collection(CASES_COLLECTION).doc(docId).set({
       caseNumber: currentCaseNo || '',
       clientName: clientName,
+      clientContact: document.getElementById('clientContact').value || '',
       clientAddress: clientAddress,
       phone: document.getElementById('clientPhone').value || '',
       detection: { points: detectionPoints },
