@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>詠順工程行｜第三方委託書產生器</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Microsoft JhengHei','微軟正黑體',Arial,sans-serif; background: #f0f4f8; color: #1a1a1a; min-height: 100vh; }
@@ -69,10 +71,10 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #1871b5
 .status-msg.success { color: #1a7a3c; }
 .status-msg.error { color: #c0392b; }
 
-/* ── 案號 ── */
-.no-block { background: #eef5ff; border: 1.5px solid #1871b5; border-radius: 8px; padding: 12px 18px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; }
-.no-label { font-size: 12px; color: #1871b5; font-weight: 600; }
-.no-value { font-size: 18px; font-weight: 700; color: #1871b5; font-family: 'Consolas', monospace; letter-spacing: 1px; }
+/* 雲端案件狀態 */
+.cloud-status { font-size: 11.5px; color: #999; margin-top: 8px; }
+.cloud-status.ok { color: #2e7d32; }
+.cloud-status.err { color: #e53935; }
 </style>
 </head>
 <body>
@@ -99,10 +101,18 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #1871b5
     </button>
   </div>
 
-  <!-- 案號 -->
-  <div class="no-block">
-    <span class="no-label">委託書編號</span>
-    <span class="no-value" id="commNo">—</span>
+  <!-- 案件資料 -->
+  <div class="card">
+    <div class="card-title">📂 案件資料</div>
+    <div id="caseLoadedBanner" style="display:none; background:#eaf7ec; border:1.5px solid #2e7d32; border-radius:8px; padding:14px 16px; margin-bottom:16px;">
+      <div style="font-size:13.5px; font-weight:700; color:#256a2a;" id="caseLoadedText"></div>
+      <div style="font-size:12px; color:#5a8a5e; margin-top:4px;">委託方資料已自動帶入，檢測範圍與工程摘要已預填，可再自行調整。</div>
+    </div>
+    <div id="caseNotLoadedNotice" style="background:#fff8e6; border:1.5px solid #e0a82e; border-radius:8px; padding:14px 16px;">
+      <div style="font-size:13px; color:#8a6d1a; line-height:1.7;">
+        請回到<strong>文件產生器首頁</strong>的「最近項目」，點選委託方旁的「建立委託書」按鈕，會自動帶入該案件的委託方資料。
+      </div>
+    </div>
   </div>
 
   <!-- ── 共用：委託方資訊 ── -->
@@ -118,12 +128,12 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #1871b5
         <input type="date" id="signDate" oninput="update()">
       </div>
       <div class="form-group">
-        <label>委託方（公司／個人名稱）</label>
-        <input type="text" id="clientName" placeholder="例：○○室內設計有限公司" oninput="update()">
+        <label>委託方</label>
+        <input type="text" id="clientName" placeholder="例：姓名／社區名稱／公司名稱" oninput="update()">
       </div>
       <div class="form-group">
         <label>負責人</label>
-        <input type="text" id="clientContact" placeholder="例：王○○" oninput="update()">
+        <input type="text" id="clientContact" placeholder="例：本人／負責人姓名" oninput="update()">
       </div>
       <div class="form-group">
         <label>聯絡電話</label>
@@ -131,7 +141,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #1871b5
       </div>
       <div class="form-group">
         <label>委託方身份</label>
-        <select id="clientRole" onchange="update()">
+        <select id="clientRole" onchange="toggleRoleOther(); update()">
           <option value="室內設計師">室內設計師</option>
           <option value="室內設計公司">室內設計公司</option>
           <option value="房屋仲介">房屋仲介</option>
@@ -139,6 +149,10 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #1871b5
           <option value="物業管理公司">物業管理公司</option>
           <option value="其他">其他</option>
         </select>
+      </div>
+      <div class="form-group" id="clientRoleOtherWrap" style="display:none;">
+        <label>請說明委託方身份</label>
+        <input type="text" id="clientRoleOther" placeholder="請輸入委託方身份" oninput="update()">
       </div>
       <div class="form-group full">
         <label>施工／檢測地址</label>
@@ -194,10 +208,6 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #1871b5
     <div class="card">
       <div class="card-title">🔧 施工委託內容</div>
       <div class="form-grid">
-        <div class="form-group">
-          <label>關聯報價單編號（選填）</label>
-          <input type="text" id="quoteRef" placeholder="例：QT-250601-001" oninput="update()">
-        </div>
         <div class="form-group">
           <label>預計施工日期</label>
           <input type="date" id="constructDate" oninput="update()">
@@ -335,21 +345,25 @@ function wrapText(ctx, text, maxW, font) {
 }
 
 function getDocNo() {
-  const no = document.getElementById('docNo').value.trim();
-  if (no) return no;
-  const dt = new Date(document.getElementById('signDate').value || Date.now());
-  const yy = String(dt.getFullYear()).slice(2);
-  const mm = String(dt.getMonth()+1).padStart(2,'0');
-  const dd = String(dt.getDate()).padStart(2,'0');
-  const prefix = currentType === 'inspect' ? 'INS' : 'CON';
-  return `${prefix}-${yy}${mm}${dd}-001`;
+  return document.getElementById('docNo').value.trim();
+}
+
+function getClientRoleDisplay() {
+  const sel = document.getElementById('clientRole').value;
+  if (sel !== '其他') return sel;
+  const other = document.getElementById('clientRoleOther').value.trim();
+  return other || '其他';
+}
+
+function toggleRoleOther() {
+  const sel = document.getElementById('clientRole');
+  const wrap = document.getElementById('clientRoleOtherWrap');
+  if (!sel || !wrap) return;
+  wrap.style.display = sel.value === '其他' ? 'block' : 'none';
 }
 
 /* ══ UI 更新 ══ */
 function update() {
-  const no = document.getElementById('docNo').value.trim();
-  document.getElementById('commNo').textContent = no || '（填入編號後顯示）';
-  document.getElementById('commNo').style.color = no ? '#1871b5' : '#aaa';
   clearTimeout(previewTimer);
   previewTimer = setTimeout(drawAndPreview, 600);
 }
@@ -387,7 +401,7 @@ async function drawPage() {
   const clientName  = document.getElementById('clientName').value.trim() || '　　　　　　';
   const clientContact = document.getElementById('clientContact').value.trim() || '　　　　';
   const clientPhone = document.getElementById('clientPhone').value.trim() || '　　　　　　';
-  const clientRole  = document.getElementById('clientRole').value;
+  const clientRole  = getClientRoleDisplay();
   const siteAddress = document.getElementById('siteAddress').value.trim() || '　　　　　　　　　　';
   const isInspect   = currentType === 'inspect';
   const typeLabel   = isInspect ? '（檢測）' : '（施工）';
@@ -397,8 +411,8 @@ async function drawPage() {
   /* ══ 標題 + 編號 + 分隔線 ══ */
   ctx.font = `bold 21px ${ff}`; ctx.fillStyle = '#1a1a1a'; ctx.textAlign = 'left';
   ctx.fillText(`第三方委託書${typeLabel}`, M, y + 22);
-  ctx.font = `11px ${ff}`; ctx.fillStyle = '#222'; ctx.textAlign = 'right';
-  ctx.fillText(`編號：${docNo}`, PW - M, y + 22);
+  ctx.font = `11px ${ff}`; ctx.fillStyle = '#555'; ctx.textAlign = 'right';
+  ctx.fillText(`編號：${docNo || '—'}`, PW - M, y + 22);
   ctx.textAlign = 'left';
   y += 34;
   ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 0.85;
@@ -408,7 +422,7 @@ async function drawPage() {
   /* ══ 受委託方固定欄 ══ */
   function drawKV(label, value) {
     const LABEL_W = 90; // 固定 label 欄寬，對齊 value
-    ctx.font = boldFont; ctx.fillStyle = '#222';
+    ctx.font = boldFont; ctx.fillStyle = '#555';
     ctx.fillText(label, M, y);
     ctx.font = bodyFont; ctx.fillStyle = '#1a1a1a';
     wrapText(ctx, value, CW - LABEL_W, bodyFont).forEach((line, i) => {
@@ -461,7 +475,7 @@ async function drawPage() {
 
     ctx.font = boldFont; ctx.fillStyle = '#1a1a1a';
     ctx.fillText('檢測範圍：', M, y); y += LH;
-    ctx.font = bodyFont; ctx.fillStyle = '#111';
+    ctx.font = bodyFont; ctx.fillStyle = '#333';
     wrapText(ctx, scope, CW - 20, bodyFont).forEach(line => {
       ctx.fillText(line, M + 12, y); y += LH;
     });
@@ -469,7 +483,7 @@ async function drawPage() {
 
     ctx.font = boldFont; ctx.fillStyle = '#1a1a1a';
     ctx.fillText('檢測目的：', M, y); y += LH;
-    ctx.font = bodyFont; ctx.fillStyle = '#111';
+    ctx.font = bodyFont; ctx.fillStyle = '#333';
     wrapText(ctx, purpose, CW - 20, bodyFont).forEach(line => {
       ctx.fillText(line, M + 12, y); y += LH;
     });
@@ -482,7 +496,7 @@ async function drawPage() {
     if (note) {
       y += 4;
       drawSection('備　　　註');
-      ctx.font = bodyFont; ctx.fillStyle = '#111';
+      ctx.font = bodyFont; ctx.fillStyle = '#333';
       wrapText(ctx, note, CW, bodyFont).forEach(line => {
         ctx.fillText(line, M, y); y += LH;
       });
@@ -490,7 +504,6 @@ async function drawPage() {
 
   } else {
     /* ────── 施工版 ────── */
-    const quoteRef      = document.getElementById('quoteRef').value.trim();
     const constructDate = document.getElementById('constructDate').value;
     const payMethod     = document.getElementById('paymentMethod').value;
     const invoiceTo     = getRadio('invoiceTo') || '委託方';
@@ -499,12 +512,11 @@ async function drawPage() {
     const note          = document.getElementById('constructNote').value.trim();
     const scopes        = getScopeItems();
 
-    if (quoteRef) drawKV('報價單號：', quoteRef);
     if (constructDate) drawKV('預計施工：', toROC(constructDate));
     y += 4;
 
     drawSection('工程範圍');
-    ctx.font = bodyFont; ctx.fillStyle = '#111';
+    ctx.font = bodyFont; ctx.fillStyle = '#333';
     if (scopes.length === 0) {
       ctx.fillText('（未填寫）', M + 12, y); y += LH;
     } else {
@@ -512,7 +524,7 @@ async function drawPage() {
         const bullet = `${i + 1}.`;
         ctx.font = boldFont; ctx.fillStyle = BLUE;
         ctx.fillText(bullet, M + 4, y);
-        ctx.font = bodyFont; ctx.fillStyle = '#111';
+        ctx.font = bodyFont; ctx.fillStyle = '#333';
         const bw = ctx.measureText(bullet).width;
         wrapText(ctx, s, CW - bw - 16, bodyFont).forEach((line, li) => {
           ctx.fillText(line, M + bw + 12, y); y += LH;
@@ -530,7 +542,7 @@ async function drawPage() {
     if (note) {
       y += 4;
       drawSection('備　　　註');
-      ctx.font = bodyFont; ctx.fillStyle = '#111';
+      ctx.font = bodyFont; ctx.fillStyle = '#333';
       wrapText(ctx, note, CW, bodyFont).forEach(line => {
         ctx.fillText(line, M, y); y += LH;
       });
@@ -540,7 +552,7 @@ async function drawPage() {
   /* ══ 授權聲明 ══ */
   y += 8;
   drawSection('授權聲明');
-  ctx.font = bodyFont; ctx.fillStyle = '#111';
+  ctx.font = bodyFont; ctx.fillStyle = '#333';
   const declare = isInspect
     ? '甲方聲明已取得實際屋主同意，授權乙方（詠順工程行）進場進行漏水檢測。甲方應確保乙方人員得以順利進入現場，並對所提供之屋主資訊之真實性負責。'
     : '甲方確認已獲授權委託乙方（詠順工程行）於上列地址進行修繕施工，並同意依本委託書所載條件執行。甲方應協助乙方人員順利進場施工，並依約定付款。';
@@ -558,7 +570,7 @@ async function drawPage() {
   const colW = (CW - 40) / 2;
   const midX = M + colW + 40;
 
-  ctx.font = bodyFont; ctx.fillStyle = '#111';
+  ctx.font = bodyFont; ctx.fillStyle = '#333';
   ctx.fillText('甲方（委託方）', M, y);
   ctx.fillText('乙方（詠順工程行）', midX, y);
   y += LH * 0.5;
@@ -612,7 +624,7 @@ async function generatePDF() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     doc.addImage(page.canvas.toDataURL('image/png', 0.88), 'PNG', 0, 0, 210, 297);
-    const no = getDocNo();
+    const no = getDocNo() || 'commission';
     doc.save(`${no}_委託書.pdf`);
     msg.className = 'status-msg success'; msg.textContent = `✅ 已輸出：${no}_委託書.pdf`;
   } catch(e) {
@@ -623,9 +635,66 @@ async function generatePDF() {
 }
 
 /* ══ 初始化 ══ */
-window.onload = () => {
+/* ══════════════ Firebase 初始化（僅用於讀取案件資料，不寫回） ══════════════ */
+const firebaseConfig = {
+  apiKey: "AIzaSyD2wWHP27kqd005xAuz-DEuEg_z9A8YCVc",
+  authDomain: "yong-shun.firebaseapp.com",
+  projectId: "yong-shun",
+  storageBucket: "yong-shun.firebasestorage.app",
+  messagingSenderId: "530988019396",
+  appId: "1:530988019396:web:6554ce1e9f977bd5182391"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+/* ══════════════ 從 Portal 網址參數自動載入案件（?case=xxx，僅讀取） ══════════════ */
+async function loadCaseFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const caseId = params.get('case');
+  if (!caseId) return;
+
+  try {
+    const doc = await db.collection('cases').doc(caseId).get();
+    if (!doc.exists) return;
+    const c = doc.data();
+
+    document.getElementById('clientName').value = c.clientName || '';
+    document.getElementById('clientContact').value = c.clientContact || '';
+    document.getElementById('clientPhone').value = c.phone || '';
+    document.getElementById('siteAddress').value = c.clientAddress || '';
+
+    // 檢測範圍：與檢測報告書一致
+    if (c.inspectScope) document.getElementById('inspectScope').value = c.inspectScope;
+
+    // 施工委託：工程摘要預填 5.2 責任範圍 + 6.1 建議施工項目
+    if (c.conclusion && (c.conclusion.source || c.conclusion.repairItem)) {
+      const source = c.conclusion.source || '';
+      const repairItem = c.conclusion.repairItem === '其他' ? (c.conclusion.repairOther || '其他') : (c.conclusion.repairItem || '');
+      const parts = [];
+      if (source) parts.push(`依現場檢測，漏水來源位於${source}，專有或共用部分仍須依建物權屬確認。`);
+      if (repairItem) parts.push(`建議施工項目：${repairItem}`);
+      if (parts.length > 0) {
+        addScope();
+        const inputs = document.querySelectorAll('#scopeList .scope-item input');
+        const lastInput = inputs[inputs.length - 1];
+        if (lastInput) lastInput.value = parts.join('；');
+      }
+    }
+
+    document.getElementById('caseNotLoadedNotice').style.display = 'none';
+    document.getElementById('caseLoadedText').textContent = `✅ 已從 Portal 載入案件：${c.clientName || ''}　${c.caseNumber || ''}`;
+    document.getElementById('caseLoadedBanner').style.display = 'block';
+
+    update();
+  } catch (err) {
+    console.error('載入案件失敗：', err);
+  }
+}
+
+window.onload = async () => {
   document.getElementById('signDate').value = new Date().toISOString().split('T')[0];
-  addScope();
+  await loadCaseFromUrl();
+  if (document.querySelectorAll('#scopeList .scope-item').length === 0) addScope();
   document.querySelectorAll('.container input, .container select, .container textarea').forEach(el => {
     el.addEventListener('input', update);
     el.addEventListener('change', update);
