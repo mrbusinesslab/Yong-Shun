@@ -6,6 +6,8 @@
 <title>詠順工程行｜報價單產生器</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Microsoft JhengHei','微軟正黑體',Arial,sans-serif; background: #f0f4f8; color: #1a1a1a; min-height: 100vh; }
@@ -136,6 +138,14 @@ input:focus { outline: none; border-color: #1871b5; background: white; }
 .status-msg { text-align: center; font-size: 13px; color: #888; margin-top: 10px; min-height: 20px; }
 .status-msg.error { color: #e53935; }
 .status-msg.success { color: #2e7d32; }
+
+/* 雲端案件狀態 */
+.cloud-status { font-size: 11.5px; color: #999; margin-top: 8px; }
+.cloud-status.ok { color: #2e7d32; }
+.cloud-status.err { color: #e53935; }
+.save-cloud-btn { background: #2e7d32; color: white; border: none; padding: 9px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; margin-top: 14px; width: 100%; }
+.save-cloud-btn:hover { background: #256a2a; }
+.save-cloud-btn:disabled { background: #a8c9ab; cursor: wait; }
 .terms-info { background: #fffbea; border: 1px solid #ffe58f; border-radius: 8px; padding: 14px 18px; font-size: 13px; color: #7d6000; margin-bottom: 24px; line-height: 1.7; }
 .terms-info code { background: #fff3cd; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 12px; }
 </style>
@@ -165,6 +175,19 @@ input:focus { outline: none; border-color: #1871b5; background: white; }
 
 <div class="main-layout">
   <div class="container">
+    <div class="card">
+      <div class="card-title">📂 案件資料</div>
+      <div id="caseLoadedBanner" style="display:none; background:#eaf7ec; border:1.5px solid #2e7d32; border-radius:8px; padding:14px 16px; margin-bottom:16px;">
+        <div style="font-size:13.5px; font-weight:700; color:#256a2a;" id="caseLoadedText"></div>
+        <div style="font-size:12px; color:#5a8a5e; margin-top:4px;">客戶資料已自動帶入，若檢測報告已有問題點位，也已預填為施工位置。</div>
+      </div>
+      <div id="caseNotLoadedNotice" style="background:#fff8e6; border:1.5px solid #e0a82e; border-radius:8px; padding:14px 16px;">
+        <div style="font-size:13px; color:#8a6d1a; line-height:1.7;">
+          請回到<strong>文件產生器首頁</strong>的「最近項目」，點選委託方旁的「建立報價單」按鈕，會自動帶入該案件的客戶資料。
+        </div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-title">📋 報價單資訊</div>
       <div class="form-grid">
@@ -279,13 +302,85 @@ function triggerLivePreview() {
   }, 500);
 }
 
+/* ══════════════ Firebase 初始化（共用案件雲端資料庫） ══════════════ */
+const firebaseConfig = {
+  apiKey: "AIzaSyD2wWHP27kqd005xAuz-DEuEg_z9A8YCVc",
+  authDomain: "yong-shun.firebaseapp.com",
+  projectId: "yong-shun",
+  storageBucket: "yong-shun.firebasestorage.app",
+  messagingSenderId: "530988019396",
+  appId: "1:530988019396:web:6554ce1e9f977bd5182391"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const CASES_COLLECTION = 'cases';
+let currentCaseId = null;
+
+function sanitizeDocId(str) {
+  return (str || '').trim().replace(/[\/\.\#\$\[\]\s]+/g, '_') || ('case_' + Date.now());
+}
+
+/* ══════════════ 從 Portal 網址參數自動載入案件（?case=xxx） ══════════════ */
+async function loadCaseFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const caseId = params.get('case');
+  if (!caseId) { addLocation(); return; }
+
+  try {
+    const doc = await db.collection(CASES_COLLECTION).doc(caseId).get();
+    if (!doc.exists) {
+      addLocation();
+      const msg = document.getElementById('statusMsg');
+      msg.className = 'status-msg error'; msg.textContent = '⚠️ 找不到對應的案件資料（可能已被刪除）';
+      return;
+    }
+    const c = doc.data();
+    currentCaseId = caseId;
+
+    document.getElementById('clientName').value = c.clientName || '';
+    document.getElementById('clientAddress').value = c.clientAddress || '';
+    document.getElementById('clientPhone').value = c.phone || '';
+
+    // 若檢測報告已有問題點位，帶入作為施工位置起點（僅檢測報告書會寫入雲端，其餘文件只讀取）
+    if (c.detection && Array.isArray(c.detection.points) && c.detection.points.length > 0) {
+      loadLocationsFromDetectionPoints(c.detection.points);
+    } else {
+      addLocation();
+    }
+
+    document.getElementById('caseNotLoadedNotice').style.display = 'none';
+    document.getElementById('caseLoadedText').textContent = `✅ 已從 Portal 載入案件：${c.clientName || ''}　${c.caseNumber || ''}`;
+    document.getElementById('caseLoadedBanner').style.display = 'block';
+
+    recalc();
+    triggerLivePreview();
+  } catch (err) {
+    console.error(err);
+    addLocation();
+    const msg = document.getElementById('statusMsg');
+    msg.className = 'status-msg error'; msg.textContent = '❌ 載入案件失敗：' + err.message;
+  }
+}
+
+function loadLocationsFromDetectionPoints(points) {
+  document.getElementById('locationsContainer').innerHTML = '';
+  points.forEach(pt => {
+    addLocation();
+    const id = locCount;
+    const headerInput = document.querySelector(`#loc-${id} .location-header input`);
+    if (headerInput) headerInput.value = pt.position || '';
+  });
+}
+
+/* ══════════════ 初始化 ══════════════ */
 window.onload = () => {
   const fmt = d => d.toISOString().split('T')[0];
   const today = new Date();
   document.getElementById('quoteDate').value = fmt(today);
   const exp = new Date(today); exp.setMonth(exp.getMonth()+1);
   document.getElementById('expireDate').value = fmt(exp);
-  addLocation();
+
+  loadCaseFromUrl();
 
   document.querySelectorAll('.container input').forEach(el => {
     if (el.id !== 'warrantyYears') {
@@ -613,14 +708,14 @@ async function generatePDF(isPreview = false) {
 
     ctx.font=`bold 14px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='right';
     ctx.fillText(`編號：${document.getElementById('quoteNo').value||'—'}`, PW-m, y);
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#222';
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#555';
     ctx.fillText(`報價日期：${document.getElementById('quoteDate').value||'—'}`, PW-m, y + lineH*2);
     ctx.fillText(`報價單失效日：${document.getElementById('expireDate').value||'—'}`, PW-m, y + lineH*3);
     ctx.textAlign='left';
 
     ctx.font=`bold 13px ${ff}`; ctx.fillStyle='#1a1a1a';
     ctx.fillText('委託方資訊', m, y);
-    ctx.font=`13px ${ff}`; ctx.fillStyle='#111';
+    ctx.font=`13px ${ff}`; ctx.fillStyle='#333';
     [
       `委託方：${document.getElementById('clientName').value||'—'}`,
       `負責人：${document.getElementById('clientContact').value||'—'}`,
@@ -647,7 +742,7 @@ async function generatePDF(isPreview = false) {
         ctx.fillRect(m,y+ci*rowH,cw,rowH);
         ctx.fillStyle=loc.color;
         ctx.beginPath(); ctx.arc(m+14,y+ci*rowH+rowH/2,3.5,0,Math.PI*2); ctx.fill();
-        ctx.font=`13px ${ff}`; ctx.fillStyle='#111'; ctx.textAlign='left';
+        ctx.font=`13px ${ff}`; ctx.fillStyle='#333'; ctx.textAlign='left';
         ctx.fillText(loc.contents[ci], m+26, y+ci*rowH+rowH/2+5);
       }
       if (loc.contents.length===0) { ctx.fillStyle=c1; ctx.fillRect(m,y,cw,rowH); }
@@ -656,7 +751,7 @@ async function generatePDF(isPreview = false) {
       ctx.strokeStyle='#e0e6f0'; ctx.lineWidth=0.5;
       ctx.beginPath(); ctx.moveTo(m,y); ctx.lineTo(PW-m,y); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(m,y+costH); ctx.lineTo(PW-m,y+costH); ctx.stroke();
-      ctx.font=`13px ${ff}`; ctx.fillStyle='#222'; ctx.textAlign='left';
+      ctx.font=`13px ${ff}`; ctx.fillStyle='#555'; ctx.textAlign='left';
       let cx=m+10;
       [`數量：${loc.qty||'—'}`,`單位：${loc.unit||'—'}`,`單價：${loc.price>0?'$'+Math.round(loc.price).toLocaleString():'—'}`]
         .forEach(item=>{ ctx.fillText(item,cx,y+costH/2+5); cx+=ctx.measureText(item).width+28; });
@@ -702,7 +797,7 @@ async function generatePDF(isPreview = false) {
      {l:'稅額(5%)：',v:'$'+tax.toLocaleString(),c:'#333'},
      {l:'施工優惠：',v:'-$'+Math.round(disc).toLocaleString(),c:'#e53935'},
     ].forEach(row=>{
-      ctx.font=`13px ${ff}`; ctx.fillStyle='#222'; ctx.textAlign='left'; ctx.fillText(row.l,rx2,sy);
+      ctx.font=`13px ${ff}`; ctx.fillStyle='#666'; ctx.textAlign='left'; ctx.fillText(row.l,rx2,sy);
       ctx.fillStyle=row.c; ctx.textAlign='right'; ctx.fillText(row.v,PW-m,sy); sy+=24;
     });
     ctx.strokeStyle='#1871b5'; ctx.lineWidth=1;
@@ -746,7 +841,7 @@ async function generatePDF(isPreview = false) {
         const drawn=drawEntryToCtx(targetCtx,item.entry,ix,iy,imgW,imgH);
         if (!drawn) { targetCtx.fillStyle='#e0eaf5'; targetCtx.fillRect(ix,iy,imgW,imgH); }
         targetCtx.strokeStyle='#d0d9e8'; targetCtx.lineWidth=0.5; targetCtx.strokeRect(ix,iy,imgW,imgH);
-        targetCtx.font=`12px ${ff}`; targetCtx.fillStyle='#222'; targetCtx.textAlign='center';
+        targetCtx.font=`12px ${ff}`; targetCtx.fillStyle='#555'; targetCtx.textAlign='center';
         targetCtx.fillText(item.label||'', ix+imgW/2, iy+imgH+15);
       });
 
