@@ -791,7 +791,8 @@ async function syncCaseToCloud() {
     if (!cloudCaseId) cloudCaseId = generateCloudCaseId();
     const docId = cloudCaseId;
     const detectionPoints = (cardStore[2] || []).map(card => ({
-      position: card.position || '', recordA: card.recordA || '', recordB: card.recordB || '', analysis: card.analysis || ''
+      position: card.position || '', recordA: card.recordA || '', recordB: card.recordB || '',
+      analysis: card.analysis || '', template: card.template || 'A'
     }));
 
     await db.collection(CASES_COLLECTION).doc(docId).set({
@@ -800,8 +801,12 @@ async function syncCaseToCloud() {
       clientContact: document.getElementById('clientContact').value || '',
       clientAddress: clientAddress,
       phone: document.getElementById('clientPhone').value || '',
+      buildingType: document.getElementById('buildingType').value || '',
+      inspectDate: document.getElementById('inspectDate').value || '',
       inspectScope: document.getElementById('inspectScope').value || '',
       conclusion: {
+        cause: document.getElementById('s5Cause').value || '',
+        type: document.getElementById('s5Type').value || '',
         source: document.getElementById('s5Source').value || '',
         repairItem: document.getElementById('s6RepairItem').value || '',
         repairOther: document.getElementById('s6RepairOther').value || '',
@@ -814,6 +819,72 @@ async function syncCaseToCloud() {
   } catch (err) {
     // 雲端同步失敗不影響本機暫存草稿的正常運作
     console.warn('雲端同步失敗（不影響本機暫存）：', err);
+  }
+}
+
+// 從 Portal 帶 ?case=xxx 進來時，載入雲端案件資料回填表單，供繼續編輯。
+// 載入後 cloudCaseId 會固定為該案件 ID，之後「暫存草稿」會更新同一份雲端資料，不會產生分身。
+// 注意：雲端資料不含照片，載入後卡片會是空白圖片，需要重新上傳。
+async function loadCaseFromUrlForEdit() {
+  const params = new URLSearchParams(window.location.search);
+  const caseId = params.get('case');
+  if (!caseId) return;
+
+  showAutosaveToast('☁️ 正在從雲端載入案件資料...');
+
+  try {
+    const doc = await db.collection(CASES_COLLECTION).doc(caseId).get();
+    if (!doc.exists) {
+      showAutosaveToast('⚠️ 找不到對應的案件資料');
+      return;
+    }
+    const c = doc.data();
+    cloudCaseId = caseId;
+
+    const set = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined) el.value = val; };
+    set('clientName', c.clientName);
+    set('clientContact', c.clientContact);
+    set('clientPhone', c.phone);
+    set('clientAddress', c.clientAddress);
+    set('inspectScope', c.inspectScope);
+    if (c.inspectDate) set('inspectDate', c.inspectDate);
+    const bSel = document.getElementById('buildingType');
+    if (bSel && c.buildingType) bSel.value = c.buildingType;
+
+    if (c.conclusion) {
+      set('s5Cause', c.conclusion.cause);
+      set('s5Type', c.conclusion.type);
+      set('s5Source', c.conclusion.source);
+      set('s6RepairItem', c.conclusion.repairItem);
+      set('s6RepairOther', c.conclusion.repairOther);
+      const sp = document.getElementById('s5SourcePreview');
+      if (sp) sp.textContent = c.conclusion.source || '（請填寫漏水來源）';
+      toggleRepairOther();
+    }
+
+    if (c.detection && Array.isArray(c.detection.points) && c.detection.points.length > 0) {
+      cardStore[2] = c.detection.points.map(pt => {
+        cardSeqStore[2]++;
+        return {
+          id: cardSeqStore[2],
+          template: pt.template || 'A',
+          position: pt.position || '',
+          recordA: pt.recordA || '',
+          recordB: pt.recordB || '',
+          analysis: pt.analysis || '',
+          photoTimeA: '', photoTimeB: '',
+        };
+      });
+      renderCards(2);
+    }
+
+    updateCaseNo();
+    updateStepBadges();
+    triggerLivePreview();
+    showAutosaveToast(`☁️ 已從雲端載入案件：${c.clientName || ''}（照片需重新上傳）`);
+  } catch (err) {
+    console.error('載入案件失敗：', err);
+    showAutosaveToast('❌ 載入案件失敗');
   }
 }
 
@@ -1960,7 +2031,7 @@ function toggleRepairOther() {
 }
 
 /* ══════════════ 初始化 ══════════════ */
-window.onload = () => {
+window.onload = async () => {
   populateSelect('buildingType', BUILDING_TYPES, 0); // 預設公寓
   toggleRepairOther();
 
@@ -1985,8 +2056,9 @@ window.onload = () => {
     });
   }
 
-  updateStepBadges();
   checkDraftOnLoad();
+  await loadCaseFromUrlForEdit(); // 等雲端案件資料真正載入完成，避免第一次預覽是空白的
+  updateStepBadges();
   triggerLivePreview();
 };
 
