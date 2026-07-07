@@ -356,6 +356,19 @@ select { cursor: pointer; }
 </head>
 <body>
 
+<!-- ════════ 出具日期確認 Modal ════════ -->
+<div class="crop-modal" id="issueDateModal" style="z-index:2500;">
+  <div style="background:#fff; border-radius:12px; padding:28px; width:340px; max-width:90vw; box-shadow:0 10px 40px rgba(0,0,0,0.25);">
+    <div style="font-size:16px; font-weight:700; color:#1a1a1a; margin-bottom:6px;">請選擇出具日期</div>
+    <div style="font-size:12px; color:#888; margin-bottom:16px;">預設為當日，如需指定其他日期可自行修改</div>
+    <input type="date" id="issueDateModalInput" style="width:100%; padding:10px 12px; border:1px solid #ccc; border-radius:8px; font-size:14px; font-family:inherit; margin-bottom:20px;">
+    <div style="display:flex; gap:10px;">
+      <button onclick="closeIssueDateModal()" style="flex:1; padding:11px; border-radius:8px; border:1px solid #ccc; background:#fff; color:#555; font-size:14px; cursor:pointer; font-family:inherit;">取消</button>
+      <button onclick="confirmIssueDateAndExport()" style="flex:1; padding:11px; border-radius:8px; border:none; background:#1871b5; color:#fff; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit;">確認並輸出</button>
+    </div>
+  </div>
+</div>
+
 <!-- ════════ 全頁預覽 Modal ════════ -->
 <div class="full-preview-modal" id="fullPreviewModal">
   <div class="fpm-box">
@@ -389,7 +402,7 @@ select { cursor: pointer; }
     </div>
     <div class="fpm-footer">
       <button class="fpm-cancel-btn" onclick="closePreviewModal()">取消</button>
-      <button class="fpm-export-btn" id="fpmExportBtn" onclick="doExportPDF()">✅ 確認輸出 PDF</button>
+      <button class="fpm-export-btn" id="fpmExportBtn" onclick="openIssueDateModal()">✅ 確認輸出 PDF</button>
     </div>
   </div>
 </div>
@@ -452,10 +465,7 @@ select { cursor: pointer; }
           <div class="case-no-value" id="caseNoDisplay">—</div>
           <div class="case-no-sub" id="caseNoSub">請先填寫完整地址（含縣市）與檢測時間、建築類型</div>
         </div>
-        <div class="form-group">
-          <label>出具日期</label>
-          <input type="date" id="issueDate">
-        </div>
+        <input type="hidden" id="issueDate">
       </div>
 
       <div class="card">
@@ -642,6 +652,7 @@ select { cursor: pointer; }
         <div class="form-group">
           <label>建議施工項目</label>
           <select id="s6RepairItem" onchange="toggleRepairOther()">
+            <option value="">請選擇建議施工項目</option>
             <option value="地坪防水重作">地坪防水重作</option>
             <option value="排水改善">排水改善</option>
             <option value="管線修復">管線修復</option>
@@ -1887,7 +1898,7 @@ function newBlankFile() {
 function clearAllFields() {
   const fmt = d => d.toISOString().split('T')[0];
   const today = new Date();
-  document.getElementById('issueDate').value = fmt(today);
+  document.getElementById('issueDate').value = '';
   document.getElementById('inspectDate').value = fmt(today);
   document.getElementById('inspectTime').value = '';
   document.getElementById('clientName').value = '';
@@ -1903,7 +1914,7 @@ function clearAllFields() {
   document.getElementById('s5Cause').value = '';
   document.getElementById('s5Type').value = '';
   document.getElementById('s5Source').value = '';
-  document.getElementById('s6RepairItem').value = '地坪防水重作';
+  document.getElementById('s6RepairItem').value = '';
   document.getElementById('s6RepairOther').value = '';
   const sp = document.getElementById('s5SourcePreview');
   if (sp) sp.textContent = '（請填寫漏水來源）';
@@ -2037,7 +2048,6 @@ window.onload = async () => {
 
   const fmt = d => d.toISOString().split('T')[0];
   const today = new Date();
-  document.getElementById('issueDate').value = fmt(today);
   document.getElementById('inspectDate').value = fmt(today);
 
   updateCaseNo();
@@ -2769,7 +2779,7 @@ async function drawStep6Pages(chapters) {
   const chapterTitle = `${ch6.cnNum}、${ch6.titleBase}`;
   const repairSel = document.getElementById('s6RepairItem').value;
   const repairOther = document.getElementById('s6RepairOther').value.trim();
-  const repairItemText = repairSel === '其他' ? (repairOther || '（未填寫）') : repairSel;
+  const repairItemText = repairSel === '其他' ? (repairOther || '（未填寫）') : (repairSel || '（未填寫）');
 
   const blocks = [
     { type: 'h2', text: `${ch6.numIndex}.1 修繕建議` },
@@ -2934,7 +2944,6 @@ function collectFieldWarnings() {
 
   // ── Step 1 ──
   const s1Warns = [];
-  if (!document.getElementById('issueDate').value) s1Warns.push('出具日期');
   if (!document.getElementById('inspectDate').value) s1Warns.push('檢測時間');
   if (!document.getElementById('inspectTime').value) s1Warns.push('檢測時刻');
   if (!document.getElementById('clientName').value.trim()) s1Warns.push('委託方');
@@ -3009,7 +3018,8 @@ function collectFieldWarnings() {
   const s6Warns = [];
   const repairSel = document.getElementById('s6RepairItem').value;
   const repairOther = document.getElementById('s6RepairOther').value.trim();
-  if (repairSel === '其他' && !repairOther) s6Warns.push('修繕建議（選擇「其他」但未填寫說明）');
+  if (!repairSel) s6Warns.push('修繕建議（尚未選擇建議施工項目）');
+  else if (repairSel === '其他' && !repairOther) s6Warns.push('修繕建議（選擇「其他」但未填寫說明）');
   if (s6Warns.length) warnings.push({ page: '六、建議事項', fields: s6Warns });
 
   return warnings;
@@ -3092,9 +3102,38 @@ function closePreviewModal() {
   document.getElementById('fullPreviewModal').classList.remove('open');
 }
 
+/* ══════════════ 出具日期確認彈窗 ══════════════ */
+function openIssueDateModal() {
+  const cur = document.getElementById('issueDate').value || new Date().toISOString().split('T')[0];
+  document.getElementById('issueDateModalInput').value = cur;
+  document.getElementById('issueDateModal').classList.add('open');
+}
+
+function closeIssueDateModal() {
+  document.getElementById('issueDateModal').classList.remove('open');
+}
+
+async function confirmIssueDateAndExport() {
+  const chosen = document.getElementById('issueDateModalInput').value || new Date().toISOString().split('T')[0];
+  document.getElementById('issueDate').value = chosen;
+  closeIssueDateModal();
+  await doExportPDF();
+}
+
+function formatDateCN(dateStr) {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-');
+  return `${y}年${parseInt(m,10)}月${parseInt(d,10)}日`;
+}
+
 async function doExportPDF() {
   const btn = document.getElementById('fpmExportBtn');
   const useCompressed = document.getElementById('fpmCompressed').checked;
+
+  // 出具日期在輸出當下才自動帶入今天，避免報告書製作期間跟實際交付日期不一致
+  if (!document.getElementById('issueDate').value) {
+    document.getElementById('issueDate').value = new Date().toISOString().split('T')[0];
+  }
 
   btn.disabled = true;
   btn.textContent = '⏳ 正在輸出...';
@@ -3152,6 +3191,11 @@ async function doExportPDF() {
 
     msg.className = 'status-msg success'; msg.textContent = '✅ 報告書已產生';
     mainBtn.disabled = false;
+
+    const issueDateVal = document.getElementById('issueDate').value;
+    setTimeout(() => {
+      alert(`📌 提醒：請記得依出具日期（${formatDateCN(issueDateVal)}）將檔案交付給委託方。`);
+    }, 300);
 
   } catch(err) {
     console.error(err);
