@@ -203,6 +203,15 @@ const db = firebase.firestore();
 const CASES_COLLECTION = 'cases';
 
 /* ══════════════ 從 Portal 網址參數自動載入案件（?case=xxx） ══════════════ */
+function buildDownloadPath(caseNo, clientName, fileNamePart) {
+  const safe = s => (s || '').toString().replace(/[\\/:*?"<>|]/g, '_').trim();
+  if (!caseNo) return fileNamePart;
+  const m = caseNo.match(/-(\d{4})(\d{2})-/);
+  const year = m ? m[1] : String(new Date().getFullYear());
+  const month = m ? m[2] : String(new Date().getMonth() + 1).padStart(2, '0');
+  return `顧客資料/${year}/${month}/${safe(caseNo)}/${fileNamePart}`;
+}
+
 async function loadCaseFromUrl() {
   const params = new URLSearchParams(window.location.search);
   const caseId = params.get('case');
@@ -603,9 +612,11 @@ async function generatePDF(isPreview = false) {
       if (lastPreviewObjectURL) URL.revokeObjectURL(lastPreviewObjectURL);
       lastPreviewObjectURL = url;
     } else {
-      const caseNumber = document.getElementById('caseNumber').value || '驗收報告';
+      const caseNumber = document.getElementById('caseNumber').value;
+      const clientName = document.getElementById('clientName').value;
+      const fName = `${caseNumber || '驗收報告'}_施工驗收報告.pdf`;
       const a = document.createElement('a');
-      a.href = url; a.download = `${caseNumber}_施工驗收報告.pdf`;
+      a.href = url; a.download = buildDownloadPath(caseNumber, clientName, fName);
       a.click(); URL.revokeObjectURL(url);
       msg.className = 'status-msg success'; msg.textContent = '✅ 驗收報告已產生';
     }
