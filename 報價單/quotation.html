@@ -302,6 +302,15 @@ function triggerLivePreview() {
   }, 500);
 }
 
+function buildDownloadPath(caseNo, clientName, fileNamePart) {
+  const safe = s => (s || '').toString().replace(/[\\/:*?"<>|]/g, '_').trim();
+  if (!caseNo) return fileNamePart;
+  const m = caseNo.match(/-(\d{4})(\d{2})-/);
+  const year = m ? m[1] : String(new Date().getFullYear());
+  const month = m ? m[2] : String(new Date().getMonth() + 1).padStart(2, '0');
+  return `顧客資料/${year}/${month}/${safe(caseNo)}/${fileNamePart}`;
+}
+
 /* ══════════════ Firebase 初始化（共用案件雲端資料庫） ══════════════ */
 const firebaseConfig = {
   apiKey: "AIzaSyD2wWHP27kqd005xAuz-DEuEg_z9A8YCVc",
@@ -925,7 +934,9 @@ async function generatePDF(isPreview = false) {
     } else {
       const a=document.createElement('a');
       a.href=url;
-      a.download=`${document.getElementById('quoteNo').value||'quote'}_報價單.pdf`;
+      const quoteNoVal = document.getElementById('quoteNo').value;
+      const fName = `${quoteNoVal||'quote'}_報價單.pdf`;
+      a.download = buildDownloadPath(quoteNoVal, document.getElementById('clientName').value, fName);
       a.click(); URL.revokeObjectURL(url);
     }
 
