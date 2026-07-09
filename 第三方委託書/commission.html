@@ -563,6 +563,7 @@ async function drawPage() {
 
   /* ══ 分隔線 ══ */
   ctx.strokeStyle = '#c8c8c8'; ctx.lineWidth = 0.7;
+  const dividerY = y; // 分隔線位置（蓋章區間上緣）
   ctx.beginPath(); ctx.moveTo(M, y); ctx.lineTo(PW - M, y); ctx.stroke();
   y += LH * 1.3;
 
@@ -575,9 +576,9 @@ async function drawPage() {
   ctx.fillText('乙方（詠順工程行）', midX, y);
   y += LH * 0.5;
 
-  const lineY = y + 42;
-  // 記錄詠順（乙方）簽章欄位置
-  window._stampPos = { cx: midX + colW/2, lineY: lineY, stampW: colW * 0.85 };
+  const lineY = y + 72; // 加大分隔線～簽名線距離，讓印章有更大的可用高度
+  // 記錄詠順（乙方）簽章欄的分隔線～簽名線區間，供蓋章使用
+  window._stampPos = { cx: midX + colW/2, topY: dividerY, lineY: lineY, maxW: colW };
   ctx.strokeStyle = '#333'; ctx.lineWidth = 0.9;
   ctx.beginPath(); ctx.moveTo(M, lineY); ctx.lineTo(M + colW, lineY); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(midX, lineY); ctx.lineTo(midX + colW, lineY); ctx.stroke();
@@ -623,8 +624,8 @@ async function generatePDF() {
   currentScale = SCALE_EXPORT;
   try {
     const page = await drawPage();
-    // 詢問是否蓋章（乙方詠順右欄中心 cx=574, lineY=1020, stampW=330）
-    const stampedCanvas = await askAndStamp(page.canvas, window._stampPos || { cx: 574, lineY: 1020, stampW: 330 });
+    // 詢問是否蓋章（座標來自簽名線繪製時記錄的實際位置，會隨內容自動調整）
+    const stampedCanvas = await askAndStamp(page.canvas, window._stampPos || { cx: 574, topY: 960, lineY: 1020, maxW: 300 });
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     doc.addImage(stampedCanvas.toDataURL('image/png', 0.88), 'PNG', 0, 0, 210, 297);
@@ -812,10 +813,15 @@ async function askAndStamp(canvasEl, stampPos) {
         // 注意：canvasEl 的 context 在 newCanvas() 時已經 ctx.scale(currentScale, currentScale)，
         // 這個縮放會一直留在 context 上，所以這裡直接用 794×1123 邏輯座標即可，
         // 不能再乘一次 canvasEl.width / 794，否則會被縮放兩次、畫到畫布外面。
-        const sW    = stampPos.stampW;
-        const sH    = sW * img.naturalHeight / img.naturalWidth;
-        const px    = stampPos.cx - stampPos.stampW/2;
-        const py    = stampPos.lineY - stampPos.stampW * img.naturalHeight/img.naturalWidth * 0.4;
+        // 印章高度固定在「分隔線～簽名線」這段區間內，寬度依圖片比例縮放，
+        // 並限制最大寬度不超過簽名欄寬度，避免蓋到日期或超出欄位。
+        const PAD = 4;
+        const availH = Math.max(10, (stampPos.lineY - stampPos.topY) - PAD * 2);
+        let sH = availH;
+        let sW = sH * img.naturalWidth / img.naturalHeight;
+        if (sW > stampPos.maxW) { sW = stampPos.maxW; sH = sW * img.naturalHeight / img.naturalWidth; }
+        const px = stampPos.cx - sW / 2;
+        const py = stampPos.topY + PAD + (availH - sH) / 2;
         ctx.drawImage(img, px, py, sW, sH);
         setMsg('✔ 蓋章完成！','#2e7d32');
         setTimeout(() => { close(); resolve(canvasEl); }, 350);
