@@ -604,8 +604,8 @@ async function generatePDF(isPreview = false) {
     ctx.fillText('委託方', midX + 20, y);
     y += LH * 0.5;
 
-    // 簽名底線（加高，留更多手寫空間）
-    const lineY = y + 30;
+    // 簽名底線（加高，留更多手寫空間，也讓印章有更大的可用高度）
+    const lineY = y + 68;
     ctx.strokeStyle = '#333'; ctx.lineWidth = 0.9;
     ctx.beginPath(); ctx.moveTo(M, lineY); ctx.lineTo(M + colW, lineY); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(midX + 20, lineY); ctx.lineTo(midX + 20 + colW, lineY); ctx.stroke();
