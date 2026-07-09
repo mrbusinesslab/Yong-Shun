@@ -575,7 +575,8 @@ async function drawPage() {
 
   const lineY = y + 72; // 加大分隔線～簽名線距離，讓印章有更大的可用高度
   // 記錄詠順（乙方）簽章欄的分隔線～簽名線區間，供蓋章使用
-  window._stampPos = { cx: midX + colW/2, topY: dividerY, lineY: lineY, maxW: colW };
+  // 印章往右偏移，避免蓋到左側「乙方（詠順工程行）」「鍾師富」等文字
+  window._stampPos = { cx: midX + colW * 0.72, topY: dividerY, lineY: lineY, maxW: colW * 0.5 };
   ctx.strokeStyle = '#333'; ctx.lineWidth = 0.9;
   ctx.beginPath(); ctx.moveTo(M, lineY); ctx.lineTo(M + colW, lineY); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(midX, lineY); ctx.lineTo(midX + colW, lineY); ctx.stroke();
@@ -662,7 +663,7 @@ async function generatePDF() {
     }
     const page = await drawPage();
     // 詢問是否蓋章（座標來自簽名線繪製時記錄的實際位置，會隨內容自動調整）
-    const stampedCanvas = await askAndStamp(page.canvas, window._stampPos || { cx: 574, topY: 960, lineY: 1020, maxW: 300 });
+    const stampedCanvas = await askAndStamp(page.canvas, window._stampPos || { cx: 644, topY: 960, lineY: 1020, maxW: 158 });
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     doc.addImage(stampedCanvas.toDataURL('image/png', 0.88), 'PNG', 0, 0, 210, 297);
