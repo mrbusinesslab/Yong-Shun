@@ -349,6 +349,24 @@
   .recent-name { font-size: 14.5px; font-weight: 700; color: var(--text); }
   .recent-meta { font-size: 12px; color: var(--sub); margin-top: 3px; }
   .recent-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .recent-item { position: relative; }
+  .recent-menu-wrap { position: relative; margin-left: 4px; }
+  .recent-menu-btn {
+    background: none; border: none; font-size: 18px; line-height: 1; color: var(--sub);
+    cursor: pointer; padding: 6px 10px; border-radius: 6px; font-family: inherit;
+  }
+  .recent-menu-btn:hover { background: var(--blue-pale); color: var(--blue); }
+  .recent-dropdown {
+    position: absolute; right: 0; top: 32px; background: var(--white); border: 1.5px solid var(--line);
+    border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.14); min-width: 150px; z-index: 50; display: none; overflow: hidden;
+  }
+  .recent-dropdown.open { display: block; }
+  .recent-dropdown button {
+    width: 100%; text-align: left; padding: 10px 14px; border: none; background: none;
+    font-size: 13px; cursor: pointer; font-family: inherit; color: var(--text);
+  }
+  .recent-dropdown button:hover { background: #f4f6f8; }
+  .pin-badge { color: #c98a1d; margin-right: 4px; }
   .recent-btn {
     background: var(--blue-pale); color: var(--blue); border: none; border-radius: 7px;
     padding: 7px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit;
@@ -528,6 +546,30 @@
       </svg>
     </a>
 
+    <!-- 施工驗收報告 -->
+    <a class="doc-card" href="https://mrbusinesslab.github.io/Yong-Shun/%E9%A9%97%E6%94%B6%E5%A0%B1%E5%91%8A/acceptance-report.html" target="_blank" rel="noopener">
+      <div class="doc-card-title">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 12l2 2 4-4"/>
+            <circle cx="12" cy="12" r="10"/>
+          </svg>
+        </div>
+        <div class="card-body">
+          <strong>施工驗收報告</strong>
+          <span>施工完成後複查問題點位並產生驗收 PDF</span>
+        </div>
+      </div>
+      <div class="card-preview">
+        <img src="範例圖5.png" alt="施工驗收報告範例" loading="lazy" onerror="imgFallback(this,'範例圖5.png')">
+      </div>
+      <svg class="card-arrow" viewBox="0 0 24 24" width="16" height="16" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="9 18 15 12 9 6"/>
+      </svg>
+    </a>
+
   </div>
 
   <hr class="divider">
@@ -595,7 +637,7 @@
     const listEl = document.getElementById('recentList');
     try {
       const snap = await db.collection('cases').orderBy('updatedAt', 'desc').limit(30).get();
-      const raw = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const raw = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => !c.closed);
       allRecentCases = dedupeCases(raw).slice(0, 15);
       renderRecentList(allRecentCases);
     } catch (err) {
@@ -606,19 +648,61 @@
 
   function esc(str) { return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+  const PIN_KEY = 'portal_pinned_cases';
+  function getPinnedIds() {
+    try { return JSON.parse(localStorage.getItem(PIN_KEY) || '[]'); } catch(e) { return []; }
+  }
+  function setPinnedIds(ids) { localStorage.setItem(PIN_KEY, JSON.stringify(ids)); }
+  function isPinned(id) { return getPinnedIds().includes(id); }
+  function togglePin(id) {
+    let pinned = getPinnedIds();
+    if (pinned.includes(id)) pinned = pinned.filter(x => x !== id);
+    else pinned = [id, ...pinned];
+    setPinnedIds(pinned);
+    renderRecentList(allRecentCases);
+  }
+  async function markCaseClosed(id) {
+    try {
+      await db.collection('cases').doc(id).set({ closed: true }, { merge: true });
+      allRecentCases = allRecentCases.filter(c => c.id !== id);
+      renderRecentList(allRecentCases);
+    } catch (err) {
+      alert('標記失敗：' + err.message);
+    }
+  }
+  function toggleCaseMenu(id, ev) {
+    ev.stopPropagation();
+    document.querySelectorAll('.recent-dropdown').forEach(d => {
+      if (d.id !== 'menu-' + id) d.classList.remove('open');
+    });
+    const dd = document.getElementById('menu-' + id);
+    if (dd) dd.classList.toggle('open');
+  }
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.recent-dropdown').forEach(d => d.classList.remove('open'));
+  });
+
   function renderRecentList(list) {
     const listEl = document.getElementById('recentList');
     if (list.length === 0) {
       listEl.innerHTML = '<div class="recent-empty">目前還沒有案件資料，請先在「檢測報告書」建立第一筆案件。</div>';
       return;
     }
-    listEl.innerHTML = list.map(c => {
+    const pinned = getPinnedIds();
+    const sorted = [...list].sort((a, b) => {
+      const pa = pinned.includes(a.id) ? pinned.indexOf(a.id) : Infinity;
+      const pb = pinned.includes(b.id) ? pinned.indexOf(b.id) : Infinity;
+      if (pa !== pb) return pa - pb;
+      return 0; // 非置頂維持原本（依更新時間）排序
+    });
+    listEl.innerHTML = sorted.map(c => {
       const dateStr = c.updatedAt && c.updatedAt.toDate ? c.updatedAt.toDate().toLocaleDateString('zh-TW') : '';
       const caseParam = encodeURIComponent(c.id);
+      const pin = isPinned(c.id);
       return `
         <div class="recent-item">
           <div class="recent-info">
-            <div class="recent-name">${esc(c.clientName || '（未命名委託方）')}　${esc(c.caseNumber || '')}</div>
+            <div class="recent-name">${pin ? '<span class="pin-badge">📌</span>' : ''}${esc(c.clientName || '（未命名委託方）')}　${esc(c.caseNumber || '')}</div>
             <div class="recent-meta">${esc(c.clientAddress || '')}　｜　更新於 ${dateStr}</div>
           </div>
           <div class="recent-actions">
@@ -627,6 +711,13 @@
             <a class="recent-btn" href="${DOC_URLS.warranty}?case=${caseParam}" target="_blank" rel="noopener">建立保固書</a>
             <a class="recent-btn" href="${DOC_URLS.acceptance}?case=${caseParam}" target="_blank" rel="noopener">建立驗收報告</a>
             <a class="recent-btn" href="${DOC_URLS.commission}?case=${caseParam}" target="_blank" rel="noopener">建立委託書</a>
+            <div class="recent-menu-wrap">
+              <button class="recent-menu-btn" onclick="toggleCaseMenu('${c.id}', event)">⋮</button>
+              <div class="recent-dropdown" id="menu-${c.id}">
+                <button onclick="togglePin('${c.id}')">${pin ? '📌 取消置頂' : '📌 置頂此案件'}</button>
+                <button onclick="if(confirm('標記為已結案後，這筆案件會從最近項目移除，確定嗎？')) markCaseClosed('${c.id}')">✅ 標記已結案</button>
+              </div>
+            </div>
           </div>
         </div>
       `;
