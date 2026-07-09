@@ -610,6 +610,9 @@ async function generatePDF(isPreview = false) {
     ctx.beginPath(); ctx.moveTo(M, lineY); ctx.lineTo(M + colW, lineY); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(midX + 20, lineY); ctx.lineTo(midX + 20 + colW, lineY); ctx.stroke();
 
+    // 記錄本次「詠順工程行」欄位簽名線的實際位置，供蓋章使用（會隨內容長短自動變動）
+    window._stampPos = { cx: M + colW / 2, lineY: lineY, stampW: colW * 0.85 };
+
     // 副標行（緊靠底線下方）
     const subY = lineY + LH * 0.9;
     ctx.font = `10.5px ${ff}`; ctx.fillStyle = '#888';
@@ -641,8 +644,8 @@ async function generatePDF(isPreview = false) {
       if (lastPreviewObjectURL) URL.revokeObjectURL(lastPreviewObjectURL);
       lastPreviewObjectURL = url;
     } else {
-      // 詢問是否蓋章（簽名線位置：詠順左欄中心 cx=216, lineY=910, stampW=330）
-      const stampedCanvas = await askAndStamp(canvas, { cx: 216, lineY: 910, stampW: 330 });
+      // 詢問是否蓋章（座標來自簽名線繪製時記錄的實際位置，會隨內容自動調整）
+      const stampedCanvas = await askAndStamp(canvas, window._stampPos || { cx: 216, lineY: 910, stampW: 330 });
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       doc.addImage(stampedCanvas.toDataURL('image/png', 1.0), 'PNG', 0, 0, 210, 297);
       const blob = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
@@ -765,11 +768,12 @@ async function askAndStamp(canvasEl, stampPos) {
         const img = new Image();
         await new Promise((res,rej) => { img.onload=res; img.onerror=rej; img.src=dataURL; });
         const ctx   = canvasEl.getContext('2d');
-        const SCALE = canvasEl.width / 794;
-        const sW    = stampPos.stampW * SCALE;
+        // 注意：canvasEl 的 context 已經在建立時 ctx.scale() 過，這裡不能再乘一次縮放，
+        // 否則座標會被放大兩次、畫到畫布外面看不到。
+        const sW    = stampPos.stampW;
         const sH    = sW * img.naturalHeight / img.naturalWidth;
-        const px    = (stampPos.cx - stampPos.stampW/2) * SCALE;
-        const py    = (stampPos.lineY - stampPos.stampW * img.naturalHeight/img.naturalWidth * 0.4) * SCALE;
+        const px    = stampPos.cx - stampPos.stampW/2;
+        const py    = stampPos.lineY - stampPos.stampW * img.naturalHeight/img.naturalWidth * 0.4;
         ctx.drawImage(img, px, py, sW, sH);
         setMsg('✔ 蓋章完成！','#2e7d32');
         setTimeout(() => { close(); resolve(canvasEl); }, 350);
