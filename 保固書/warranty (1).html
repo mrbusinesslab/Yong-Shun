@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>詠順工程行｜施工保固書產生器</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Microsoft JhengHei','微軟正黑體',Arial,sans-serif; background: #f0f4f8; color: #1a1a1a; min-height: 100vh; }
+header { background: #1871b5; color: white; padding: 20px 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+header h1 { font-size: 20px; font-weight: 600; letter-spacing: 1px; }
+
+.main-layout {
+  display: grid; grid-template-columns: 1fr;
+  gap: 24px; max-width: 1600px; margin: 36px auto; padding: 0 20px 60px;
+}
+@media (min-width: 1024px) { .main-layout { grid-template-columns: 1fr 1fr; } }
+
+.container { width: 100%; max-width: 900px; margin: 0 auto; }
+.preview-sticky { position: sticky; top: 24px; height: calc(100vh - 120px); min-height: 500px; }
+.preview-card { background: white; border-radius: 10px; padding: 24px; height: 100%; box-shadow: 0 2px 12px rgba(0,0,0,0.07); display: flex; flex-direction: column; }
+.preview-iframe { width: 100%; flex: 1; border: 1px solid #d0d9e8; border-radius: 6px; background: #fafcff; }
+
+.card { background: white; border-radius: 10px; padding: 32px; margin-bottom: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+.card-title { font-size: 15px; font-weight: 700; color: #1871b5; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #e8f0fb; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group.full { grid-column: 1 / -1; }
+label { font-size: 13px; color: #555; font-weight: 500; }
+input[type="text"], input[type="number"], select {
+  border: 1px solid #d0d9e8; border-radius: 6px; padding: 9px 12px;
+  font-size: 14px; font-family: inherit; color: #1a1a1a; background: #fafcff; width: 100%; transition: border 0.2s;
+}
+input:focus, select:focus { outline: none; border-color: #1871b5; background: white; }
+
+.checkbox-group { display: flex; flex-wrap: wrap; gap: 10px 20px; margin-top: 4px; }
+.checkbox-group label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #333; font-weight: 400; cursor: pointer; }
+.checkbox-group input[type="checkbox"] { width: auto; accent-color: #1871b5; cursor: pointer; }
+.other-input { border: none; border-bottom: 1px solid #aaa; border-radius: 0; background: transparent; padding: 2px 4px; width: 120px; font-size: 13px; font-family: inherit; }
+.other-input:focus { outline: none; border-bottom-color: #1871b5; }
+
+.generate-btn { display: block; width: 100%; background: #1871b5; color: white; border: none; padding: 16px; border-radius: 10px; font-size: 16px; font-weight: 700; font-family: inherit; cursor: pointer; letter-spacing: 1px; box-shadow: 0 4px 12px rgba(24,113,181,0.3); transition: background 0.2s; }
+.generate-btn:hover { background: #155fa0; }
+.generate-btn:disabled { background: #aac4de; cursor: not-allowed; }
+.status-msg { text-align: center; font-size: 13px; color: #888; margin-top: 10px; min-height: 20px; }
+.status-msg.error { color: #e53935; }
+.status-msg.success { color: #2e7d32; }
+
+/* 雲端案件狀態 */
+.cloud-status { font-size: 11.5px; color: #999; margin-top: 8px; }
+.cloud-status.ok { color: #2e7d32; }
+.cloud-status.err { color: #e53935; }
+
+.date-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; color: #444; }
+.date-row input[type="number"] { width: 60px; padding: 5px 8px; font-size: 13px; text-align: center; }
+.date-row input.y-input { width: 70px; }
+</style>
+</head>
+<body>
+
+<header><h1>詠順工程行｜施工保固書產生器</h1></header>
+
+<div class="main-layout">
+  <div class="container">
+
+    <!-- 案件資料 -->
+    <div class="card">
+      <div class="card-title">📂 案件資料</div>
+      <div id="caseLoadedBanner" style="display:none; background:#eaf7ec; border:1.5px solid #2e7d32; border-radius:8px; padding:14px 16px; margin-bottom:16px;">
+        <div style="font-size:13.5px; font-weight:700; color:#256a2a;" id="caseLoadedText"></div>
+        <div style="font-size:12px; color:#5a8a5e; margin-top:4px;">施工地址已自動帶入。</div>
+      </div>
+      <div id="caseNotLoadedNotice" style="background:#fff8e6; border:1.5px solid #e0a82e; border-radius:8px; padding:14px 16px;">
+        <div style="font-size:13px; color:#8a6d1a; line-height:1.7;">
+          請回到<strong>文件產生器首頁</strong>的「最近項目」，點選委託方旁的「建立保固書」按鈕，會自動帶入該案件的施工地址。
+        </div>
+      </div>
+    </div>
+
+    <!-- 保固書資訊 -->
+    <div class="card">
+      <div class="card-title">📋 保固書資訊</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>保固書編號</label>
+          <input type="text" id="warrantyNo" placeholder="例：與檢測報告書編號一致">
+        </div>
+        <div class="form-group">
+          <label>保固工程</label>
+          <select id="projectName" onchange="toggleProjectCustom(); triggerLivePreview();">
+            <option value="">請選擇保固工程</option>
+            <option value="陽台防水修繕">陽台防水修繕</option>
+            <option value="管道間止漏工程">管道間止漏工程</option>
+            <option value="外牆裂縫修補">外牆裂縫修補</option>
+            <option value="浴室防水修繕">浴室防水修繕</option>
+            <option value="屋頂防水修繕">屋頂防水修繕</option>
+            <option value="天花板止漏工程">天花板止漏工程</option>
+            <option value="窗框防水修繕">窗框防水修繕</option>
+            <option value="地面防水修繕">地面防水修繕</option>
+            <option value="牆面裂縫修補">牆面裂縫修補</option>
+            <option value="__custom__">其他（自行輸入）</option>
+          </select>
+          <input type="text" id="projectNameCustom" placeholder="請輸入保固工程名稱" style="display:none;margin-top:6px;" oninput="triggerLivePreview()">
+        </div>
+        <div class="form-group">
+          <label>保固書出具日期</label>
+          <input type="date" id="issueDate">
+        </div>
+        <div class="form-group full">
+          <label>施工位置（地址）</label>
+          <input type="text" id="clientAddress" placeholder="例：台中市西區民生路100號">
+        </div>
+      </div>
+    </div>
+
+    <!-- 施工位置類型 -->
+    <div class="card">
+      <div class="card-title">🏠 施工位置類型</div>
+      <p style="font-size:13px;color:#555;margin-bottom:12px;">請勾選施工位置（可複選）：</p>
+      <div class="checkbox-group" id="locationTypes">
+        <label><input type="checkbox" value="室內"> 室內</label>
+        <label><input type="checkbox" value="天花板"> 天花板</label>
+        <label><input type="checkbox" value="牆面"> 牆面</label>
+        <label><input type="checkbox" value="地面"> 地面</label>
+        <label><input type="checkbox" value="窗框"> 窗框</label>
+        <label><input type="checkbox" value="門框"> 門框</label>
+        <label><input type="checkbox" value="浴缸周邊"> 浴缸周邊</label>
+        <label><input type="checkbox" value="陽台"> 陽台</label>
+        <label><input type="checkbox" value="屋頂"> 屋頂</label>
+        <label><input type="checkbox" value="外牆"> 外牆</label>
+        <label><input type="checkbox" value="管道間"> 管道間</label>
+        <label><input type="checkbox" value="管線周邊"> 管線周邊</label>
+        <label style="align-items:center;"><input type="checkbox" id="otherCheck" value="其他"> 其他：<input type="text" id="otherText" class="other-input" placeholder="請說明" style="width:160px;"></label>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;margin-top:16px;font-size:13px;color:#444;">
+        <span>具體位置描述：</span>
+        <input type="text" id="locationDesc" placeholder="例：三樓陽台外側" style="width:340px;padding:4px 8px;font-size:13px;border:1px solid #d0d9e8;border-radius:6px;font-family:inherit;">
+        <span>，合計：約</span>
+        <input type="number" id="sqm" placeholder="0" style="width:70px;padding:4px 8px;font-size:13px;text-align:center;border:1px solid #d0d9e8;border-radius:6px;font-family:inherit;">
+        <span>平方公尺。</span>
+      </div>
+    </div>
+
+    <!-- 保固日期 -->
+    <div class="card">
+      <div class="card-title">📅 保固期間</div>
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div class="form-group" style="max-width:260px;">
+          <label>保固年數</label>
+          <select id="warrantyYears" onchange="autoCalcEnd()">
+            <option value="1">1 年</option>
+            <option value="2">2 年</option>
+            <option value="3" selected>3 年（標準）</option>
+            <option value="5">5 年</option>
+          </select>
+        </div>
+        <div class="date-row">
+          <span>保固開始：民國</span>
+          <input type="number" class="y-input" id="startYear" placeholder="114" min="100" max="200">
+          <span>年</span>
+          <input type="number" id="startMonth" placeholder="1" min="1" max="12" style="width:50px;padding:5px 8px;font-size:13px;text-align:center;">
+          <span>月</span>
+          <input type="number" id="startDay" placeholder="1" min="1" max="31" style="width:50px;padding:5px 8px;font-size:13px;text-align:center;">
+          <span>日</span>
+        </div>
+        <div class="date-row">
+          <span>保固結束：民國</span>
+          <input type="number" class="y-input" id="endYear" placeholder="117" min="100" max="200" readonly style="background:#f0f4f8;color:#555;">
+          <span>年</span>
+          <input type="number" id="endMonth" placeholder="1" min="1" max="12" style="width:50px;padding:5px 8px;font-size:13px;text-align:center;" readonly style="background:#f0f4f8;color:#555;">
+          <span>月</span>
+          <input type="number" id="endDay" placeholder="1" min="1" max="31" style="width:50px;padding:5px 8px;font-size:13px;text-align:center;" readonly style="background:#f0f4f8;color:#555;">
+          <span>日（自動計算）</span>
+        </div>
+        <div style="font-size:12px;color:#888;">※ 保固迄日依保固年數與開始日期自動計算</div>
+      </div>
+    </div>
+
+    <button class="generate-btn" id="generateBtn" onclick="generatePDF(false)">產生保固書 PDF</button>
+    <div class="status-msg" id="statusMsg"></div>
+  </div>
+
+  <div class="preview-sticky">
+    <div class="preview-card">
+      <div class="card-title">👀 PDF 保固書即時模擬</div>
+      <iframe class="preview-iframe" id="pdfPreviewer" src="about:blank"></iframe>
+    </div>
+  </div>
+</div>
+
+<script>
+let previewTimeout = null;
+let lastPreviewObjectURL = null;
+
+function triggerLivePreview() {
+  clearTimeout(previewTimeout);
+  previewTimeout = setTimeout(() => generatePDF(true), 600);
+}
+
+/* ══════════════ Firebase 初始化（僅用於讀取案件資料，不寫回） ══════════════ */
+const firebaseConfig = {
+  apiKey: "AIzaSyD2wWHP27kqd005xAuz-DEuEg_z9A8YCVc",
+  authDomain: "yong-shun.firebaseapp.com",
+  projectId: "yong-shun",
+  storageBucket: "yong-shun.firebasestorage.app",
+  messagingSenderId: "530988019396",
+  appId: "1:530988019396:web:6554ce1e9f977bd5182391"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+/* ══════════════ 從 Portal 網址參數自動載入案件（?case=xxx，僅讀取） ══════════════ */
+async function loadCaseFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const caseId = params.get('case');
+  if (!caseId) return; // 沒有帶參數，維持顯示提示
+
+  try {
+    const doc = await db.collection('cases').doc(caseId).get();
+    if (!doc.exists) return;
+    const c = doc.data();
+
+    document.getElementById('clientAddress').value = c.clientAddress || '';
+
+    document.getElementById('caseNotLoadedNotice').style.display = 'none';
+    document.getElementById('caseLoadedText').textContent = `✅ 已從 Portal 載入案件：${c.clientName || ''}　${c.caseNumber || ''}`;
+    document.getElementById('caseLoadedBanner').style.display = 'block';
+
+    triggerLivePreview();
+  } catch (err) {
+    console.error('載入案件失敗：', err);
+  }
+}
+
+function autoCalcEnd() {
+  const sy = parseInt(document.getElementById('startYear').value) || 0;
+  const sm = parseInt(document.getElementById('startMonth').value) || 1;
+  const sd = parseInt(document.getElementById('startDay').value) || 1;
+  const years = parseInt(document.getElementById('warrantyYears').value) || 3;
+  if (!sy) { triggerLivePreview(); return; }
+  // 計算結束日期（使用 Gregorian）
+  const startAD = new Date(sy + 1911, sm - 1, sd);
+  const endAD = new Date(startAD);
+  endAD.setFullYear(endAD.getFullYear() + years);
+  // 結束日期前一天
+  endAD.setDate(endAD.getDate() - 1);
+  const endRoc = endAD.getFullYear() - 1911;
+  document.getElementById('endYear').value = endRoc;
+  document.getElementById('endMonth').value = endAD.getMonth() + 1;
+  document.getElementById('endDay').value = endAD.getDate();
+  triggerLivePreview();
+}
+
+window.onload = () => {
+  const today = new Date();
+  const rocYear = today.getFullYear() - 1911;
+  document.getElementById('startYear').value = rocYear;
+  document.getElementById('startMonth').value = today.getMonth() + 1;
+  document.getElementById('startDay').value = today.getDate();
+  document.getElementById('issueDate').value = today.toISOString().split('T')[0];
+  // 觸發自動計算結束日
+  autoCalcEnd();
+  loadCaseFromUrl();
+
+  document.querySelectorAll('.container input, .container select').forEach(el => {
+    el.addEventListener('input', () => {
+      if (['startYear','startMonth','startDay','warrantyYears'].includes(el.id)) autoCalcEnd();
+      else triggerLivePreview();
+    });
+    el.addEventListener('change', () => {
+      if (['startYear','startMonth','startDay','warrantyYears'].includes(el.id)) autoCalcEnd();
+      else triggerLivePreview();
+    });
+  });
+  generatePDF(true);
+};
+
+function toggleProjectCustom() {
+  const sel = document.getElementById('projectName').value;
+  document.getElementById('projectNameCustom').style.display = sel === '__custom__' ? '' : 'none';
+}
+
+function getCheckedSet() {
+  const result = new Set();
+  document.querySelectorAll('#locationTypes input[type="checkbox"]').forEach(c => {
+    if (c.checked && c.id !== 'otherCheck') result.add(c.value);
+  });
+  return result;
+}
+
+async function generatePDF(isPreview = false) {
+  const btn = document.getElementById('generateBtn');
+  const msg = document.getElementById('statusMsg');
+  if (!isPreview) {
+    btn.disabled = true; msg.className = 'status-msg'; msg.textContent = '正在產生保固書...';
+  }
+
+  try {
+    const SCALE = 3, PW = 794, PH = 1123;
+    const canvas = document.createElement('canvas');
+    canvas.width = PW * SCALE; canvas.height = PH * SCALE;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(SCALE, SCALE);
+
+    // ── 邊距定義 ──
+    const M  = 56;   // 左右 20mm
+    const MT = 113;  // 上邊距 40mm
+    const MB = 113;  // 下邊距 40mm
+    const CW = PW - M * 2;
+    const ff = '"Microsoft JhengHei","微軟正黑體","PingFang TC",Arial,sans-serif';
+    const FS = 12.5;   // 全局字體
+    const LH = 23;   // 行高
+
+    // 白底
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, PW, PH);
+
+    // 浮水印
+    try {
+      const wm = new Image(); wm.crossOrigin = 'anonymous';
+      await new Promise((res, rej) => { wm.onload = res; wm.onerror = rej; wm.src = '浮水印.png'; });
+      ctx.drawImage(wm, 0, 0, PW, PH);
+    } catch(e) {}
+
+    // ════════════════════════════════════════
+    // 1. 頁首：大標題 + 編號 + 分隔線（無 Logo）
+    // ════════════════════════════════════════
+    const HDR_TOP = MT;
+    const TITLE_H = 36; // 標題行高
+    const HDR_BASELINE = HDR_TOP + TITLE_H;
+
+    // 大標題（靠左，粗體大字）
+    ctx.font = `bold 28px ${ff}`; ctx.fillStyle = '#1a1a1a'; ctx.textAlign = 'left';
+    ctx.fillText('施工保固證明書', M, HDR_BASELINE);
+
+    // 標題下方分隔線（先畫，讓編號基線對齊）
+    const DIVIDER_Y = HDR_BASELINE + 10;
+    ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(M, DIVIDER_Y); ctx.lineTo(PW - M, DIVIDER_Y); ctx.stroke();
+
+    // 右上角：編號 — 單行，基線對齊分隔線上緣
+    const warrantyNo = document.getElementById('warrantyNo').value || '—';
+    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#333'; ctx.textAlign = 'right';
+    ctx.fillText(`編號：${warrantyNo}`, PW - M, DIVIDER_Y - 5);
+    ctx.textAlign = 'left';
+
+    // ════════════════════════════════════════
+    // 2. 合約填空區（無底線）
+    // ════════════════════════════════════════
+    let y = DIVIDER_Y + 30; // 分隔線與保固工程之間充足間距
+
+    // 保固工程
+    const projSel = document.getElementById('projectName').value;
+    const projVal = projSel === '__custom__'
+      ? (document.getElementById('projectNameCustom').value || '　　　　　　')
+      : (projSel || '　　　　　　');
+    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#111'; ctx.textAlign = 'left';
+    ctx.fillText(`保固工程：${projVal}`, M, y);
+    y += LH * 1.4;
+
+    // 施工位置
+    const addrVal = document.getElementById('clientAddress').value;
+    ctx.fillText(`施工位置：${addrVal}`, M, y);
+    y += LH * 1.6;
+
+    // ── 勾選框兩列（等寬 Grid）──
+    const checkedSet = getCheckedSet();
+    const hasOther = document.getElementById('otherCheck').checked;
+    const otherTxt = document.getElementById('otherText').value.trim();
+    ctx.font = `${FS}px ${ff}`;
+    const allOpts = ['室內','天花板','牆面','地面','窗框','門框','浴缸周邊','陽台','屋頂','外牆','管道間','管線周邊'];
+    const BOX = 11;
+    const maxOptW = Math.max(...allOpts.map(o => ctx.measureText(o).width));
+    const CELL_W = Math.ceil(maxOptW + BOX + 10 + 8);
+
+    const drawCbRow = (opts, yy) => {
+      let cx = M;
+      opts.forEach(opt => {
+        const checked = checkedSet.has(opt);
+        ctx.strokeStyle = checked ? '#1871b5' : '#777'; ctx.lineWidth = checked ? 1.3 : 0.9;
+        ctx.strokeRect(cx, yy - BOX + 1, BOX, BOX);
+        if (checked) {
+          ctx.strokeStyle = '#1871b5'; ctx.lineWidth = 1.7;
+          ctx.beginPath(); ctx.moveTo(cx+2.5, yy-BOX*0.4); ctx.lineTo(cx+4.5, yy-0.5); ctx.lineTo(cx+BOX-1, yy-BOX+2.5); ctx.stroke();
+        }
+        ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#111'; ctx.textAlign = 'left';
+        ctx.fillText(opt, cx + BOX + 4, yy);
+        cx += CELL_W;
+      });
+      return cx;
+    };
+
+    drawCbRow(['室內','天花板','牆面','地面','窗框','門框','浴缸周邊'], y);
+    y += LH * 1.3;
+    let cx2 = drawCbRow(['陽台','屋頂','外牆','管道間','管線周邊'], y);
+
+    // 其他
+    ctx.strokeStyle = hasOther ? '#1871b5' : '#777'; ctx.lineWidth = hasOther ? 1.3 : 0.9;
+    ctx.strokeRect(cx2, y - BOX + 1, BOX, BOX);
+    if (hasOther) {
+      ctx.strokeStyle = '#1871b5'; ctx.lineWidth = 1.7;
+      ctx.beginPath(); ctx.moveTo(cx2+2.5, y-BOX*0.4); ctx.lineTo(cx2+4.5, y-0.5); ctx.lineTo(cx2+BOX-1, y-BOX+2.5); ctx.stroke();
+    }
+    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#111'; ctx.textAlign = 'left';
+    ctx.fillText('其他：', cx2 + BOX + 4, y);
+    if (hasOther && otherTxt) {
+      ctx.fillText(otherTxt, cx2 + BOX + 4 + ctx.measureText('其他：').width + 2, y);
+    }
+    y += LH * 1.5;
+
+    // 具體位置描述
+    const locDesc = document.getElementById('locationDesc').value || '';
+    const sqm = document.getElementById('sqm').value || '';
+    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#111'; ctx.textAlign = 'left';
+    ctx.fillText(`具體位置描述：${locDesc}，合計：約 ${sqm} 平方公尺。`, M, y);
+    y += LH * 1.3;
+
+    // 分隔線（保固期限上方）
+    ctx.strokeStyle = '#d0dcea'; ctx.lineWidth = 0.6;
+    ctx.beginPath(); ctx.moveTo(M, y); ctx.lineTo(PW - M, y); ctx.stroke();
+    y += LH * 0.9;
+
+    // 保固期限
+    const wyears = document.getElementById('warrantyYears').value || '3';
+    ctx.fillText(`保固期限：自施工驗收完成日起 ${wyears} 年。`, M, y);
+    y += LH * 1.3;
+
+    // 保固日期
+    const sY = document.getElementById('startYear').value || '　　　';
+    const sM = document.getElementById('startMonth').value || '　';
+    const sD = document.getElementById('startDay').value || '　';
+    const eY = document.getElementById('endYear').value || '　　　';
+    const eM = document.getElementById('endMonth').value || '　';
+    const eD = document.getElementById('endDay').value || '　';
+    ctx.fillText(`保固日期：自民國 ${sY} 年 ${sM} 月 ${sD} 日起至民國 ${eY} 年 ${eM} 月 ${eD} 日止。`, M, y);
+    y += LH * 1.4;
+
+    // 保固範圍
+    ctx.font = `bold ${FS}px ${ff}`; ctx.fillStyle = '#1a1a1a';
+    ctx.fillText('保固範圍：', M, y);
+    y += LH * 1.05;
+
+    const wrapText = (text, maxW) => {
+      const lines = []; let cur = '';
+      for (const ch of text) {
+        if (ctx.measureText(cur + ch).width <= maxW) cur += ch;
+        else { lines.push(cur); cur = ch; }
+      }
+      if (cur) lines.push(cur);
+      return lines;
+    };
+
+    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#111';
+    const scopeText = '本公司依據本次檢測報告判定之漏水原因完成修繕。於保固期間內，如經本公司檢測確認因本次修繕之相同漏水原因再次滲漏者，本公司將免費修復。';
+    wrapText(scopeText, CW).forEach(line => { ctx.fillText(line, M, y); y += LH * 1.05; });
+    y += 6;
+
+    // 不適用保固情形（兩行三欄，無框，緊湊排版）
+    ctx.font = `bold ${FS}px ${ff}`; ctx.fillStyle = '#1a1a1a';
+    ctx.fillText('不適用保固情形：', M, y);
+    y += LH * 1.0;
+
+    const exclusions = ['天災', '人為破壞', '管線自然老化', '第三人施工或其他外力影響', '保固期間內裝修修改', '地震或建築結構受損'];
+    // 兩列三欄排列
+    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#111';
+    const colW3 = CW / 3;
+    for (let i = 0; i < exclusions.length; i += 3) {
+      ctx.fillText(`・${exclusions[i]}`, M + 8, y);
+      if (exclusions[i+1]) ctx.fillText(`・${exclusions[i+1]}`, M + colW3 + 8, y);
+      if (exclusions[i+2]) ctx.fillText(`・${exclusions[i+2]}`, M + colW3 * 2 + 8, y);
+      y += LH * 0.95;
+    }
+    y += 6;
+
+    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#111';
+    const scopeLimitText = '本保固僅適用於本次施工範圍及本次檢測判定之漏水原因，不適用於建築物其他部位或其他漏水原因。';
+    wrapText(scopeLimitText, CW).forEach(line => { ctx.fillText(line, M, y); y += LH * 1.05; });
+    y += 8;
+
+    // ════════════════════════════════════════
+    // 3. 保固服務流程（取代原優惠表格）
+    // ════════════════════════════════════════
+    ctx.font = `bold ${FS}px ${ff}`; ctx.fillStyle = '#1a1a1a'; ctx.textAlign = 'left';
+    ctx.fillText('保固服務流程', M, y);
+    y += LH * 0.75;
+
+    const steps = [
+      { lines: ['聯繫詠順工程官方 LINE', '（@799ydgjw）'] },
+      { lines: ['提供保固證明書', '及現場照片'] },
+      { lines: ['安排現場勘查', '確認是否屬保固範圍'] },
+      { lines: ['屬保固範圍', '免費安排修復'] },
+      { lines: ['修復完成', '持續提供售後服務'] },
+    ];
+
+    // 橫向 5 欄排列，節省直向空間
+    const stepColW = CW / steps.length;
+    const stepBoxH = 62;
+    const stepY = y;
+    const badgeR = 10; // 圓形徽章半徑
+
+    steps.forEach((s, i) => {
+      const cx = M + i * stepColW;
+      const centerX = cx + stepColW / 2;
+
+      // 卡片底色
+      ctx.fillStyle = '#f5f9ff';
+      ctx.fillRect(cx + 3, stepY, stepColW - 6, stepBoxH);
+      ctx.strokeStyle = '#d8e6f5'; ctx.lineWidth = 0.7;
+      ctx.strokeRect(cx + 3, stepY, stepColW - 6, stepBoxH);
+
+      // 整體內容高度：徽章(20) + 間距(8) + 文字行(11 each)
+      const contentH = 20 + 8 + s.lines.length * 11;
+      const startY = stepY + (stepBoxH - contentH) / 2;
+
+      // 圓形數字徽章（藍底白字）— 置中起點
+      const badgeCY = startY + badgeR;
+      ctx.beginPath();
+      ctx.arc(centerX, badgeCY, badgeR, 0, Math.PI * 2);
+      ctx.fillStyle = '#5d89bd';
+      ctx.fill();
+      ctx.font = `bold 11px ${ff}`; ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
+      ctx.fillText(String(i + 1), centerX, badgeCY + 4);
+
+      // 說明文字（手動分行，置中）
+      ctx.font = `8.5px ${ff}`; ctx.fillStyle = '#222';
+      let sty = startY + 20 + 8 + 8;
+      s.lines.forEach(line => {
+        ctx.fillText(line, centerX, sty);
+        sty += 11;
+      });
+
+      // 箭頭（除最後一個）
+      if (i < steps.length - 1) {
+        ctx.fillStyle = '#aac4de'; ctx.font = `12px ${ff}`;
+        ctx.fillText('→', cx + stepColW - 2, stepY + stepBoxH / 2 + 4);
+      }
+    });
+    ctx.textAlign = 'left';
+
+    y = stepY + stepBoxH + LH * 1.1;
+
+    // ════════════════════════════════════════
+    // 4. 注意事項框（淺藍邊框，無底色，靠左排列）
+    // ════════════════════════════════════════
+    const noticeItems = [
+      '1. 本保固證明書須搭配本次《檢測報告》及《施工報價單》共同使用，作為保固範圍、施工內容及保固認定之依據。',
+      '2. 本保固原則上僅適用於原委託方。如房屋所有權移轉，須經本公司書面同意後始得移轉保固權利。',
+      '3. 申請保固服務前，本公司將安排現場檢測，確認是否屬本保固範圍。',
+      '4. 保固期間內如發現異常滲漏情形，請儘速通知本公司處理，避免因持續滲漏造成損害擴大。',
+      '5. 紙本：一式兩份，雙方簽名後各執一份為憑；電子檔：委託方回覆「同意」即視同親簽，雙方各自留存對話紀錄。',
+    ];
+    const NP_V = 10;   // 上下內距
+    const NLH = 17;    // 行高（緊縮）
+    const NP_H = 14;   // 左右內距
+
+    // 先量總行數（含換行）
+    ctx.font = `${FS - 1}px ${ff}`;
+    const noticeWrapped = noticeItems.map(t => wrapText(t, CW - NP_H * 2));
+    const totalNoticeLines = noticeWrapped.reduce((sum, lines) => sum + lines.length, 0);
+    const noticeH = NP_V + totalNoticeLines * NLH + NP_V + 18; // +18 給標題行
+
+    const noticeY = y;
+    ctx.strokeStyle = '#52c3f1'; ctx.lineWidth = 1.5;
+    ctx.strokeRect(M, noticeY, CW, noticeH);
+
+    let ny = noticeY + NP_V + 13;
+    ctx.font = `bold ${FS}px ${ff}`; ctx.fillStyle = '#1a1a1a'; ctx.textAlign = 'center';
+    ctx.fillText('注意事項', M + CW / 2, ny);
+    ctx.textAlign = 'left';
+    ny += NLH + 4;
+
+    ctx.font = `${FS - 1}px ${ff}`; ctx.fillStyle = '#111';
+    noticeWrapped.forEach(lines => {
+      lines.forEach(line => { ctx.fillText(line, M + NP_H, ny); ny += NLH; });
+    });
+
+    y = noticeY + noticeH + LH * 0.7;
+
+    // ── 金句（放在簽名分隔線正上方） ──
+    ctx.font = `bold 11.5px ${ff}`; ctx.fillStyle = '#1871b5'; ctx.textAlign = 'center';
+    ctx.fillText('依據檢測、精準修繕、誠信保固，是詠順工程對每一位委託方的承諾', PW / 2, y);
+    ctx.textAlign = 'left';
+    y += LH * 0.75;
+
+    // ════════════════════════════════════════
+    // 5. 簽章區
+    // ════════════════════════════════════════
+    const sigAreaY = y;
+
+    // 分隔線（淡灰，緊接金句下方）
+    ctx.strokeStyle = '#c8c8c8'; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(M, sigAreaY); ctx.lineTo(PW - M, sigAreaY); ctx.stroke();
+    y = sigAreaY + LH * 1.3;
+
+    // ── 左欄：詠順工程行　右欄：委託方
+    const midX = M + CW / 2;
+    const colW = (CW - 40) / 2;
+
+    // 名稱行
+    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#111'; ctx.textAlign = 'left';
+    ctx.fillText('詠順工程行', M, y);
+    ctx.fillText('委託方', midX + 20, y);
+    y += LH * 0.5;
+
+    // 簽名底線（加高，留更多手寫空間）
+    const lineY = y + 30;
+    ctx.strokeStyle = '#333'; ctx.lineWidth = 0.9;
+    ctx.beginPath(); ctx.moveTo(M, lineY); ctx.lineTo(M + colW, lineY); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(midX + 20, lineY); ctx.lineTo(midX + 20 + colW, lineY); ctx.stroke();
+
+    // 副標行（緊靠底線下方）
+    const subY = lineY + LH * 0.9;
+    ctx.font = `10.5px ${ff}`; ctx.fillStyle = '#888';
+    ctx.fillText('鍾師富', M, subY);
+    ctx.fillText('負責人簽名 / 蓋章', midX + 20, subY);
+    y = subY + LH * 1.4;
+
+    // 保固書出具日期（中華民國紀年，置中）
+    const issueDateVal = document.getElementById('issueDate').value;
+    let issueDateText = '中　　華　　民　　國　　　　　　年　　　　月　　　　日';
+    if (issueDateVal) {
+      const [iy, im, id] = issueDateVal.split('-').map(Number);
+      issueDateText = `中　　華　　民　　國　　${iy - 1911}　　年　　${im}　　月　　${id}　　日`;
+    }
+    ctx.font = `${FS}px ${ff}`; ctx.fillStyle = '#111'; ctx.textAlign = 'center';
+    ctx.fillText(issueDateText, PW / 2, y);
+    ctx.textAlign = 'left';
+
+    // ── 輸出 PDF ──
+    const { jsPDF } = window.jspdf;
+
+    if (isPreview) {
+      // 預覽不詢問蓋章，直接輸出
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      doc.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', 0, 0, 210, 297);
+      const blob = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      document.getElementById('pdfPreviewer').src = url + '#toolbar=0&navpanes=0';
+      if (lastPreviewObjectURL) URL.revokeObjectURL(lastPreviewObjectURL);
+      lastPreviewObjectURL = url;
+    } else {
+      // 詢問是否蓋章（簽名線位置：詠順左欄中心 cx=216, lineY=910, stampW=330）
+      const stampedCanvas = await askAndStamp(canvas, { cx: 216, lineY: 910, stampW: 330 });
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      doc.addImage(stampedCanvas.toDataURL('image/png', 1.0), 'PNG', 0, 0, 210, 297);
+      const blob = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `${warrantyNo !== '—' ? warrantyNo : '保固書'}_保固書.pdf`;
+      a.click(); URL.revokeObjectURL(url);
+      msg.className = 'status-msg success'; msg.textContent = '✅ 保固書已產生';
+    }
+
+  } catch(err) {
+    if (!isPreview) {
+      msg.className = 'status-msg error'; msg.textContent = '❌ 產生失敗：' + err.message;
+    }
+    console.error(err);
+  }
+  if (!isPreview) btn.disabled = false;
+}
+
+/* ══════════════════════════════════════════════════════
+   詠順工程行｜印章模組 v2
+   Token 存在 localStorage，不寫在程式碼裡
+   ══════════════════════════════════════════════════════ */
+const STAMP_CONFIG = {
+  owner: 'mrbusinesslab',
+  repo:  'yongshun-stamps',
+  files: { invoice: '發票章.png', personal: '個人章.png' },
+  tokenKey: 'ys_stamp_token'
+};
+
+function getToken() { return localStorage.getItem(STAMP_CONFIG.tokenKey) || ''; }
+function clearToken() { localStorage.removeItem(STAMP_CONFIG.tokenKey); }
+
+async function fetchStampImage(type) {
+  const token = getToken();
+  if (!token) throw new Error('尚未設定存取碼');
+  const file = STAMP_CONFIG.files[type];
+  const url  = `https://api.github.com/repos/${STAMP_CONFIG.owner}/${STAMP_CONFIG.repo}/contents/${encodeURIComponent(file)}`;
+  const res  = await fetch(url, {
+    headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3.raw' }
+  });
+  if (res.status === 401 || res.status === 403) { clearToken(); throw new Error('存取碼無效，請重新整理後重新輸入'); }
+  if (!res.ok) throw new Error(`無法取得印章（${res.status}）`);
+  const blob = await res.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function ensureToken() {
+  if (getToken()) return true;
+  return new Promise((resolve) => {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;z-index:10000;';
+    ov.innerHTML = `<div style="background:#fff;border-radius:14px;padding:36px 32px;max-width:400px;width:92%;box-shadow:0 8px 40px rgba(0,0,0,.22);font-family:'Microsoft JhengHei',Arial,sans-serif;">
+      <div style="font-size:18px;font-weight:700;color:#1a2233;margin-bottom:8px;">🔑 設定印章存取碼</div>
+      <div style="font-size:12.5px;color:#666;margin-bottom:20px;line-height:1.7;">請輸入詠順工程行印章存取碼。<br>輸入一次後會自動記住，不需要重複輸入。</div>
+      <input id="_tokenInput" type="password" placeholder="貼上存取碼…"
+        style="width:100%;border:1.5px solid #d0d9e8;border-radius:8px;padding:11px 14px;font-size:14px;font-family:inherit;outline:none;margin-bottom:14px;box-sizing:border-box;">
+      <div style="display:flex;gap:10px;">
+        <button id="_tokenSave" style="flex:1;background:#1871b5;color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;">確認儲存</button>
+        <button id="_tokenCancel" style="background:#eee;color:#555;border:none;border-radius:8px;padding:12px 18px;font-size:14px;font-family:inherit;cursor:pointer;">取消</button>
+      </div>
+      <div id="_tokenMsg" style="font-size:12px;color:#e53935;margin-top:10px;min-height:16px;"></div>
+    </div>`;
+    document.body.appendChild(ov);
+    const input = document.getElementById('_tokenInput');
+    const setMsg = (t,c='#e53935') => { const el=document.getElementById('_tokenMsg'); el.textContent=t; el.style.color=c; };
+    const close = () => document.body.removeChild(ov);
+    document.getElementById('_tokenCancel').onclick = () => { close(); resolve(false); };
+    const save = async () => {
+      const val = input.value.trim();
+      if (!val) { setMsg('請輸入存取碼'); return; }
+      setMsg('驗證中…','#1871b5');
+      document.getElementById('_tokenSave').disabled = true;
+      try {
+        const testUrl = `https://api.github.com/repos/${STAMP_CONFIG.owner}/${STAMP_CONFIG.repo}/contents/${encodeURIComponent(STAMP_CONFIG.files.invoice)}`;
+        const res = await fetch(testUrl, { headers: { 'Authorization': `token ${val}`, 'Accept': 'application/vnd.github.v3.raw' } });
+        if (!res.ok) throw new Error(`驗證失敗（${res.status}），請確認存取碼`);
+        localStorage.setItem(STAMP_CONFIG.tokenKey, val);
+        setMsg('✔ 驗證成功！','#2e7d32');
+        setTimeout(() => { close(); resolve(true); }, 500);
+      } catch(e) { setMsg(e.message); document.getElementById('_tokenSave').disabled=false; }
+    };
+    document.getElementById('_tokenSave').onclick = save;
+    input.addEventListener('keydown', e => { if(e.key==='Enter') save(); });
+    setTimeout(() => input.focus(), 100);
+  });
+}
+
+async function askAndStamp(canvasEl, stampPos) {
+  const hasToken = await ensureToken();
+  if (!hasToken) return canvasEl;
+  return new Promise((resolve) => {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:9999;';
+    ov.innerHTML = `<div style="background:#fff;border-radius:14px;padding:36px 32px;max-width:360px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,.2);font-family:'Microsoft JhengHei',Arial,sans-serif;text-align:center;">
+      <div style="font-size:24px;margin-bottom:8px;">🖋️</div>
+      <div style="font-size:16px;font-weight:700;color:#1a2233;margin-bottom:6px;">是否加蓋印章？</div>
+      <div style="font-size:12.5px;color:#888;margin-bottom:24px;">選擇印章類型，或直接下載不蓋章</div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+        <button id="_sInv" style="background:#1871b5;color:#fff;border:none;border-radius:8px;padding:12px 24px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;">發 票 章</button>
+        <button id="_sPer" style="background:#1871b5;color:#fff;border:none;border-radius:8px;padding:12px 24px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;">個 人 章</button>
+        <button id="_sSkip" style="background:#eee;color:#555;border:none;border-radius:8px;padding:12px 24px;font-size:14px;font-family:inherit;cursor:pointer;">不蓋章</button>
+      </div>
+      <div id="_sMsg" style="font-size:12px;margin-top:14px;min-height:18px;color:#e53935;"></div>
+    </div>`;
+    document.body.appendChild(ov);
+    const setMsg = (t,c='#e53935') => { const el=document.getElementById('_sMsg'); el.textContent=t; el.style.color=c; };
+    const close = () => document.body.removeChild(ov);
+    document.getElementById('_sSkip').onclick = () => { close(); resolve(canvasEl); };
+    const doStamp = async (type) => {
+      ['_sInv','_sPer','_sSkip'].forEach(id => document.getElementById(id).disabled=true);
+      setMsg('讀取印章中…','#1871b5');
+      try {
+        const dataURL = await fetchStampImage(type);
+        const img = new Image();
+        await new Promise((res,rej) => { img.onload=res; img.onerror=rej; img.src=dataURL; });
+        const ctx   = canvasEl.getContext('2d');
+        const SCALE = canvasEl.width / 794;
+        const sW    = stampPos.stampW * SCALE;
+        const sH    = sW * img.naturalHeight / img.naturalWidth;
+        const px    = (stampPos.cx - stampPos.stampW/2) * SCALE;
+        const py    = (stampPos.lineY - stampPos.stampW * img.naturalHeight/img.naturalWidth * 0.4) * SCALE;
+        ctx.drawImage(img, px, py, sW, sH);
+        setMsg('✔ 蓋章完成！','#2e7d32');
+        setTimeout(() => { close(); resolve(canvasEl); }, 350);
+      } catch(e) {
+        setMsg('❌ ' + e.message);
+        ['_sInv','_sPer','_sSkip'].forEach(id => document.getElementById(id).disabled=false);
+      }
+    };
+    document.getElementById('_sInv').onclick = () => doStamp('invoice');
+    document.getElementById('_sPer').onclick = () => doStamp('personal');
+  });
+}
+
+</script>
+</body>
+</html>
