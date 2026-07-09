@@ -112,11 +112,11 @@ select { cursor: pointer; }
         </div>
         <div class="form-group">
           <label>聯絡電話</label>
-          <input type="text" id="phone" placeholder="09xx-xxx-xxx">
+          <input type="text" id="phone" placeholder="0912-345-678">
         </div>
         <div class="form-group full">
           <label>施工地址</label>
-          <input type="text" id="address" placeholder="台中市...">
+          <input type="text" id="address" placeholder="例：臺中市○○區○○路二段100號">
         </div>
       </div>
     </div>
@@ -652,7 +652,7 @@ async function generatePDF(isPreview = false) {
       const blob2 = new Blob([doc2.output('arraybuffer')], { type: 'application/pdf' });
       const url2 = URL.createObjectURL(blob2);
       const a = document.createElement('a');
-      a.href = url2; a.download = `${caseNumber}_施工驗收報告.pdf`;
+      a.href = url2; a.download = `${caseNumber}_驗收.pdf`;
       a.click(); URL.revokeObjectURL(url2);
       msg.className = 'status-msg success'; msg.textContent = '✅ 驗收報告已產生';
 
