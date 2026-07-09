@@ -667,8 +667,9 @@ async function generatePDF() {
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     doc.addImage(stampedCanvas.toDataURL('image/png', 0.88), 'PNG', 0, 0, 210, 297);
     const no = getDocNo() || 'commission';
-    doc.save(`${no}_委託書.pdf`);
-    msg.className = 'status-msg success'; msg.textContent = `✅ 已輸出：${no}_委託書.pdf`;
+    const typeName = currentType === 'inspect' ? '檢測委託' : '施工委託';
+    doc.save(`${no}_${typeName}.pdf`);
+    msg.className = 'status-msg success'; msg.textContent = `✅ 已輸出：${no}_${typeName}.pdf`;
 
     const signDateVal = document.getElementById('signDate').value;
     setTimeout(() => {
