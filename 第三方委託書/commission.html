@@ -344,15 +344,6 @@ function wrapText(ctx, text, maxW, font) {
   return lines.length ? lines : [''];
 }
 
-function buildDownloadPath(caseNo, clientName, fileNamePart) {
-  const safe = s => (s || '').toString().replace(/[\\/:*?"<>|]/g, '_').trim();
-  if (!caseNo) return fileNamePart;
-  const m = caseNo.match(/-(\d{4})(\d{2})-/);
-  const year = m ? m[1] : String(new Date().getFullYear());
-  const month = m ? m[2] : String(new Date().getMonth() + 1).padStart(2, '0');
-  return `顧客資料/${year}/${month}/${safe(caseNo)}/${fileNamePart}`;
-}
-
 function getDocNo() {
   return document.getElementById('docNo').value.trim();
 }
@@ -585,6 +576,8 @@ async function drawPage() {
   y += LH * 0.5;
 
   const lineY = y + 42;
+  // 記錄詠順（乙方）簽章欄位置
+  window._stampPos = { cx: midX + colW/2, lineY: lineY, stampW: colW * 0.85 };
   ctx.strokeStyle = '#333'; ctx.lineWidth = 0.9;
   ctx.beginPath(); ctx.moveTo(M, lineY); ctx.lineTo(M + colW, lineY); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(midX, lineY); ctx.lineTo(midX + colW, lineY); ctx.stroke();
@@ -630,12 +623,13 @@ async function generatePDF() {
   currentScale = SCALE_EXPORT;
   try {
     const page = await drawPage();
+    // 詢問是否蓋章（乙方詠順右欄中心 cx=574, lineY=1020, stampW=330）
+    const stampedCanvas = await askAndStamp(page.canvas, window._stampPos || { cx: 574, lineY: 1020, stampW: 330 });
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    doc.addImage(page.canvas.toDataURL('image/png', 0.88), 'PNG', 0, 0, 210, 297);
+    doc.addImage(stampedCanvas.toDataURL('image/png', 0.88), 'PNG', 0, 0, 210, 297);
     const no = getDocNo() || 'commission';
-    const fName = `${no}_委託書.pdf`;
-    doc.save(buildDownloadPath(getDocNo(), document.getElementById('clientName').value, fName));
+    doc.save(`${no}_委託書.pdf`);
     msg.className = 'status-msg success'; msg.textContent = `✅ 已輸出：${no}_委託書.pdf`;
   } catch(e) {
     msg.className = 'status-msg error'; msg.textContent = '❌ 輸出失敗：' + e.message;
@@ -672,7 +666,6 @@ async function loadCaseFromUrl() {
     document.getElementById('clientContact').value = c.clientContact || '';
     document.getElementById('clientPhone').value = c.phone || '';
     document.getElementById('siteAddress').value = c.clientAddress || '';
-    if (c.caseNumber) document.getElementById('docNo').value = c.caseNumber;
 
     // 檢測範圍：與檢測報告書一致
     if (c.inspectScope) document.getElementById('inspectScope').value = c.inspectScope;
@@ -712,6 +705,130 @@ window.onload = async () => {
   });
   update();
 };
+
+/* ══════════════════════════════════════════════════════
+   詠順工程行｜印章模組 v2
+   Token 存在 localStorage，不寫在程式碼裡
+   ══════════════════════════════════════════════════════ */
+const STAMP_CONFIG = {
+  owner: 'mrbusinesslab',
+  repo:  'yongshun-stamps',
+  files: { invoice: '發票章.png', personal: '個人章.png' },
+  tokenKey: 'ys_stamp_token'
+};
+
+function getToken() { return localStorage.getItem(STAMP_CONFIG.tokenKey) || ''; }
+function clearToken() { localStorage.removeItem(STAMP_CONFIG.tokenKey); }
+
+async function fetchStampImage(type) {
+  const token = getToken();
+  if (!token) throw new Error('尚未設定存取碼');
+  const file = STAMP_CONFIG.files[type];
+  const url  = `https://api.github.com/repos/${STAMP_CONFIG.owner}/${STAMP_CONFIG.repo}/contents/${encodeURIComponent(file)}`;
+  const res  = await fetch(url, {
+    headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3.raw' }
+  });
+  if (res.status === 401 || res.status === 403) { clearToken(); throw new Error('存取碼無效，請重新整理後重新輸入'); }
+  if (!res.ok) throw new Error(`無法取得印章（${res.status}）`);
+  const blob = await res.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function ensureToken() {
+  if (getToken()) return true;
+  return new Promise((resolve) => {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;z-index:10000;';
+    ov.innerHTML = `<div style="background:#fff;border-radius:14px;padding:36px 32px;max-width:400px;width:92%;box-shadow:0 8px 40px rgba(0,0,0,.22);font-family:'Microsoft JhengHei',Arial,sans-serif;">
+      <div style="font-size:18px;font-weight:700;color:#1a2233;margin-bottom:8px;">🔑 設定印章存取碼</div>
+      <div style="font-size:12.5px;color:#666;margin-bottom:20px;line-height:1.7;">請輸入詠順工程行印章存取碼。<br>輸入一次後會自動記住，不需要重複輸入。</div>
+      <input id="_tokenInput" type="password" placeholder="貼上存取碼…"
+        style="width:100%;border:1.5px solid #d0d9e8;border-radius:8px;padding:11px 14px;font-size:14px;font-family:inherit;outline:none;margin-bottom:14px;box-sizing:border-box;">
+      <div style="display:flex;gap:10px;">
+        <button id="_tokenSave" style="flex:1;background:#1871b5;color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;">確認儲存</button>
+        <button id="_tokenCancel" style="background:#eee;color:#555;border:none;border-radius:8px;padding:12px 18px;font-size:14px;font-family:inherit;cursor:pointer;">取消</button>
+      </div>
+      <div id="_tokenMsg" style="font-size:12px;color:#e53935;margin-top:10px;min-height:16px;"></div>
+    </div>`;
+    document.body.appendChild(ov);
+    const input = document.getElementById('_tokenInput');
+    const setMsg = (t,c='#e53935') => { const el=document.getElementById('_tokenMsg'); el.textContent=t; el.style.color=c; };
+    const close = () => document.body.removeChild(ov);
+    document.getElementById('_tokenCancel').onclick = () => { close(); resolve(false); };
+    const save = async () => {
+      const val = input.value.trim();
+      if (!val) { setMsg('請輸入存取碼'); return; }
+      setMsg('驗證中…','#1871b5');
+      document.getElementById('_tokenSave').disabled = true;
+      try {
+        const testUrl = `https://api.github.com/repos/${STAMP_CONFIG.owner}/${STAMP_CONFIG.repo}/contents/${encodeURIComponent(STAMP_CONFIG.files.invoice)}`;
+        const res = await fetch(testUrl, { headers: { 'Authorization': `token ${val}`, 'Accept': 'application/vnd.github.v3.raw' } });
+        if (!res.ok) throw new Error(`驗證失敗（${res.status}），請確認存取碼`);
+        localStorage.setItem(STAMP_CONFIG.tokenKey, val);
+        setMsg('✔ 驗證成功！','#2e7d32');
+        setTimeout(() => { close(); resolve(true); }, 500);
+      } catch(e) { setMsg(e.message); document.getElementById('_tokenSave').disabled=false; }
+    };
+    document.getElementById('_tokenSave').onclick = save;
+    input.addEventListener('keydown', e => { if(e.key==='Enter') save(); });
+    setTimeout(() => input.focus(), 100);
+  });
+}
+
+async function askAndStamp(canvasEl, stampPos) {
+  const hasToken = await ensureToken();
+  if (!hasToken) return canvasEl;
+  return new Promise((resolve) => {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:9999;';
+    ov.innerHTML = `<div style="background:#fff;border-radius:14px;padding:36px 32px;max-width:360px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,.2);font-family:'Microsoft JhengHei',Arial,sans-serif;text-align:center;">
+      <div style="font-size:24px;margin-bottom:8px;">🖋️</div>
+      <div style="font-size:16px;font-weight:700;color:#1a2233;margin-bottom:6px;">是否加蓋印章？</div>
+      <div style="font-size:12.5px;color:#888;margin-bottom:24px;">選擇印章類型，或直接下載不蓋章</div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+        <button id="_sInv" style="background:#1871b5;color:#fff;border:none;border-radius:8px;padding:12px 24px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;">發 票 章</button>
+        <button id="_sPer" style="background:#1871b5;color:#fff;border:none;border-radius:8px;padding:12px 24px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;">個 人 章</button>
+        <button id="_sSkip" style="background:#eee;color:#555;border:none;border-radius:8px;padding:12px 24px;font-size:14px;font-family:inherit;cursor:pointer;">不蓋章</button>
+      </div>
+      <div id="_sMsg" style="font-size:12px;margin-top:14px;min-height:18px;color:#e53935;"></div>
+    </div>`;
+    document.body.appendChild(ov);
+    const setMsg = (t,c='#e53935') => { const el=document.getElementById('_sMsg'); el.textContent=t; el.style.color=c; };
+    const close = () => document.body.removeChild(ov);
+    document.getElementById('_sSkip').onclick = () => { close(); resolve(canvasEl); };
+    const doStamp = async (type) => {
+      ['_sInv','_sPer','_sSkip'].forEach(id => document.getElementById(id).disabled=true);
+      setMsg('讀取印章中…','#1871b5');
+      try {
+        const dataURL = await fetchStampImage(type);
+        const img = new Image();
+        await new Promise((res,rej) => { img.onload=res; img.onerror=rej; img.src=dataURL; });
+        const ctx   = canvasEl.getContext('2d');
+        // 注意：canvasEl 的 context 在 newCanvas() 時已經 ctx.scale(currentScale, currentScale)，
+        // 這個縮放會一直留在 context 上，所以這裡直接用 794×1123 邏輯座標即可，
+        // 不能再乘一次 canvasEl.width / 794，否則會被縮放兩次、畫到畫布外面。
+        const sW    = stampPos.stampW;
+        const sH    = sW * img.naturalHeight / img.naturalWidth;
+        const px    = stampPos.cx - stampPos.stampW/2;
+        const py    = stampPos.lineY - stampPos.stampW * img.naturalHeight/img.naturalWidth * 0.4;
+        ctx.drawImage(img, px, py, sW, sH);
+        setMsg('✔ 蓋章完成！','#2e7d32');
+        setTimeout(() => { close(); resolve(canvasEl); }, 350);
+      } catch(e) {
+        setMsg('❌ ' + e.message);
+        ['_sInv','_sPer','_sSkip'].forEach(id => document.getElementById(id).disabled=false);
+      }
+    };
+    document.getElementById('_sInv').onclick = () => doStamp('invoice');
+    document.getElementById('_sPer').onclick = () => doStamp('personal');
+  });
+}
+
 </script>
 </body>
 </html>
