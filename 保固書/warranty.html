@@ -105,10 +105,7 @@ input:focus, select:focus { outline: none; border-color: #1871b5; background: wh
           </select>
           <input type="text" id="projectNameCustom" placeholder="請輸入保固工程名稱" style="display:none;margin-top:6px;" oninput="triggerLivePreview()">
         </div>
-        <div class="form-group">
-          <label>保固書出具日期</label>
-          <input type="date" id="issueDate">
-        </div>
+        <input type="hidden" id="issueDate">
         <div class="form-group full">
           <label>施工位置（地址）</label>
           <input type="text" id="clientAddress" placeholder="例：台中市西區民生路100號">
@@ -179,7 +176,7 @@ input:focus, select:focus { outline: none; border-color: #1871b5; background: wh
       </div>
     </div>
 
-    <button class="generate-btn" id="generateBtn" onclick="generatePDF(false)">產生保固書 PDF</button>
+    <button class="generate-btn" id="generateBtn" onclick="openIssueDateModal()">產生保固書 PDF</button>
     <div class="status-msg" id="statusMsg"></div>
   </div>
 
@@ -260,7 +257,7 @@ window.onload = () => {
   document.getElementById('startYear').value = rocYear;
   document.getElementById('startMonth').value = today.getMonth() + 1;
   document.getElementById('startDay').value = today.getDate();
-  document.getElementById('issueDate').value = today.toISOString().split('T')[0];
+  // 保固書出具日期不在此預填，改為輸出前的最後一步再確認（即實際交付日期）
   // 觸發自動計算結束日
   autoCalcEnd();
   loadCaseFromUrl();
@@ -289,6 +286,36 @@ function getCheckedSet() {
     if (c.checked && c.id !== 'otherCheck') result.add(c.value);
   });
   return result;
+}
+
+function formatDateCN(dateStr) {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-');
+  return `${y}年${parseInt(m,10)}月${parseInt(d,10)}日`;
+}
+
+/* ══════════════ 出具日期確認彈窗（輸出前最後一步）══════════════ */
+function openIssueDateModal() {
+  const cur = document.getElementById('issueDate').value || new Date().toISOString().split('T')[0];
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:9999;';
+  ov.innerHTML = `<div style="background:#fff;border-radius:14px;padding:28px 30px;max-width:340px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,.2);font-family:'Microsoft JhengHei',Arial,sans-serif;">
+    <div style="font-size:16px;font-weight:700;color:#1a2233;margin-bottom:6px;">請選擇保固書出具日期</div>
+    <div style="font-size:12px;color:#888;margin-bottom:16px;">這是文件上會印出、也是交付給委託方的日期，預設為今天，可自行修改</div>
+    <input type="date" id="_issueDateInput" value="${cur}" style="width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:8px;font-size:14px;font-family:inherit;margin-bottom:20px;">
+    <div style="display:flex;gap:10px;">
+      <button id="_issueDateCancel" style="flex:1;padding:11px;border-radius:8px;border:1px solid #ccc;background:#fff;color:#555;font-size:14px;cursor:pointer;font-family:inherit;">取消</button>
+      <button id="_issueDateConfirm" style="flex:1;padding:11px;border-radius:8px;border:none;background:#1871b5;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">確認並輸出</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  document.getElementById('_issueDateCancel').onclick = () => document.body.removeChild(ov);
+  document.getElementById('_issueDateConfirm').onclick = () => {
+    const chosen = document.getElementById('_issueDateInput').value || new Date().toISOString().split('T')[0];
+    document.getElementById('issueDate').value = chosen;
+    document.body.removeChild(ov);
+    generatePDF(false);
+  };
 }
 
 async function generatePDF(isPreview = false) {
@@ -644,6 +671,10 @@ async function generatePDF(isPreview = false) {
       if (lastPreviewObjectURL) URL.revokeObjectURL(lastPreviewObjectURL);
       lastPreviewObjectURL = url;
     } else {
+      // 安全防呆：理論上一定會經過出具日期彈窗才會走到這裡
+      if (!document.getElementById('issueDate').value) {
+        document.getElementById('issueDate').value = new Date().toISOString().split('T')[0];
+      }
       // 詢問是否蓋章（座標來自簽名線繪製時記錄的實際位置，會隨內容自動調整）
       const stampedCanvas = await askAndStamp(canvas, window._stampPos || { cx: 216, topY: 850, lineY: 910, maxW: 300 });
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -654,6 +685,11 @@ async function generatePDF(isPreview = false) {
       a.href = url; a.download = `${warrantyNo !== '—' ? warrantyNo : '保固書'}_保固書.pdf`;
       a.click(); URL.revokeObjectURL(url);
       msg.className = 'status-msg success'; msg.textContent = '✅ 保固書已產生';
+
+      const issueDateVal = document.getElementById('issueDate').value;
+      setTimeout(() => {
+        alert(`📌 提醒：請記得依保固書出具日期（${formatDateCN(issueDateVal)}）將檔案交付給委託方。`);
+      }, 300);
     }
 
   } catch(err) {
