@@ -467,6 +467,7 @@ function drawInfoPage(ctx, pageNum, totalPages, includeSignature) {
 }
 
 function drawSignature(ctx, y) {
+  const dividerY = y; // 分隔線位置（蓋章區間上緣）
   ctx.strokeStyle = '#c8c8c8'; ctx.lineWidth = 0.8;
   ctx.beginPath(); ctx.moveTo(M, y); ctx.lineTo(PW - M, y); ctx.stroke();
   y += 30;
@@ -476,12 +477,12 @@ function drawSignature(ctx, y) {
   ctx.font = `13px ${ff}`; ctx.fillStyle = '#333';
   ctx.fillText('詠順工程行', M, y);
   ctx.fillText('委託方（負責人）', midX + 20, y);
-  const lineY = y + 44;
+  const lineY = y + 70; // 加大分隔線～簽名線距離，讓印章有更大的可用高度
   ctx.strokeStyle = '#333'; ctx.lineWidth = 0.9;
   ctx.beginPath(); ctx.moveTo(M, lineY); ctx.lineTo(M + colW, lineY); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(midX + 20, lineY); ctx.lineTo(midX + 20 + colW, lineY); ctx.stroke();
-  // 記錄詠順簽章欄位置
-  window._stampPos = { cx: M + colW/2, lineY: lineY, stampW: colW * 0.85 };
+  // 記錄詠順簽章欄的分隔線～簽名線區間，供蓋章使用
+  window._stampPos = { cx: M + colW/2, topY: dividerY, lineY: lineY, maxW: colW };
   ctx.font = `10.5px ${ff}`; ctx.fillStyle = '#888';
   ctx.fillText('鍾師富', M, lineY + 20);
   ctx.fillText('簽名 / 蓋章', midX + 20, lineY + 20);
@@ -606,10 +607,10 @@ async function generatePDF(isPreview = false) {
       lastPreviewObjectURL = url;
     } else {
       const caseNumber = document.getElementById('caseNumber').value || '驗收報告';
-      // 詢問是否蓋章（詠順左欄中心 cx=226, lineY=973, stampW=330）
+      // 詢問是否蓋章（座標來自簽名線繪製時記錄的實際位置，會隨內容自動調整）
       // 蓋章疊加在最後一頁 canvas（簽章頁）
       const lastCanvas = pages[pages.length - 1];
-      const stampedCanvas = await askAndStamp(lastCanvas, window._stampPos || { cx: 226, lineY: 973, stampW: 330 });
+      const stampedCanvas = await askAndStamp(lastCanvas, window._stampPos || { cx: 226, topY: 913, lineY: 973, maxW: 300 });
       pages[pages.length - 1] = stampedCanvas;
       // 重新產生 PDF（含蓋章後的 canvas）
       const doc2 = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -750,10 +751,15 @@ async function askAndStamp(canvasEl, stampPos) {
         const ctx   = canvasEl.getContext('2d');
         // 注意：canvasEl 的 context 已經在建立時 ctx.scale() 過，這裡不能再乘一次縮放，
         // 否則座標會被放大兩次、畫到畫布外面看不到。
-        const sW    = stampPos.stampW;
-        const sH    = sW * img.naturalHeight / img.naturalWidth;
-        const px    = stampPos.cx - stampPos.stampW/2;
-        const py    = stampPos.lineY - stampPos.stampW * img.naturalHeight/img.naturalWidth * 0.4;
+        // 印章高度固定在「分隔線～簽名線」這段區間內，寬度依圖片比例縮放，
+        // 並限制最大寬度不超過簽名欄寬度，避免蓋到日期或超出欄位。
+        const PAD = 4;
+        const availH = Math.max(10, (stampPos.lineY - stampPos.topY) - PAD * 2);
+        let sH = availH;
+        let sW = sH * img.naturalWidth / img.naturalHeight;
+        if (sW > stampPos.maxW) { sW = stampPos.maxW; sH = sW * img.naturalHeight / img.naturalWidth; }
+        const px = stampPos.cx - sW / 2;
+        const py = stampPos.topY + PAD + (availH - sH) / 2;
         ctx.drawImage(img, px, py, sW, sH);
         setMsg('✔ 蓋章完成！','#2e7d32');
         setTimeout(() => { close(); resolve(canvasEl); }, 350);
