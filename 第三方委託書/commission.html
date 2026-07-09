@@ -81,7 +81,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #1871b5
 
 <header>
   <h1>詠順工程行｜第三方委託書產生器</h1>
-  <button class="header-btn" onclick="generatePDF()">輸出 PDF →</button>
+  <button class="header-btn" onclick="openIssueDateModal()">輸出 PDF →</button>
 </header>
 
 <div class="main-layout">
@@ -123,10 +123,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #1871b5
         <label>委託書編號（手動填寫）</label>
         <input type="text" id="docNo" placeholder="例：與檢測書編號相同" oninput="update()">
       </div>
-      <div class="form-group">
-        <label>簽署日期</label>
-        <input type="date" id="signDate" oninput="update()">
-      </div>
+      <input type="hidden" id="signDate">
       <div class="form-group">
         <label>委託方</label>
         <input type="text" id="clientName" placeholder="例：姓名／社區名稱／公司名稱" oninput="update()">
@@ -260,7 +257,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #1871b5
 
   <!-- 輸出 -->
   <div class="card" style="padding:24px;">
-    <button class="generate-btn" onclick="generatePDF()">輸出 PDF →</button>
+    <button class="generate-btn" onclick="openIssueDateModal()">輸出 PDF →</button>
     <div class="status-msg" id="statusMsg"></div>
   </div>
 
@@ -594,7 +591,12 @@ async function drawPage() {
   ctx.fillText('※ 本委託書一式兩份，雙方簽章後各執一份為憑。', PW / 2, y);
   y += LH * 1.5;
   ctx.font = `bold 14px ${ff}`; ctx.fillStyle = '#1a1a1a';
-  ctx.fillText('中　華　民　國　　　　　年　　　　月　　　　日', PW / 2, y);
+  if (signDate) {
+    const [sy, sm, sd] = signDate.split('-').map(Number);
+    ctx.fillText(`中　華　民　國　　${sy - 1911}　　年　　${sm}　　月　　${sd}　　日`, PW / 2, y);
+  } else {
+    ctx.fillText('中　華　民　國　　　　　年　　　　月　　　　日', PW / 2, y);
+  }
   ctx.textAlign = 'left';
 
   return { canvas, ctx };
@@ -616,6 +618,37 @@ async function drawAndPreview() {
   } catch(e) { console.error(e); }
 }
 
+function formatDateCN(dateStr) {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-');
+  return `${y}年${parseInt(m,10)}月${parseInt(d,10)}日`;
+}
+
+/* ══════════════ 簽署日期確認彈窗（輸出前最後一步）══════════════ */
+function openIssueDateModal() {
+  const cur = document.getElementById('signDate').value || new Date().toISOString().split('T')[0];
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:9999;';
+  ov.innerHTML = `<div style="background:#fff;border-radius:14px;padding:28px 30px;max-width:340px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,.2);font-family:'Microsoft JhengHei',Arial,sans-serif;">
+    <div style="font-size:16px;font-weight:700;color:#1a2233;margin-bottom:6px;">請選擇簽署日期</div>
+    <div style="font-size:12px;color:#888;margin-bottom:16px;">這是文件上會印出、也是交付給委託方的日期，預設為今天，可自行修改</div>
+    <input type="date" id="_issueDateInput" value="${cur}" style="width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:8px;font-size:14px;font-family:inherit;margin-bottom:20px;">
+    <div style="display:flex;gap:10px;">
+      <button id="_issueDateCancel" style="flex:1;padding:11px;border-radius:8px;border:1px solid #ccc;background:#fff;color:#555;font-size:14px;cursor:pointer;font-family:inherit;">取消</button>
+      <button id="_issueDateConfirm" style="flex:1;padding:11px;border-radius:8px;border:none;background:#1871b5;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">確認並輸出</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  document.getElementById('_issueDateCancel').onclick = () => document.body.removeChild(ov);
+  document.getElementById('_issueDateConfirm').onclick = () => {
+    const chosen = document.getElementById('_issueDateInput').value || new Date().toISOString().split('T')[0];
+    document.getElementById('signDate').value = chosen;
+    document.body.removeChild(ov);
+    update(); // 讓即時預覽也反映最終選定的日期
+    generatePDF();
+  };
+}
+
 /* ══ 輸出 PDF ══ */
 async function generatePDF() {
   const btn = document.querySelector('.generate-btn');
@@ -623,6 +656,10 @@ async function generatePDF() {
   btn.disabled = true; msg.className = 'status-msg'; msg.textContent = '正在產生委託書...';
   currentScale = SCALE_EXPORT;
   try {
+    // 安全防呆：理論上一定會經過簽署日期彈窗才會走到這裡
+    if (!document.getElementById('signDate').value) {
+      document.getElementById('signDate').value = new Date().toISOString().split('T')[0];
+    }
     const page = await drawPage();
     // 詢問是否蓋章（座標來自簽名線繪製時記錄的實際位置，會隨內容自動調整）
     const stampedCanvas = await askAndStamp(page.canvas, window._stampPos || { cx: 574, topY: 960, lineY: 1020, maxW: 300 });
@@ -632,6 +669,11 @@ async function generatePDF() {
     const no = getDocNo() || 'commission';
     doc.save(`${no}_委託書.pdf`);
     msg.className = 'status-msg success'; msg.textContent = `✅ 已輸出：${no}_委託書.pdf`;
+
+    const signDateVal = document.getElementById('signDate').value;
+    setTimeout(() => {
+      alert(`📌 提醒：請記得依簽署日期（${formatDateCN(signDateVal)}）將檔案交付給委託方。`);
+    }, 300);
   } catch(e) {
     msg.className = 'status-msg error'; msg.textContent = '❌ 輸出失敗：' + e.message;
   } finally {
@@ -697,7 +739,7 @@ async function loadCaseFromUrl() {
 }
 
 window.onload = async () => {
-  document.getElementById('signDate').value = new Date().toISOString().split('T')[0];
+  // 簽署日期不在此預填，改為輸出前的最後一步再確認（即實際交付日期）
   await loadCaseFromUrl();
   if (document.querySelectorAll('#scopeList .scope-item').length === 0) addScope();
   document.querySelectorAll('.container input, .container select, .container textarea').forEach(el => {
