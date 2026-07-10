@@ -139,6 +139,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #1871b5
       <div class="form-group">
         <label>委託方身份</label>
         <select id="clientRole" onchange="toggleRoleOther(); update()">
+          <option value="" selected disabled>請選擇委託方身分</option>
           <option value="室內設計師">室內設計師</option>
           <option value="室內設計公司">室內設計公司</option>
           <option value="房屋仲介">房屋仲介</option>
@@ -174,7 +175,15 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #1871b5
         </div>
         <div class="form-group full">
           <label>檢測目的</label>
-          <textarea id="inspectPurpose" placeholder="例：協助委託方了解漏水原因，作為後續修繕或責任釐清之依據" oninput="update()"></textarea>
+          <select id="inspectPurpose" onchange="updateInspectPurposePreview(); toggleInspectPurposeOther(); update();">
+            <option value="為釐清本案漏水之責任歸屬，作為後續協調、求償或修繕分工之依據。">釐清漏水責任</option>
+            <option value="委託方欲了解本案漏水發生之原因與確切位置，目前尚未涉及責任歸屬爭議。">釐清漏水原因與位置</option>
+            <option value="作為後續修繕或防水施工規劃之依據。">作為修繕/施工依據</option>
+            <option value="配合不動產買賣交易，鑑定是否存在漏水情形，作為交易評估之參考。">不動產買賣前鑑定</option>
+            <option value="其他">其他</option>
+          </select>
+          <div id="inspectPurposePreview" style="font-size:12px;color:#888;margin-top:6px;line-height:1.5;"></div>
+          <input type="text" id="inspectPurposeOther" placeholder="請輸入檢測目的" style="display:none;margin-top:6px;" oninput="updateInspectPurposePreview(); update()">
         </div>
         <div class="form-group">
           <label>報告交付對象</label>
@@ -347,6 +356,7 @@ function getDocNo() {
 
 function getClientRoleDisplay() {
   const sel = document.getElementById('clientRole').value;
+  if (!sel) return '　　　　　　';
   if (sel !== '其他') return sel;
   const other = document.getElementById('clientRoleOther').value.trim();
   return other || '其他';
@@ -357,6 +367,25 @@ function toggleRoleOther() {
   const wrap = document.getElementById('clientRoleOtherWrap');
   if (!sel || !wrap) return;
   wrap.style.display = sel.value === '其他' ? 'block' : 'none';
+}
+
+function toggleInspectPurposeOther() {
+  const sel = document.getElementById('inspectPurpose');
+  const other = document.getElementById('inspectPurposeOther');
+  if (!sel || !other) return;
+  other.style.display = sel.value === '其他' ? 'block' : 'none';
+}
+
+function updateInspectPurposePreview() {
+  const sel = document.getElementById('inspectPurpose');
+  const el = document.getElementById('inspectPurposePreview');
+  if (!sel || !el) return;
+  if (sel.value === '其他') {
+    const other = document.getElementById('inspectPurposeOther').value.trim();
+    el.textContent = other ? `將印在文件上：${other}` : '';
+  } else {
+    el.textContent = `將印在文件上：${sel.value}`;
+  }
 }
 
 /* ══ UI 更新 ══ */
@@ -462,7 +491,10 @@ async function drawPage() {
     /* ────── 檢測版 ────── */
     const ownerName    = document.getElementById('ownerName').value.trim() || '　　　　';
     const scope        = document.getElementById('inspectScope').value.trim() || '　　　　　　　　　　';
-    const purpose      = document.getElementById('inspectPurpose').value.trim() || '　　　　　　　　　　';
+    const purposeSel    = document.getElementById('inspectPurpose').value;
+    const purpose       = purposeSel === '其他'
+      ? (document.getElementById('inspectPurposeOther').value.trim() || '其他')
+      : (purposeSel || '　　　　　　　　　　');
     const reportTo     = getRadio('reportTo') || '委託方';
     const payBy        = getRadio('payBy') || '委託方';
     const note         = document.getElementById('inspectNote').value.trim();
@@ -715,18 +747,23 @@ async function loadCaseFromUrl() {
     // 檢測範圍：與檢測報告書一致
     if (c.inspectScope) document.getElementById('inspectScope').value = c.inspectScope;
 
-    // 施工委託：工程摘要預填 5.2 責任範圍 + 6.1 建議施工項目
+    // 施工委託：工程摘要僅帶入 5.2 責任判定的漏水來源 + 建議施工項目，精簡成一句話
     if (c.conclusion && (c.conclusion.source || c.conclusion.repairItem)) {
       const source = c.conclusion.source || '';
       const repairItem = c.conclusion.repairItem === '其他' ? (c.conclusion.repairOther || '其他') : (c.conclusion.repairItem || '');
-      const parts = [];
-      if (source) parts.push(`依現場檢測，漏水來源位於${source}，專有或共用部分仍須依建物權屬確認。`);
-      if (repairItem) parts.push(`建議施工項目：${repairItem}`);
-      if (parts.length > 0) {
+      let summary = '';
+      if (source && repairItem) {
+        summary = `漏水來源位於${source}，建議施工項目為${repairItem}。`;
+      } else if (source) {
+        summary = `漏水來源位於${source}。`;
+      } else if (repairItem) {
+        summary = `建議施工項目為${repairItem}。`;
+      }
+      if (summary) {
         addScope();
         const inputs = document.querySelectorAll('#scopeList .scope-item input');
         const lastInput = inputs[inputs.length - 1];
-        if (lastInput) lastInput.value = parts.join('；');
+        if (lastInput) lastInput.value = summary;
       }
     }
 
@@ -742,6 +779,7 @@ async function loadCaseFromUrl() {
 
 window.onload = async () => {
   // 簽署日期不在此預填，改為輸出前的最後一步再確認（即實際交付日期）
+  updateInspectPurposePreview();
   await loadCaseFromUrl();
   if (document.querySelectorAll('#scopeList .scope-item').length === 0) addScope();
   document.querySelectorAll('.container input, .container select, .container textarea').forEach(el => {
