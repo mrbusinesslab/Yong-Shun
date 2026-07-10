@@ -369,6 +369,23 @@ select { cursor: pointer; }
   </div>
 </div>
 
+<!-- ════════ 貼上文字自動填入 Modal ════════ -->
+<div class="crop-modal" id="autoFillModal" style="z-index:2500;">
+  <div style="background:#fff; border-radius:12px; padding:28px; width:560px; max-width:92vw; box-shadow:0 10px 40px rgba(0,0,0,0.25);">
+    <div style="font-size:16px; font-weight:700; color:#1a1a1a; margin-bottom:6px;">📋 貼上文字自動填入</div>
+    <div style="font-size:12px; color:#888; margin-bottom:14px; line-height:1.6;">
+      把 AI 潤飾好的文字整段貼在下面，會自動填入對應欄位（只有文字，照片仍需自行上傳）。
+      格式跟指令範本一致：「標籤：內容」一行一個，二／三／四的多筆記錄用 [二][三][四] 標記分段。
+      這個動作會覆蓋「二、三、四」目前已新增的卡片內容，其餘欄位只會覆蓋文字裡有寫到的部分。
+    </div>
+    <textarea id="autoFillInput" placeholder="貼上文字內容..." style="width:100%; min-height:260px; padding:12px; border:1px solid #ccc; border-radius:8px; font-size:13px; font-family:inherit; line-height:1.6; resize:vertical; margin-bottom:16px; box-sizing:border-box;"></textarea>
+    <div style="display:flex; gap:10px;">
+      <button onclick="closeAutoFillModal()" style="flex:1; padding:11px; border-radius:8px; border:1px solid #ccc; background:#fff; color:#555; font-size:14px; cursor:pointer; font-family:inherit;">取消</button>
+      <button onclick="applyAutoFill()" style="flex:1; padding:11px; border-radius:8px; border:none; background:#1871b5; color:#fff; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit;">開始填入</button>
+    </div>
+  </div>
+</div>
+
 <!-- ════════ 全頁預覽 Modal ════════ -->
 <div class="full-preview-modal" id="fullPreviewModal">
   <div class="fpm-box">
@@ -456,6 +473,12 @@ select { cursor: pointer; }
 
     <!-- ════════ STEP 1 ════════ -->
     <div class="step-panel" id="panel-1">
+
+      <div class="card">
+        <div class="card-title">📋 快速填入</div>
+        <p class="hint" style="margin-bottom:12px;">把 AI 潤飾好的文字整段貼上，自動填入下方各欄位（不含照片）。</p>
+        <button type="button" class="add-card-btn" onclick="openAutoFillModal()">📋 貼上文字自動填入</button>
+      </div>
 
       <div class="card">
         <div class="card-title">🔢 案例編號</div>
@@ -3115,6 +3138,147 @@ function closePreviewModal() {
 }
 
 /* ══════════════ 出具日期確認彈窗 ══════════════ */
+/* ══════════════ 貼上文字自動填入 ══════════════ */
+const AUTOFILL_FIELD_MAP = {
+  '檢測時間': 'inspectDate',
+  '檢測時刻': 'inspectTime',
+  '委託方': 'clientName',
+  '負責人': 'clientContact',
+  '聯絡電話': 'clientPhone',
+  '地址': 'clientAddress',
+  '檢測範圍': 'inspectScope',
+  '拍攝位置': 's1Position',
+  '委託方陳述': 'clientDeclare',
+  '二、檢測結果結論': 's2Conclusion',
+  '漏水原因': 's5Cause',
+  '漏水型態': 's5Type',
+  '漏水來源': 's5Source',
+  '施工項目說明': 's6RepairOther',
+};
+const AUTOFILL_CARD_LABELS = { '位置': 'position', '紀錄': 'recordA', '配置': 'recordA', '觀察': 'recordA', '判讀': 'analysis' };
+
+function openAutoFillModal() {
+  document.getElementById('autoFillInput').value = '';
+  document.getElementById('autoFillModal').classList.add('open');
+}
+
+function closeAutoFillModal() {
+  document.getElementById('autoFillModal').classList.remove('open');
+}
+
+function applyAutoFill() {
+  const text = document.getElementById('autoFillInput').value;
+  if (!text.trim()) { alert('請先貼上文字內容'); return; }
+
+  const lines = text.split('\n');
+  let mode = null; // null | 2 | 3 | 4
+  let curCard = null;
+  const parsedCards = { 2: [], 3: [], 4: [] };
+  let buildingTypeLabel = '';
+  let repairItemLabel = '';
+  let filledCount = 0;
+
+  const flushCard = () => {
+    if (mode && curCard && (curCard.position || curCard.recordA || curCard.analysis)) {
+      parsedCards[mode].push(curCard);
+    }
+    curCard = null;
+  };
+
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+
+    const marker = line.match(/^\[(二|三|四)\]$/);
+    if (marker) {
+      flushCard();
+      mode = marker[1] === '二' ? 2 : (marker[1] === '三' ? 3 : 4);
+      curCard = { position: '', recordA: '', recordB: '', analysis: '' };
+      continue;
+    }
+
+    const m = line.match(/^([^:：]+)[:：]\s*(.*)$/);
+    if (!m) continue;
+    const label = m[1].trim();
+    const value = m[2].trim();
+    if (!value) continue;
+
+    if (mode && curCard) {
+      const cardField = AUTOFILL_CARD_LABELS[label];
+      if (cardField) {
+        const limit = cardField === 'position' ? FIELD_LIMITS.position : (cardField === 'analysis' ? FIELD_LIMITS.analysis : FIELD_LIMITS.record);
+        curCard[cardField] = value.slice(0, limit);
+        filledCount++;
+      }
+      continue;
+    }
+
+    if (label === '建築類型') { buildingTypeLabel = value; filledCount++; continue; }
+    if (label === '建議施工項目') { repairItemLabel = value; filledCount++; continue; }
+
+    const fieldId = AUTOFILL_FIELD_MAP[label];
+    if (fieldId) {
+      const el = document.getElementById(fieldId);
+      if (el) { el.value = value; filledCount++; }
+    }
+  }
+  flushCard();
+
+  if (buildingTypeLabel) {
+    const bt = BUILDING_TYPES.find(b => b[0] === buildingTypeLabel);
+    if (bt) document.getElementById('buildingType').value = bt[1];
+  }
+
+  if (repairItemLabel) {
+    const sel = document.getElementById('s6RepairItem');
+    const optValues = [...sel.options].map(o => o.value);
+    if (optValues.includes(repairItemLabel)) {
+      sel.value = repairItemLabel;
+    } else {
+      sel.value = '其他';
+      if (!document.getElementById('s6RepairOther').value) {
+        document.getElementById('s6RepairOther').value = repairItemLabel;
+      }
+    }
+    toggleRepairOther();
+  }
+
+  [2, 3, 4].forEach(step => {
+    if (parsedCards[step].length > 0) {
+      const inspectDate = document.getElementById('inspectDate').value;
+      const inspectTime = document.getElementById('inspectTime').value;
+      const defaultDT = (inspectDate || new Date().toISOString().split('T')[0]) + 'T' + (inspectTime || '09:00');
+      cardStore[step] = parsedCards[step].map(c => {
+        cardSeqStore[step]++;
+        return {
+          id: cardSeqStore[step],
+          template: 'A',
+          position: c.position,
+          recordA: c.recordA,
+          recordB: '',
+          analysis: c.analysis,
+          photoTimeA: defaultDT,
+          photoTimeB: defaultDT,
+        };
+      });
+      renderCards(step);
+    }
+  });
+
+  const sp = document.getElementById('s5SourcePreview');
+  if (sp) sp.textContent = document.getElementById('s5Source').value || '（請填寫漏水來源）';
+
+  updateCaseNo();
+  triggerLivePreview();
+  closeAutoFillModal();
+
+  if (filledCount === 0) {
+    alert('⚠️ 沒有解析到任何欄位，請確認格式是否為「標籤：內容」，並確認標籤名稱跟範本一致。');
+  } else {
+    alert(`✅ 已自動填入 ${filledCount} 個欄位，請檢查內容是否正確，並記得補上照片。`);
+  }
+}
+
 function openIssueDateModal() {
   const cur = document.getElementById('issueDate').value || new Date().toISOString().split('T')[0];
   document.getElementById('issueDateModalInput').value = cur;
