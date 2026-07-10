@@ -837,7 +837,7 @@ async function syncCaseToCloud() {
     if (!cloudCaseId) cloudCaseId = generateCloudCaseId();
     const docId = cloudCaseId;
     const detectionPoints = (cardStore[2] || []).map(card => ({
-      position: card.position || '', recordA: card.recordA || '', recordB: card.recordB || '',
+      position: card.position || '', instrument: card.instrument || '', recordA: card.recordA || '', recordB: card.recordB || '',
       analysis: card.analysis || '', template: card.template || 'A'
     }));
 
@@ -915,6 +915,7 @@ async function loadCaseFromUrlForEdit() {
           id: cardSeqStore[2],
           template: pt.template || 'A',
           position: pt.position || '',
+          instrument: pt.instrument || '',
           recordA: pt.recordA || '',
           recordB: pt.recordB || '',
           analysis: pt.analysis || '',
@@ -1324,6 +1325,11 @@ function getChapterTitle(chapters, key) {
 
 const FIELD_LIMITS = { position: 15, record: 120, analysis: 120 };
 
+// 二、檢測結果的紀錄文字，若有選擇檢測項目，固定在文字前加上「儀器名稱：」
+function recordDisplayText(step, card, text) {
+  return (step === 2 && card.instrument) ? `${card.instrument}：${text}` : text;
+}
+
 function addCard(step) {
   cardSeqStore[step]++;
   const inspectDate = document.getElementById('inspectDate').value;
@@ -1333,6 +1339,7 @@ function addCard(step) {
     id: cardSeqStore[step],
     template: 'A',
     position: '',
+    instrument: '',
     recordA: '',
     recordB: '',
     analysis: '',
@@ -1411,7 +1418,7 @@ function checkCardOverflowLive() {
       mctx.font = `12px ${ff}`;
 
       if (card.template === 'A') {
-        const recLines = wrapText(mctx, card.recordA || '—', textColW, `12px ${ff}`);
+        const recLines = wrapText(mctx, recordDisplayText(step, card, card.recordA || '—'), textColW, `12px ${ff}`);
         ty += lh*(recLines.length+1) + 4;
         if (cfg.hasAnalysis) {
           const anaLines = wrapText(mctx, card.analysis || '—', textColW, `12px ${ff}`);
@@ -1426,8 +1433,8 @@ function checkCardOverflowLive() {
           }
         }
       } else {
-        const recALines = wrapText(mctx, card.recordA || '—', textColW, `12px ${ff}`);
-        const recBLines = wrapText(mctx, card.recordB || '—', textColW, `12px ${ff}`);
+        const recALines = wrapText(mctx, recordDisplayText(step, card, card.recordA || '—'), textColW, `12px ${ff}`);
+        const recBLines = wrapText(mctx, recordDisplayText(step, card, card.recordB || '—'), textColW, `12px ${ff}`);
         const usedH = lh*(recALines.length+1) + 4 + lh*(recBLines.length+1);
         const availH = cardH - pad*2 - ty;
         if (usedH > availH) {
@@ -1516,6 +1523,16 @@ function renderCards(step) {
             placeholder="樓層-空間-位置">
           <div class="field-counter">${card.position.length}/${FIELD_LIMITS.position} 字</div>
         </div>
+        ${step === 2 ? `
+        <div class="form-group">
+          <label>檢測項目</label>
+          <select onchange="cardFieldChange(${step},${card.id},'instrument',this.value); triggerLivePreview();">
+            <option value="" ${!card.instrument ? 'selected' : ''}>請選擇檢測項目</option>
+            <option value="熱顯像儀" ${card.instrument==='熱顯像儀'?'selected':''}>熱顯像儀</option>
+            <option value="牆體濕度檢測儀" ${card.instrument==='牆體濕度檢測儀'?'selected':''}>牆體濕度檢測儀</option>
+            <option value="管道內視鏡查漏" ${card.instrument==='管道內視鏡查漏'?'selected':''}>管道內視鏡查漏</option>
+          </select>
+        </div>` : ``}
         ${isA ? `
         <div class="form-group">
           <label>${cfg.recordLabel}</label>
@@ -2452,8 +2469,16 @@ function drawCardBox(ctx, card, labelBase, x, y, w, h, cfg, step) {
   ctx.strokeStyle = '#5d89bd'; ctx.lineWidth = 0.6;
   ctx.strokeRect(textColX, posBoxY, textColW, posBoxH);
 
-  const posText = `位置：${card.position || '樓層-空間-位置'}`;
-  ctx.font=`12px ${ff}`; ctx.fillStyle='#336590'; ctx.textAlign='center';
+  const posText = step === 2 && card.instrument
+    ? `位置：${card.position || '樓層-空間-位置'}　儀器：${card.instrument}`
+    : `位置：${card.position || '樓層-空間-位置'}`;
+  let posFontSize = 12;
+  ctx.font = `${posFontSize}px ${ff}`;
+  while (ctx.measureText(posText).width > textColW - 12 && posFontSize > 9) {
+    posFontSize -= 0.5;
+    ctx.font = `${posFontSize}px ${ff}`;
+  }
+  ctx.fillStyle='#336590'; ctx.textAlign='center';
   ctx.fillText(posText, textColX + textColW/2, posBoxY + posBoxH/2 + 4);
   ctx.textAlign='left';
 
@@ -2466,7 +2491,7 @@ function drawCardBox(ctx, card, labelBase, x, y, w, h, cfg, step) {
     ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#1a1a1a';
     ctx.fillText(`【${recordLabel}】`, textColX, ty);
     ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
-    const recLines = wrapText(ctx, card.recordA || '—', textColW, `12px ${ff}`);
+    const recLines = wrapText(ctx, recordDisplayText(step, card, card.recordA || '—'), textColW, `12px ${ff}`);
     recLines.forEach((line,i)=> ctx.fillText(line, textColX, ty + lh*(i+1)));
     ty += lh*(recLines.length+1) + 4;
 
@@ -2492,14 +2517,14 @@ function drawCardBox(ctx, card, labelBase, x, y, w, h, cfg, step) {
     ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#1a1a1a';
     ctx.fillText(`【${recordLabel}（${labelBase}-1）】`, textColX, ty);
     ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
-    const recALines = wrapText(ctx, card.recordA || '—', textColW, `12px ${ff}`);
+    const recALines = wrapText(ctx, recordDisplayText(step, card, card.recordA || '—'), textColW, `12px ${ff}`);
     recALines.forEach((line,i)=> ctx.fillText(line, textColX, ty + lh*(i+1)));
     ty += lh*(recALines.length+1) + 4;
 
     ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#1a1a1a';
     ctx.fillText(`【${recordLabel}（${labelBase}-2）】`, textColX, ty);
     ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
-    const recBLines = wrapText(ctx, card.recordB || '—', textColW, `12px ${ff}`);
+    const recBLines = wrapText(ctx, recordDisplayText(step, card, card.recordB || '—'), textColW, `12px ${ff}`);
     recBLines.forEach((line,i)=> ctx.fillText(line, textColX, ty + lh*(i+1)));
 
     const finalBottom = ty + lh*(recBLines.length+1);
@@ -3155,7 +3180,7 @@ const AUTOFILL_FIELD_MAP = {
   '漏水來源': 's5Source',
   '施工項目說明': 's6RepairOther',
 };
-const AUTOFILL_CARD_LABELS = { '位置': 'position', '紀錄': 'recordA', '配置': 'recordA', '觀察': 'recordA', '判讀': 'analysis' };
+const AUTOFILL_CARD_LABELS = { '位置': 'position', '檢測項目': 'instrument', '儀器': 'instrument', '紀錄': 'recordA', '配置': 'recordA', '觀察': 'recordA', '判讀': 'analysis' };
 
 function openAutoFillModal() {
   document.getElementById('autoFillInput').value = '';
@@ -3193,7 +3218,7 @@ function applyAutoFill() {
     if (marker) {
       flushCard();
       mode = marker[1] === '二' ? 2 : (marker[1] === '三' ? 3 : 4);
-      curCard = { position: '', recordA: '', recordB: '', analysis: '' };
+      curCard = { position: '', instrument: '', recordA: '', recordB: '', analysis: '' };
       continue;
     }
 
@@ -3254,6 +3279,7 @@ function applyAutoFill() {
           id: cardSeqStore[step],
           template: 'A',
           position: c.position,
+          instrument: c.instrument || '',
           recordA: c.recordA,
           recordB: '',
           analysis: c.analysis,
