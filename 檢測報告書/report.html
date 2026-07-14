@@ -814,13 +814,8 @@ function generateCloudCaseId() {
 // 依「顧客資料/年/月/案例編號/檔名」自動建立下載子資料夾（Chrome/Edge 支援檔名含斜線自動建資料夾）
 // 年月直接從案號本身取出（案號格式：地區-年月-序號），不受列印當下日期影響
 function buildDownloadPath(caseNo, clientName, fileNamePart) {
-  const safe = s => (s || '').toString().replace(/[\\/:*?"<>|]/g, '_').trim();
-  if (!caseNo) return fileNamePart; // 沒有案號就不建資料夾，維持原本檔名
-  const m = caseNo.match(/-(\d{4})(\d{2})-/);
-  const year = m ? m[1] : String(new Date().getFullYear());
-  const month = m ? m[2] : String(new Date().getMonth() + 1).padStart(2, '0');
-  const nameFolder = '顧客資料';
-  return `${nameFolder}/${year}/${month}/${safe(caseNo)}/${fileNamePart}`;
+  // 取消資料夾路徑，直接回傳檔名
+  return fileNamePart; 
 }
 
 // 每次「暫存草稿」時，同步一份精簡資料（不含照片）到雲端案件庫，
