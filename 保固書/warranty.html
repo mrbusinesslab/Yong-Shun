@@ -724,8 +724,9 @@ async function generatePDF(isPreview = false) {
       const blob = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      const fName = `${warrantyNo !== '—' ? warrantyNo : '保固書'}_保固書.pdf`;
-      a.href = url; a.download = buildDownloadPath(warrantyNo !== '—' ? warrantyNo : '', folderClientName, fName);
+      const fName = `${warrantyNo !== '—' ? warrantyNo : '保固書'}_保固.pdf`;
+      a.href = url;
+      a.download = fName;
       a.click(); URL.revokeObjectURL(url);
       msg.className = 'status-msg success'; msg.textContent = '✅ 保固書已產生';
       syncWarrantyToCloud(); // 回寫保固起訖日到雲端，供 Portal 到期提醒使用
