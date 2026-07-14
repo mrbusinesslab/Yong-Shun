@@ -170,6 +170,33 @@
     animation: fadeIn .4s ease;
   }
 
+  .menu-layout { display: flex; gap: 28px; align-items: flex-start; }
+  .menu-main { flex: 1; min-width: 0; }
+
+  .warranty-panel {
+    width: 300px; flex-shrink: 0; position: sticky; top: 24px;
+    background: var(--white); border: 1.5px solid var(--line); border-radius: 12px;
+    padding: 18px; box-shadow: var(--shadow); max-height: calc(100vh - 48px); overflow-y: auto;
+  }
+  .warranty-panel-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 14px; }
+  .warranty-list { display: flex; flex-direction: column; gap: 10px; }
+  .warranty-item {
+    border-radius: 8px; padding: 10px 12px; border-left: 4px solid #ccc; background: #fafbfc;
+  }
+  .warranty-item.red { border-left-color: #e53935; background: #fdecea; }
+  .warranty-item.orange { border-left-color: #e8a13c; background: #fff6e8; }
+  .warranty-item .w-name { font-size: 13px; font-weight: 700; color: var(--text); }
+  .warranty-item .w-meta { font-size: 11.5px; color: var(--sub); margin-top: 3px; line-height: 1.6; }
+  .warranty-item .w-days { font-size: 11px; font-weight: 700; margin-top: 4px; }
+  .warranty-item.red .w-days { color: #c0392b; }
+  .warranty-item.orange .w-days { color: #b5720f; }
+  .warranty-empty { font-size: 12.5px; color: var(--sub); text-align: center; padding: 12px 0; }
+
+  @media (max-width: 1050px) {
+    .menu-layout { flex-direction: column; }
+    .warranty-panel { width: 100%; position: static; max-height: none; }
+  }
+
   .menu-header {
     text-align: center;
     margin-bottom: 32px;
@@ -206,7 +233,7 @@
 
   .card-list {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 20px;
     margin-bottom: 28px;
   }
@@ -322,12 +349,6 @@
   }
 
   /* ── RWD ── */
-  @media (max-width: 1100px) {
-    .card-list { grid-template-columns: repeat(2, 1fr); }
-  }
-  @media (max-width: 600px) {
-    .card-list { grid-template-columns: 1fr; }
-  }
   @media (max-width: 480px) {
     .login-card { padding: 36px 24px 32px; }
     .doc-card   { padding: 16px 16px 18px; }
@@ -419,6 +440,9 @@
 
 <!-- ══════════════ 選單頁 ══════════════ -->
 <div id="menuPage">
+
+  <div class="menu-layout">
+  <div class="menu-main">
 
   <div class="menu-header">
     <div class="logo-row">
@@ -580,6 +604,20 @@
     </button>
   </div>
 
+  </div>
+  <!-- /menu-main -->
+
+  <!-- 保固到期提醒側欄 -->
+  <div class="warranty-panel">
+    <div class="warranty-panel-title">🛡️ 保固到期提醒</div>
+    <div class="warranty-list" id="warrantyList">
+      <div class="recent-loading">讀取中...</div>
+    </div>
+  </div>
+
+  </div>
+  <!-- /menu-layout -->
+
 </div>
 
 <script>
@@ -670,6 +708,62 @@
       alert('標記失敗：' + err.message);
     }
   }
+
+  /* ══════════════ 保固到期提醒 ══════════════ */
+  const BUILDING_TYPE_LABELS = {
+    '1':'公寓', '2':'透天厝', '3':'電梯大廈', '4':'社區', '5':'套房',
+    '6':'辦公室', '7':'店面', '10':'廠房', '20':'學校', '30':'醫院', '40':'公共設施'
+  };
+
+  async function loadWarrantyAlerts() {
+    const listEl = document.getElementById('warrantyList');
+    try {
+      const snap = await db.collection('cases').orderBy('updatedAt', 'desc').limit(100).get();
+      const cases = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .filter(c => !c.closed && c.warranty && c.warranty.endDate);
+
+      const now = new Date();
+      const alerts = cases.map(c => {
+        const end = new Date(c.warranty.endDate);
+        const daysLeft = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+        return { c, end, daysLeft };
+      }).filter(a => a.daysLeft <= 730) // 只顯示兩年內到期（含已到期）
+        .sort((a, b) => a.daysLeft - b.daysLeft);
+
+      renderWarrantyList(alerts);
+    } catch (err) {
+      console.error(err);
+      listEl.innerHTML = '<div class="warranty-empty">⚠️ 無法讀取保固資料</div>';
+    }
+  }
+
+  function renderWarrantyList(alerts) {
+    const listEl = document.getElementById('warrantyList');
+    if (alerts.length === 0) {
+      listEl.innerHTML = '<div class="warranty-empty">目前沒有即將到期的保固案件</div>';
+      return;
+    }
+    listEl.innerHTML = alerts.map(({ c, end, daysLeft }) => {
+      const level = daysLeft <= 365 ? 'red' : 'orange';
+      const buildingLabel = BUILDING_TYPE_LABELS[c.buildingType] || (c.buildingType || '—');
+      const startStr = c.warranty.startDate ? new Date(c.warranty.startDate).toLocaleDateString('zh-TW') : '—';
+      const endStr = end.toLocaleDateString('zh-TW');
+      const daysText = daysLeft < 0 ? `已到期 ${Math.abs(daysLeft)} 天` : `剩 ${daysLeft} 天到期`;
+      return `
+        <div class="warranty-item ${level}">
+          <div class="w-name">${esc(c.clientName || '（未命名委託方）')}</div>
+          <div class="w-meta">
+            建物類型：${esc(buildingLabel)}<br>
+            案號：${esc(c.caseNumber || '—')}<br>
+            地址：${esc(c.clientAddress || '—')}<br>
+            保固期間：${startStr} ～ ${endStr}
+          </div>
+          <div class="w-days">${daysText}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
   function toggleCaseMenu(id, ev) {
     ev.stopPropagation();
     document.querySelectorAll('.recent-dropdown').forEach(d => {
@@ -782,6 +876,7 @@
     const menu = document.getElementById('menuPage');
     menu.style.display = 'block';
     loadRecentCases();
+    loadWarrantyAlerts();
   }
 
   function doLogout() {
