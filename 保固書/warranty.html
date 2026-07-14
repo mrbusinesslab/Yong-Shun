@@ -105,13 +105,10 @@ input:focus, select:focus { outline: none; border-color: #1871b5; background: wh
           </select>
           <input type="text" id="projectNameCustom" placeholder="請輸入保固工程名稱" style="display:none;margin-top:6px;" oninput="triggerLivePreview()">
         </div>
-        <div class="form-group">
-          <label>保固書出具日期</label>
-          <input type="date" id="issueDate">
-        </div>
+        <input type="hidden" id="issueDate">
         <div class="form-group full">
           <label>施工位置（地址）</label>
-          <input type="text" id="clientAddress" placeholder="例：台中市西區民生路100號">
+          <input type="text" id="clientAddress" placeholder="例：臺中市○○區○○路二段100號">
         </div>
       </div>
     </div>
@@ -179,7 +176,7 @@ input:focus, select:focus { outline: none; border-color: #1871b5; background: wh
       </div>
     </div>
 
-    <button class="generate-btn" id="generateBtn" onclick="generatePDF(false)">產生保固書 PDF</button>
+    <button class="generate-btn" id="generateBtn" onclick="openIssueDateModal()">產生保固書 PDF</button>
     <div class="status-msg" id="statusMsg"></div>
   </div>
 
@@ -302,7 +299,7 @@ window.onload = () => {
   document.getElementById('startYear').value = rocYear;
   document.getElementById('startMonth').value = today.getMonth() + 1;
   document.getElementById('startDay').value = today.getDate();
-  document.getElementById('issueDate').value = today.toISOString().split('T')[0];
+  // 保固書出具日期不在此預填，改為輸出前的最後一步再確認（即實際交付日期）
   // 觸發自動計算結束日
   autoCalcEnd();
   loadCaseFromUrl();
@@ -331,6 +328,36 @@ function getCheckedSet() {
     if (c.checked && c.id !== 'otherCheck') result.add(c.value);
   });
   return result;
+}
+
+function formatDateCN(dateStr) {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-');
+  return `${y}年${parseInt(m,10)}月${parseInt(d,10)}日`;
+}
+
+/* ══════════════ 出具日期確認彈窗（輸出前最後一步）══════════════ */
+function openIssueDateModal() {
+  const cur = document.getElementById('issueDate').value || new Date().toISOString().split('T')[0];
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:9999;';
+  ov.innerHTML = `<div style="background:#fff;border-radius:14px;padding:28px 30px;max-width:340px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,.2);font-family:'Microsoft JhengHei',Arial,sans-serif;">
+    <div style="font-size:16px;font-weight:700;color:#1a2233;margin-bottom:6px;">請選擇保固書出具日期</div>
+    <div style="font-size:12px;color:#888;margin-bottom:16px;">這是文件上會印出、也是交付給委託方的日期，預設為今天，可自行修改</div>
+    <input type="date" id="_issueDateInput" value="${cur}" style="width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:8px;font-size:14px;font-family:inherit;margin-bottom:20px;">
+    <div style="display:flex;gap:10px;">
+      <button id="_issueDateCancel" style="flex:1;padding:11px;border-radius:8px;border:1px solid #ccc;background:#fff;color:#555;font-size:14px;cursor:pointer;font-family:inherit;">取消</button>
+      <button id="_issueDateConfirm" style="flex:1;padding:11px;border-radius:8px;border:none;background:#1871b5;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">確認並輸出</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  document.getElementById('_issueDateCancel').onclick = () => document.body.removeChild(ov);
+  document.getElementById('_issueDateConfirm').onclick = () => {
+    const chosen = document.getElementById('_issueDateInput').value || new Date().toISOString().split('T')[0];
+    document.getElementById('issueDate').value = chosen;
+    document.body.removeChild(ov);
+    generatePDF(false);
+  };
 }
 
 async function generatePDF(isPreview = false) {
@@ -622,7 +649,7 @@ async function generatePDF(isPreview = false) {
 
     // ── 金句（放在簽名分隔線正上方） ──
     ctx.font = `bold 11.5px ${ff}`; ctx.fillStyle = '#1871b5'; ctx.textAlign = 'center';
-    ctx.fillText('依據檢測、精準修繕、誠信保固，是詠順工程對每一位委託人的承諾', PW / 2, y);
+    ctx.fillText('依據檢測、精準修繕、誠信保固，是詠順工程對每一位委託方的承諾', PW / 2, y);
     ctx.textAlign = 'left';
     y += LH * 0.75;
 
@@ -646,11 +673,14 @@ async function generatePDF(isPreview = false) {
     ctx.fillText('委託方', midX + 20, y);
     y += LH * 0.5;
 
-    // 簽名底線（加高，留更多手寫空間）
-    const lineY = y + 30;
+    // 簽名底線（加高，留更多手寫空間，也讓印章有更大的可用高度）
+    const lineY = y + 68;
     ctx.strokeStyle = '#333'; ctx.lineWidth = 0.9;
     ctx.beginPath(); ctx.moveTo(M, lineY); ctx.lineTo(M + colW, lineY); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(midX + 20, lineY); ctx.lineTo(midX + 20 + colW, lineY); ctx.stroke();
+
+    // 記錄本次「詠順工程行」欄位的分隔線～簽名線區間，供蓋章使用（會隨內容長短自動變動）
+    window._stampPos = { cx: M + colW / 2, topY: sigAreaY, lineY: lineY, maxW: colW };
 
     // 副標行（緊靠底線下方）
     const subY = lineY + LH * 0.9;
@@ -672,22 +702,38 @@ async function generatePDF(isPreview = false) {
 
     // ── 輸出 PDF ──
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    doc.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', 0, 0, 210, 297);
-    const blob = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
-    const url = URL.createObjectURL(blob);
 
     if (isPreview) {
+      // 預覽不詢問蓋章，直接輸出
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      doc.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', 0, 0, 210, 297);
+      const blob = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
       document.getElementById('pdfPreviewer').src = url + '#toolbar=0&navpanes=0';
       if (lastPreviewObjectURL) URL.revokeObjectURL(lastPreviewObjectURL);
       lastPreviewObjectURL = url;
     } else {
+      // 安全防呆：理論上一定會經過出具日期彈窗才會走到這裡
+      if (!document.getElementById('issueDate').value) {
+        document.getElementById('issueDate').value = new Date().toISOString().split('T')[0];
+      }
+      // 詢問是否蓋章（座標來自簽名線繪製時記錄的實際位置，會隨內容自動調整）
+      const stampedCanvas = await askAndStamp(canvas, window._stampPos || { cx: 216, topY: 850, lineY: 910, maxW: 300 });
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      doc.addImage(stampedCanvas.toDataURL('image/png', 1.0), 'PNG', 0, 0, 210, 297);
+      const blob = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       const fName = `${warrantyNo !== '—' ? warrantyNo : '保固書'}_保固書.pdf`;
       a.href = url; a.download = buildDownloadPath(warrantyNo !== '—' ? warrantyNo : '', folderClientName, fName);
       a.click(); URL.revokeObjectURL(url);
       msg.className = 'status-msg success'; msg.textContent = '✅ 保固書已產生';
       syncWarrantyToCloud(); // 回寫保固起訖日到雲端，供 Portal 到期提醒使用
+
+      const issueDateVal = document.getElementById('issueDate').value;
+      setTimeout(() => {
+        alert(`📌 提醒：請記得依保固書出具日期（${formatDateCN(issueDateVal)}）將檔案交付給委託方。`);
+      }, 300);
     }
 
   } catch(err) {
@@ -698,6 +744,134 @@ async function generatePDF(isPreview = false) {
   }
   if (!isPreview) btn.disabled = false;
 }
+
+/* ══════════════════════════════════════════════════════
+   詠順工程行｜印章模組 v2
+   Token 存在 localStorage，不寫在程式碼裡
+   ══════════════════════════════════════════════════════ */
+const STAMP_CONFIG = {
+  owner: 'mrbusinesslab',
+  repo:  'yongshun-stamps',
+  files: { invoice: '發票章.png', personal: '個人章.png' },
+  tokenKey: 'ys_stamp_token'
+};
+
+function getToken() { return localStorage.getItem(STAMP_CONFIG.tokenKey) || ''; }
+function clearToken() { localStorage.removeItem(STAMP_CONFIG.tokenKey); }
+
+async function fetchStampImage(type) {
+  const token = getToken();
+  if (!token) throw new Error('尚未設定存取碼');
+  const file = STAMP_CONFIG.files[type];
+  const url  = `https://api.github.com/repos/${STAMP_CONFIG.owner}/${STAMP_CONFIG.repo}/contents/${encodeURIComponent(file)}`;
+  const res  = await fetch(url, {
+    headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3.raw' }
+  });
+  if (res.status === 401 || res.status === 403) { clearToken(); throw new Error('存取碼無效，請重新整理後重新輸入'); }
+  if (!res.ok) throw new Error(`無法取得印章（${res.status}）`);
+  const blob = await res.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function ensureToken() {
+  if (getToken()) return true;
+  return new Promise((resolve) => {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;z-index:10000;';
+    ov.innerHTML = `<div style="background:#fff;border-radius:14px;padding:36px 32px;max-width:400px;width:92%;box-shadow:0 8px 40px rgba(0,0,0,.22);font-family:'Microsoft JhengHei',Arial,sans-serif;">
+      <div style="font-size:18px;font-weight:700;color:#1a2233;margin-bottom:8px;">🔑 設定印章存取碼</div>
+      <div style="font-size:12.5px;color:#666;margin-bottom:20px;line-height:1.7;">請輸入詠順工程行印章存取碼。<br>輸入一次後會自動記住，不需要重複輸入。</div>
+      <input id="_tokenInput" type="password" placeholder="貼上存取碼…"
+        style="width:100%;border:1.5px solid #d0d9e8;border-radius:8px;padding:11px 14px;font-size:14px;font-family:inherit;outline:none;margin-bottom:14px;box-sizing:border-box;">
+      <div style="display:flex;gap:10px;">
+        <button id="_tokenSave" style="flex:1;background:#1871b5;color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;">確認儲存</button>
+        <button id="_tokenCancel" style="background:#eee;color:#555;border:none;border-radius:8px;padding:12px 18px;font-size:14px;font-family:inherit;cursor:pointer;">取消</button>
+      </div>
+      <div id="_tokenMsg" style="font-size:12px;color:#e53935;margin-top:10px;min-height:16px;"></div>
+    </div>`;
+    document.body.appendChild(ov);
+    const input = document.getElementById('_tokenInput');
+    const setMsg = (t,c='#e53935') => { const el=document.getElementById('_tokenMsg'); el.textContent=t; el.style.color=c; };
+    const close = () => document.body.removeChild(ov);
+    document.getElementById('_tokenCancel').onclick = () => { close(); resolve(false); };
+    const save = async () => {
+      const val = input.value.trim();
+      if (!val) { setMsg('請輸入存取碼'); return; }
+      setMsg('驗證中…','#1871b5');
+      document.getElementById('_tokenSave').disabled = true;
+      try {
+        const testUrl = `https://api.github.com/repos/${STAMP_CONFIG.owner}/${STAMP_CONFIG.repo}/contents/${encodeURIComponent(STAMP_CONFIG.files.invoice)}`;
+        const res = await fetch(testUrl, { headers: { 'Authorization': `token ${val}`, 'Accept': 'application/vnd.github.v3.raw' } });
+        if (!res.ok) throw new Error(`驗證失敗（${res.status}），請確認存取碼`);
+        localStorage.setItem(STAMP_CONFIG.tokenKey, val);
+        setMsg('✔ 驗證成功！','#2e7d32');
+        setTimeout(() => { close(); resolve(true); }, 500);
+      } catch(e) { setMsg(e.message); document.getElementById('_tokenSave').disabled=false; }
+    };
+    document.getElementById('_tokenSave').onclick = save;
+    input.addEventListener('keydown', e => { if(e.key==='Enter') save(); });
+    setTimeout(() => input.focus(), 100);
+  });
+}
+
+async function askAndStamp(canvasEl, stampPos) {
+  const hasToken = await ensureToken();
+  if (!hasToken) return canvasEl;
+  return new Promise((resolve) => {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:9999;';
+    ov.innerHTML = `<div style="background:#fff;border-radius:14px;padding:36px 32px;max-width:360px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,.2);font-family:'Microsoft JhengHei',Arial,sans-serif;text-align:center;">
+      <div style="font-size:24px;margin-bottom:8px;">🖋️</div>
+      <div style="font-size:16px;font-weight:700;color:#1a2233;margin-bottom:6px;">是否加蓋印章？</div>
+      <div style="font-size:12.5px;color:#888;margin-bottom:24px;">選擇印章類型，或直接下載不蓋章</div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+        <button id="_sInv" style="background:#1871b5;color:#fff;border:none;border-radius:8px;padding:12px 24px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;">發 票 章</button>
+        <button id="_sPer" style="background:#1871b5;color:#fff;border:none;border-radius:8px;padding:12px 24px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;">個 人 章</button>
+        <button id="_sSkip" style="background:#eee;color:#555;border:none;border-radius:8px;padding:12px 24px;font-size:14px;font-family:inherit;cursor:pointer;">不蓋章</button>
+      </div>
+      <div id="_sMsg" style="font-size:12px;margin-top:14px;min-height:18px;color:#e53935;"></div>
+    </div>`;
+    document.body.appendChild(ov);
+    const setMsg = (t,c='#e53935') => { const el=document.getElementById('_sMsg'); el.textContent=t; el.style.color=c; };
+    const close = () => document.body.removeChild(ov);
+    document.getElementById('_sSkip').onclick = () => { close(); resolve(canvasEl); };
+    const doStamp = async (type) => {
+      ['_sInv','_sPer','_sSkip'].forEach(id => document.getElementById(id).disabled=true);
+      setMsg('讀取印章中…','#1871b5');
+      try {
+        const dataURL = await fetchStampImage(type);
+        const img = new Image();
+        await new Promise((res,rej) => { img.onload=res; img.onerror=rej; img.src=dataURL; });
+        const ctx   = canvasEl.getContext('2d');
+        // 注意：canvasEl 的 context 已經在建立時 ctx.scale() 過，這裡不能再乘一次縮放，
+        // 否則座標會被放大兩次、畫到畫布外面看不到。
+        // 印章高度固定在「分隔線～簽名線」這段區間內，寬度依圖片比例縮放，
+        // 並限制最大寬度不超過簽名欄寬度，避免蓋到日期或超出欄位。
+        const PAD = 4;
+        const availH = Math.max(10, (stampPos.lineY - stampPos.topY) - PAD * 2);
+        let sH = availH;
+        let sW = sH * img.naturalWidth / img.naturalHeight;
+        if (sW > stampPos.maxW) { sW = stampPos.maxW; sH = sW * img.naturalHeight / img.naturalWidth; }
+        const px = stampPos.cx - sW / 2;
+        const py = stampPos.topY + PAD + (availH - sH) / 2;
+        ctx.drawImage(img, px, py, sW, sH);
+        setMsg('✔ 蓋章完成！','#2e7d32');
+        setTimeout(() => { close(); resolve(canvasEl); }, 350);
+      } catch(e) {
+        setMsg('❌ ' + e.message);
+        ['_sInv','_sPer','_sSkip'].forEach(id => document.getElementById(id).disabled=false);
+      }
+    };
+    document.getElementById('_sInv').onclick = () => doStamp('invoice');
+    document.getElementById('_sPer').onclick = () => doStamp('personal');
+  });
+}
+
 </script>
 </body>
 </html>
