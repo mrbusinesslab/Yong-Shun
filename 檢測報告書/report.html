@@ -1530,7 +1530,9 @@ function renderCards(step) {
             <option value="" ${!card.instrument ? 'selected' : ''}>請選擇檢測項目</option>
             <option value="熱顯像儀" ${card.instrument==='熱顯像儀'?'selected':''}>熱顯像儀</option>
             <option value="牆體濕度檢測儀" ${card.instrument==='牆體濕度檢測儀'?'selected':''}>牆體濕度檢測儀</option>
-            <option value="管道內視鏡查漏" ${card.instrument==='管道內視鏡查漏'?'selected':''}>管道內視鏡查漏</option>
+            <option value="管道內視鏡" ${card.instrument==='管道內視鏡'?'selected':''}>管道內視鏡</option>
+            <option value="數位型聽漏儀" ${card.instrument==='數位型聽漏儀'?'selected':''}>數位型聽漏儀</option>
+            <option value="水壓檢測儀" ${card.instrument==='水壓檢測儀'?'selected':''}>水壓檢測儀</option>
           </select>
         </div>` : ``}
         ${isA ? `
