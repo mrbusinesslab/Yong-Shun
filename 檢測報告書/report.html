@@ -6,8 +6,8 @@
 <title>詠順工程行｜漏水檢測報告書產生器</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-firebase-compat.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Microsoft JhengHei','微軟正黑體',Arial,sans-serif; background: #f0f4f8; color: #1a1a1a; min-height: 100vh; }
@@ -808,7 +808,7 @@ function sanitizeDocId(str) {
 }
 
 function generateCloudCaseId() {
-  return 'case_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+  return crypto.randomUUID();
 }
 
 // 依「顧客資料/年/月/案例編號/檔名」自動建立下載子資料夾（Chrome/Edge 支援檔名含斜線自動建資料夾）
