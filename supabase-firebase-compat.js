@@ -51,4 +51,40 @@
     if (rowError) throw rowError;
     return storagePath;
   };
+  function documentInfo() {
+    const path = decodeURIComponent(location.pathname);
+    if (path.includes('檢測報告書')) return { type: 'report', title: '漏水檢測報告書' };
+    if (path.includes('報價單')) return { type: 'quotation', title: '工程報價單' };
+    if (path.includes('保固書')) return { type: 'warranty', title: '施工保固書' };
+    if (path.includes('第三方委託書')) return { type: 'commission', title: '第三方委託書' };
+    if (path.includes('驗收報告')) return { type: 'acceptance', title: '施工驗收報告' };
+    return null;
+  }
+  async function backupPdf(blob, filename) {
+    const caseId = window.YSCurrentCaseId || new URLSearchParams(location.search).get('case');
+    const info = documentInfo();
+    if (!caseId || !info || blob.type !== 'application/pdf') return;
+    const { data: userData } = await client.auth.getUser(); if (!userData.user) return;
+    const { data: existing, error: findError } = await client.from('documents').select('id').eq('case_id', caseId).eq('doc_type', info.type).maybeSingle();
+    if (findError) throw findError;
+    const payload = { case_id: caseId, doc_type: info.type, title: info.title, status: 'issued', issued_at: new Date().toISOString(), created_by: userData.user.id };
+    const { data: doc, error: docError } = existing ? await client.from('documents').update(payload).eq('id', existing.id).select().single() : await client.from('documents').insert(payload).select().single();
+    if (docError) throw docError;
+    const safeName = String(filename || `${info.type}.pdf`).replace(/[^\w.\-()\u4e00-\u9fff]/g, '_');
+    const storagePath = `${caseId}/${info.type}/${doc.id}_${safeName}`;
+    const { error: uploadError } = await client.storage.from('documents').upload(storagePath, blob, { upsert: true, contentType: 'application/pdf' });
+    if (uploadError) throw uploadError;
+    const { error: updateError } = await client.from('documents').update({ pdf_path: storagePath }).eq('id', doc.id);
+    if (updateError) throw updateError;
+    await client.from('document_audit_log').insert({ document_id: doc.id, case_id: caseId, actor_id: userData.user.id, action: 'pdf_uploaded', detail: { path: storagePath } });
+  }
+  // 各舊版頁面以 <a download> 輸出 PDF；在不干擾下載的前提下同步備份 Blob。
+  const originalAnchorClick = HTMLAnchorElement.prototype.click;
+  HTMLAnchorElement.prototype.click = function () {
+    const href = this.href, filename = this.download;
+    if (filename && href && href.startsWith('blob:')) {
+      fetch(href).then(r => r.blob()).then(blob => backupPdf(blob, filename)).catch(err => console.warn('PDF 備份失敗（不影響下載）：', err));
+    }
+    return originalAnchorClick.call(this);
+  };
 }());
