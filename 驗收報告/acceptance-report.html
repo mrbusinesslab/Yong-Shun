@@ -225,6 +225,7 @@ async function loadCaseFromUrl() {
 
 function applyCase(id, c) {
   currentCaseId = id;
+  window.YSCurrentCaseId = id;
   document.getElementById('caseNumber').value = c.caseNumber || '';
   document.getElementById('clientName').value = c.clientName || '';
   document.getElementById('clientContact').value = c.clientContact || '';
