@@ -85,30 +85,34 @@ async function ysUpsertCase({ caseId, customerId, caseNumber, address, buildingT
 }
 
 // ── 上傳 PDF 至 Storage，並寫入／更新 documents 表 ──
+// pdfBlob 為選填：有給就上傳 PDF 並標記為「已出具」；沒給（例如自動暫存草稿）就只更新文字資料，標記為「草稿」
 // doc_number 作為同一份文件的識別（同編號 = 更新，不是新建）
-async function ysSaveDocument({ caseId, docType, docNumber, title, pdfBlob, formData, warrantyStart, warrantyEnd, quoteTotal }) {
+async function ysSaveDocument({ caseId, docType, docNumber, title, pdfBlob, formData, warrantyStart, warrantyEnd, quoteTotal, status }) {
   const sb = window.supabaseClient;
-  const safeNo = ysSafeFileName(docNumber) || (docType + '_' + Date.now());
-  const path = `${docType}/${safeNo}.pdf`;
-
-  const { error: upErr } = await sb.storage.from(YS_DOC_BUCKET)
-    .upload(path, pdfBlob, { contentType: 'application/pdf', upsert: true });
-  if (upErr) throw new Error('PDF 上傳失敗：' + upErr.message);
-
   const payload = {
     case_id: caseId,
     doc_type: docType,
     doc_number: docNumber || null,
     title: title || null,
-    status: 'issued',
-    pdf_path: path,
     form_data: formData || {},
-    warranty_start: warrantyStart || null,
-    warranty_end: warrantyEnd || null,
-    quote_total: (quoteTotal !== undefined && quoteTotal !== null) ? quoteTotal : null,
-    issued_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
   };
+  if (warrantyStart !== undefined) payload.warranty_start = warrantyStart || null;
+  if (warrantyEnd !== undefined) payload.warranty_end = warrantyEnd || null;
+  if (quoteTotal !== undefined && quoteTotal !== null) payload.quote_total = quoteTotal;
+
+  if (pdfBlob) {
+    const safeNo = ysSafeFileName(docNumber) || (docType + '_' + Date.now());
+    const path = `${docType}/${safeNo}.pdf`;
+    const { error: upErr } = await sb.storage.from(YS_DOC_BUCKET)
+      .upload(path, pdfBlob, { contentType: 'application/pdf', upsert: true });
+    if (upErr) throw new Error('PDF 上傳失敗：' + upErr.message);
+    payload.pdf_path = path;
+    payload.status = status || 'issued';
+    payload.issued_at = new Date().toISOString();
+  } else {
+    payload.status = status || 'draft';
+  }
 
   // 先查是否已有相同案件＋類型＋編號的文件，有就更新，沒有就新建（避免依賴資料庫 unique constraint）
   let existingDocId = null;
