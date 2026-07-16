@@ -7,7 +7,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../supabase-firebase-compat.js"></script>
+<script src="../supabase-shared.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Microsoft JhengHei','微軟正黑體',Arial,sans-serif; background: #f0f4f8; color: #1a1a1a; min-height: 100vh; }
@@ -311,23 +311,10 @@ function buildDownloadPath(caseNo, clientName, fileNamePart) {
   return `顧客資料/${year}/${month}/${safe(caseNo)}/${fileNamePart}`;
 }
 
-/* ══════════════ Firebase 初始化（共用案件雲端資料庫） ══════════════ */
-const firebaseConfig = {
-  apiKey: "AIzaSyD2wWHP27kqd005xAuz-DEuEg_z9A8YCVc",
-  authDomain: "yong-shun.firebaseapp.com",
-  projectId: "yong-shun",
-  storageBucket: "yong-shun.firebasestorage.app",
-  messagingSenderId: "530988019396",
-  appId: "1:530988019396:web:6554ce1e9f977bd5182391"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const CASES_COLLECTION = 'cases';
+/* ══════════════ 案件雲端資料庫（Supabase，共用） ══════════════ */
+// supabaseClient 已由 ../supabase-shared.js 建立好
 let currentCaseId = null;
-
-function sanitizeDocId(str) {
-  return (str || '').trim().replace(/[\/\.\#\$\[\]\s]+/g, '_') || ('case_' + Date.now());
-}
+let currentCustomerId = null;
 
 /* ══════════════ 從 Portal 網址參數自動載入案件（?case=xxx） ══════════════ */
 async function loadCaseFromUrl() {
@@ -336,26 +323,27 @@ async function loadCaseFromUrl() {
   if (!caseId) { addLocation(); return; }
 
   try {
-    const doc = await db.collection(CASES_COLLECTION).doc(caseId).get();
-    if (!doc.exists) {
+    const c = await ysLoadCaseForEdit(caseId);
+    if (!c) {
       addLocation();
       const msg = document.getElementById('statusMsg');
       msg.className = 'status-msg error'; msg.textContent = '⚠️ 找不到對應的案件資料（可能已被刪除）';
       return;
     }
-    const c = doc.data();
     currentCaseId = caseId;
+    currentCustomerId = c.customerId;
     window.YSCurrentCaseId = caseId;
 
     document.getElementById('clientName').value = c.clientName || '';
-    document.getElementById('clientContact').value = c.clientContact || '';
-    document.getElementById('clientAddress').value = c.clientAddress || '';
-    document.getElementById('clientPhone').value = c.phone || '';
+    document.getElementById('clientAddress').value = c.address || '';
+    document.getElementById('clientPhone').value = c.clientPhone || '';
     if (c.caseNumber) document.getElementById('quoteNo').value = c.caseNumber;
 
-    // 若檢測報告已有問題點位，帶入作為施工位置起點（僅檢測報告書會寫入雲端，其餘文件只讀取）
-    if (c.detection && Array.isArray(c.detection.points) && c.detection.points.length > 0) {
-      loadLocationsFromDetectionPoints(c.detection.points);
+    // 若檢測報告已有問題點位，帶入作為施工位置起點（僅檢測報告書會寫入這份資料，其餘文件只讀取）
+    const priorDocs = await ysLoadCaseDocuments(caseId, 'inspection_report');
+    const points = priorDocs.length > 0 ? priorDocs[0].form_data?.detectionPoints : null;
+    if (Array.isArray(points) && points.length > 0) {
+      loadLocationsFromDetectionPoints(points);
     } else {
       addLocation();
     }
@@ -942,6 +930,43 @@ async function generatePDF(isPreview = false) {
       const fName = `${quoteNoVal||'quote'}_報價單.pdf`;
       a.download = buildDownloadPath(quoteNoVal, document.getElementById('clientName').value, fName);
       a.click(); URL.revokeObjectURL(url);
+
+      // 確保案件存在於 Supabase（若非從 Portal 載入，這裡會依電話／地址找到或新建案件），再存入 documents 表
+      try {
+        const clientName = document.getElementById('clientName').value || '';
+        const clientPhone = document.getElementById('clientPhone').value || '';
+        const clientAddress = document.getElementById('clientAddress').value || '';
+
+        if (!currentCaseId) {
+          const resolved = await ysResolveCustomerAndCase({ name: clientName, phone: clientPhone, address: clientAddress });
+          currentCustomerId = resolved.customerId;
+          currentCaseId = resolved.caseId;
+        }
+        currentCaseId = await ysUpsertCase({
+          caseId: currentCaseId, customerId: currentCustomerId,
+          caseNumber: quoteNoVal, address: clientAddress
+        });
+        window.YSCurrentCaseId = currentCaseId;
+
+        await ysSaveDocument({
+          caseId: currentCaseId,
+          docType: 'quotation',
+          docNumber: quoteNoVal || '',
+          title: `工程報價單 ${quoteNoVal || ''}`,
+          pdfBlob: blob,
+          quoteTotal: grand,
+          formData: {
+            quoteDate: document.getElementById('quoteDate').value || '',
+            expireDate: document.getElementById('expireDate').value || '',
+            locations: locs.map(l => ({ name: l.name, contents: l.contents, qty: l.qty, unit: l.unit, price: l.price, total: l.total })),
+            subtotal: sub, tax, discount: disc, total: grand, warrantyYears
+          }
+        });
+        msg.className = 'status-msg success'; msg.textContent = '✅ 報價單已產生（已同步至雲端）';
+      } catch (cloudErr) {
+        console.warn('文件雲端存檔失敗（PDF 已成功下載到本機）：', cloudErr);
+        msg.className = 'status-msg'; msg.textContent = '⚠️ PDF 已下載，但雲端存檔失敗：' + cloudErr.message;
+      }
     }
 
   } catch(err) {
