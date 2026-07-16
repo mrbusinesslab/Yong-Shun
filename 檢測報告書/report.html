@@ -963,7 +963,8 @@ function saveSeqMap(map) { localStorage.setItem(SEQ_KEY, JSON.stringify(map)); }
 // 依地址開頭文字判讀縣市，回傳 [中文縣市, 英文代碼] 或 null
 function detectRegionFromAddress(address) {
   if (!address) return null;
-  const trimmed = address.trim();
+  // 「台」「臺」通用（例：台中市＝臺中市），統一轉成臺再比對
+  const trimmed = address.trim().replace(/台/g, '臺');
   for (const [cn, code] of REGIONS) {
     if (trimmed.startsWith(cn)) return [cn, code];
   }
@@ -2475,9 +2476,7 @@ function drawCardBox(ctx, card, labelBase, x, y, w, h, cfg, step) {
   ctx.strokeStyle = '#5d89bd'; ctx.lineWidth = 0.6;
   ctx.strokeRect(textColX, posBoxY, textColW, posBoxH);
 
-  const posText = step === 2 && card.instrument
-    ? `位置：${card.position || '樓層-空間-位置'}　儀器：${card.instrument}`
-    : `位置：${card.position || '樓層-空間-位置'}`;
+  const posText = `位置：${card.position || '樓層-空間-位置'}`;
   let posFontSize = 12;
   ctx.font = `${posFontSize}px ${ff}`;
   while (ctx.measureText(posText).width > textColW - 12 && posFontSize > 9) {
