@@ -799,7 +799,7 @@ function buildDownloadPath(caseNo, clientName, fileNamePart) {
   return fileNamePart;
 }
 
-// 每次「暫存草稿」時，同步一份精簡資料（不含照片）到 Supabase 案件庫，
+// 每次「暫存草稿」時，同步案件基本資料＋完整文字內容（不含照片）到 Supabase，
 // 讓 Portal「最近項目」與其他文件產生器（報價單／保固書／驗收報告／委託書）都能查到這筆案件。
 // 重點：cloudCaseId 一旦產生就固定不變，之後案號、客戶姓名等內容有變動，
 // 都是「更新同一筆案件」，而不是產生新的一筆 —— 這樣其他文件產生器抓到的永遠是最新資料。
@@ -829,6 +829,42 @@ async function syncCaseToCloud() {
     });
     window.YSCurrentCaseId = cloudCaseId;
 
+    // 把「除了照片以外」的完整文字內容存進 documents 表，這樣不管在哪台電腦／瀏覽器登入 Portal，
+    // 點「編輯報告書」都能還原全部文字（照片檔案本身無法同步，永遠需要重新上傳）
+    if (currentCaseNo) {
+      const detectionPoints = (cardStore[2] || []).map(card => ({
+        position: card.position || '', instrument: card.instrument || '', recordA: card.recordA || '',
+        recordB: card.recordB || '', analysis: card.analysis || '', template: card.template || 'A'
+      }));
+      await ysSaveDocument({
+        caseId: cloudCaseId,
+        docType: 'inspection_report',
+        docNumber: currentCaseNo,
+        title: `檢測報告書 ${currentCaseNo}`,
+        formData: {
+          issueDate: document.getElementById('issueDate').value || '',
+          inspectDate: document.getElementById('inspectDate').value || '',
+          inspectTime: document.getElementById('inspectTime').value || '',
+          clientContact: document.getElementById('clientContact').value || '',
+          inspectUnit: document.getElementById('inspectUnit').value || '',
+          inspectStaff: document.getElementById('inspectStaff').value || '',
+          inspectScope: document.getElementById('inspectScope').value || '',
+          s1Position: document.getElementById('s1Position').value || '',
+          clientDeclare: document.getElementById('clientDeclare').value || '',
+          s2Conclusion: document.getElementById('s2Conclusion').value || '',
+          conclusion: {
+            cause: document.getElementById('s5Cause').value || '',
+            type: document.getElementById('s5Type').value || '',
+            source: document.getElementById('s5Source').value || '',
+            repairItem: document.getElementById('s6RepairItem').value || '',
+            repairOther: document.getElementById('s6RepairOther').value || '',
+          },
+          s5TableRows: JSON.parse(JSON.stringify(s5TableRows)),
+          detectionPoints
+        }
+      });
+    }
+
     console.log('已同步案件到 Supabase：' + cloudCaseId);
   } catch (err) {
     // 雲端同步失敗不影響本機暫存草稿的正常運作
@@ -845,6 +881,16 @@ async function loadCaseFromUrlForEdit() {
   if (!caseId) return;
 
   showAutosaveToast('☁️ 正在從雲端載入案件資料...');
+
+  // 先找本機是否已有這個案件的草稿，有就直接套用（注意：草稿也不含照片，一樣需要重新上傳）
+  const localMatch = getAllDrafts().find(d => d && d.data.cloudCaseId === caseId);
+  if (localMatch) {
+    applyDraft(localMatch.data);
+    currentDraftSlot = localMatch.slot;
+    window.YSCurrentCaseId = caseId;
+    showAutosaveToast(`📂 已自動載入本機草稿：${localMatch.data.clientName || ''}（照片需重新上傳）`);
+    return;
+  }
 
   try {
     const c = await ysLoadCaseForEdit(caseId);
@@ -864,11 +910,19 @@ async function loadCaseFromUrlForEdit() {
     const bSel = document.getElementById('buildingType');
     if (bSel && c.buildingType) bSel.value = c.buildingType;
 
-    // 若這筆案件已經產生過檢測報告書，帶回結論與漏水點位文字資料（不含照片）
+    // 從雲端帶回完整文字內容（每次暫存草稿都會同步，不需要等到產生過 PDF），僅照片需要重新上傳
     const priorDocs = await ysLoadCaseDocuments(c.caseId, 'inspection_report');
     if (priorDocs.length > 0) {
       const fd = priorDocs[0].form_data || {};
+      set('issueDate', fd.issueDate);
+      set('inspectTime', fd.inspectTime);
+      set('clientContact', fd.clientContact);
+      set('inspectUnit', fd.inspectUnit);
+      set('inspectStaff', fd.inspectStaff);
       set('inspectScope', fd.inspectScope);
+      set('s1Position', fd.s1Position);
+      set('clientDeclare', fd.clientDeclare);
+      set('s2Conclusion', fd.s2Conclusion);
       if (fd.conclusion) {
         set('s5Cause', fd.conclusion.cause);
         set('s5Type', fd.conclusion.type);
@@ -878,6 +932,11 @@ async function loadCaseFromUrlForEdit() {
         const sp = document.getElementById('s5SourcePreview');
         if (sp) sp.textContent = fd.conclusion.source || '（請填寫漏水來源）';
         toggleRepairOther();
+      }
+      if (Array.isArray(fd.s5TableRows)) {
+        s5TableRows.length = 0;
+        fd.s5TableRows.forEach(r => s5TableRows.push(r));
+        renderS5Table();
       }
       if (Array.isArray(fd.detectionPoints) && fd.detectionPoints.length > 0) {
         cardStore[2] = fd.detectionPoints.map(pt => {
@@ -1864,6 +1923,19 @@ function applyDraft(draft) {
 function saveCurrentDraft() {
   const drafts = getAllDrafts();
   let slot = currentDraftSlot;
+
+  if (slot === null) {
+    // 先比對「同一位委託方」：同案件 id，或電話＋地址相同（且至少填了一項不是空的）
+    const phone = (document.getElementById('clientPhone').value || '').trim();
+    const address = (document.getElementById('clientAddress').value || '').trim();
+    const matched = drafts.find(d => {
+      if (!d) return false;
+      if (cloudCaseId && d.data.cloudCaseId === cloudCaseId) return true;
+      if (!phone && !address) return false;
+      return (d.data.clientPhone || '').trim() === phone && (d.data.clientAddress || '').trim() === address;
+    });
+    if (matched) slot = matched.slot;
+  }
 
   if (slot === null) {
     // 找第一個空位
@@ -3398,7 +3470,16 @@ async function doExportPDF() {
           title: `檢測報告書 ${currentCaseNo || ''}`,
           pdfBlob: blob,
           formData: {
+            issueDate: document.getElementById('issueDate').value || '',
+            inspectDate: document.getElementById('inspectDate').value || '',
+            inspectTime: document.getElementById('inspectTime').value || '',
+            clientContact: document.getElementById('clientContact').value || '',
+            inspectUnit: document.getElementById('inspectUnit').value || '',
+            inspectStaff: document.getElementById('inspectStaff').value || '',
             inspectScope: document.getElementById('inspectScope').value || '',
+            s1Position: document.getElementById('s1Position').value || '',
+            clientDeclare: document.getElementById('clientDeclare').value || '',
+            s2Conclusion: document.getElementById('s2Conclusion').value || '',
             conclusion: {
               cause: document.getElementById('s5Cause').value || '',
               type: document.getElementById('s5Type').value || '',
@@ -3406,6 +3487,7 @@ async function doExportPDF() {
               repairItem: document.getElementById('s6RepairItem').value || '',
               repairOther: document.getElementById('s6RepairOther').value || '',
             },
+            s5TableRows: JSON.parse(JSON.stringify(s5TableRows)),
             detectionPoints
           }
         });
