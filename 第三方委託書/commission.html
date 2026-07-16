@@ -3,575 +3,667 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>詠順工程行｜施工驗收報告產生器</title>
+<title>詠順工程行｜第三方委託書產生器</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../supabase-firebase-compat.js"></script>
+<script src="../supabase-shared.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Microsoft JhengHei','微軟正黑體',Arial,sans-serif; background: #f0f4f8; color: #1a1a1a; min-height: 100vh; }
-header { background: #1871b5; color: white; padding: 20px 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+header { background: #1871b5; color: white; padding: 16px 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: space-between; }
 header h1 { font-size: 20px; font-weight: 600; letter-spacing: 1px; }
+.header-btn { background: white; color: #1871b5; border: none; padding: 8px 20px; border-radius: 8px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; }
+.header-btn:hover { background: #e8f0fb; }
 
-.main-layout {
-  display: grid; grid-template-columns: 1fr;
-  gap: 24px; max-width: 1600px; margin: 36px auto; padding: 0 20px 60px;
-}
+.main-layout { display: grid; grid-template-columns: 1fr; gap: 24px; max-width: 1600px; margin: 36px auto; padding: 0 20px 60px; }
 @media (min-width: 1024px) { .main-layout { grid-template-columns: 1fr 1fr; } }
-
 .container { width: 100%; max-width: 900px; margin: 0 auto; }
-.preview-sticky { position: sticky; top: 24px; height: calc(100vh - 120px); min-height: 500px; }
+.preview-sticky { position: sticky; top: 24px; height: calc(100vh - 100px); min-height: 500px; }
 .preview-card { background: white; border-radius: 10px; padding: 24px; height: 100%; box-shadow: 0 2px 12px rgba(0,0,0,0.07); display: flex; flex-direction: column; }
+.preview-title { font-size: 14px; font-weight: 700; color: #555; margin-bottom: 12px; }
 .preview-iframe { width: 100%; flex: 1; border: 1px solid #d0d9e8; border-radius: 6px; background: #fafcff; }
 
-.card { background: white; border-radius: 10px; padding: 32px; margin-bottom: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
-.card-title { font-size: 15px; font-weight: 700; color: #1871b5; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #e8f0fb; }
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.form-group { display: flex; flex-direction: column; gap: 6px; }
-.form-group.full { grid-column: 1 / -1; }
-label { font-size: 13px; color: #555; font-weight: 500; }
-input[type="text"], input[type="date"], input[type="number"], select, textarea {
-  border: 1px solid #d0d9e8; border-radius: 6px; padding: 9px 12px;
-  font-size: 14px; font-family: inherit; color: #1a1a1a; background: #fafcff; width: 100%; transition: border 0.2s;
-}
-textarea { resize: vertical; min-height: 64px; line-height: 1.6; }
-input:focus, select:focus, textarea:focus { outline: none; border-color: #1871b5; background: white; }
-select { cursor: pointer; }
+/* ── Tab 切換 ── */
+.type-tabs { display: flex; gap: 0; margin-bottom: 24px; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+.type-tab { flex: 1; padding: 16px; text-align: center; font-size: 15px; font-weight: 700; cursor: pointer; background: white; border: none; font-family: inherit; color: #888; transition: background .2s, color .2s; border-bottom: 3px solid transparent; }
+.type-tab.active { color: #1871b5; border-bottom-color: #1871b5; background: #f0f6ff; }
+.type-tab:hover:not(.active) { background: #f5f8ff; color: #1871b5; }
+.type-tab .tab-icon { font-size: 20px; display: block; margin-bottom: 4px; }
+.type-tab .tab-label { font-size: 14px; }
+.type-tab .tab-sub { font-size: 11px; color: #aaa; font-weight: 400; margin-top: 2px; }
+.type-tab.active .tab-sub { color: #6a9fd8; }
 
-.draft-empty { font-size: 13px; color: #999; padding: 8px 0; }
+/* ── 表單卡片 ── */
+.card { background: white; border-radius: 10px; padding: 28px 32px; margin-bottom: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+.card-title { font-size: 14px; font-weight: 700; color: #1871b5; margin-bottom: 18px; padding-bottom: 10px; border-bottom: 2px solid #e8f0fb; display: flex; align-items: center; gap: 8px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group.full { grid-column: 1 / -1; }
+label { font-size: 12.5px; color: #666; font-weight: 500; }
+input[type="text"], input[type="date"], select, textarea {
+  border: 1px solid #d0d9e8; border-radius: 6px; padding: 9px 12px;
+  font-size: 13.5px; font-family: inherit; color: #1a1a1a; background: #fafcff; width: 100%; transition: border .2s;
+}
+textarea { resize: vertical; min-height: 72px; line-height: 1.7; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: #1871b5; background: white; }
+.hint-text { font-size: 11.5px; color: #999; margin-top: 3px; }
+
+/* ── 勾選 Radio ── */
+.radio-row { display: flex; gap: 20px; flex-wrap: wrap; padding: 10px 0 2px; }
+.radio-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #444; cursor: pointer; }
+.radio-item input { accent-color: #1871b5; width: 15px; height: 15px; cursor: pointer; }
+
+/* ── 工程明細（施工版） ── */
+.scope-item { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; background: #eef5ff; border-radius: 6px; padding: 8px 10px 8px 14px; }
+.scope-item input { flex: 1; border: none; background: transparent; font-size: 13px; font-family: inherit; }
+.scope-item input:focus { outline: none; }
+.scope-bullet { width: 6px; height: 6px; background: #1871b5; border-radius: 50%; flex-shrink: 0; }
+.del-scope-btn { background: none; border: none; color: #bbb; font-size: 16px; cursor: pointer; line-height: 1; padding: 0 2px; }
+.del-scope-btn:hover { color: #e57373; }
+.add-scope-btn { background: none; border: 1.5px dashed #b0c8e8; color: #1871b5; padding: 7px 16px; border-radius: 6px; font-size: 13px; font-family: inherit; cursor: pointer; width: 100%; margin-top: 4px; }
+.add-scope-btn:hover { background: #eef5ff; }
+
+/* ── 輸出按鈕 ── */
+.generate-btn { background: linear-gradient(135deg,#1871b5,#1560a0); color: white; border: none; padding: 15px 40px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; width: 100%; box-shadow: 0 4px 14px rgba(24,113,181,0.28); margin-top: 4px; }
+.generate-btn:hover { background: linear-gradient(135deg,#155fa0,#114e85); }
+.generate-btn:disabled { background: #aac4de; cursor: not-allowed; box-shadow: none; }
+.status-msg { font-size: 13px; margin-top: 8px; text-align: center; min-height: 18px; }
+.status-msg.success { color: #1a7a3c; }
+.status-msg.error { color: #c0392b; }
 
 /* 雲端案件狀態 */
 .cloud-status { font-size: 11.5px; color: #999; margin-top: 8px; }
 .cloud-status.ok { color: #2e7d32; }
 .cloud-status.err { color: #e53935; }
-.save-cloud-btn { background: #2e7d32; color: white; border: none; padding: 9px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; margin-top: 14px; width: 100%; }
-.save-cloud-btn:hover { background: #256a2a; }
-.save-cloud-btn:disabled { background: #a8c9ab; cursor: wait; }
-
-/* 問題點位卡片 */
-.point-card { border: 1px solid #d0d9e8; border-radius: 8px; padding: 16px; margin-bottom: 14px; background: #fafcff; position: relative; }
-.point-card .idx-badge { position: absolute; top: -10px; left: 12px; background: #1871b5; color: #fff; font-size: 11px; padding: 3px 10px; border-radius: 10px; font-weight: 600; }
-.point-card .src-badge { position: absolute; top: -10px; left: 100px; background: #2e7d32; color: #fff; font-size: 10px; padding: 3px 8px; border-radius: 10px; }
-.point-card .del-btn { position: absolute; top: 10px; right: 10px; background: none; border: none; color: #e53935; font-size: 12px; cursor: pointer; font-family: inherit; }
-.photo-row { display: flex; gap: 10px; margin-top: 10px; }
-.photo-slot { flex: 1; }
-.photo-slot .ptitle { font-size: 11px; color: #888; margin-bottom: 4px; }
-.photo-slot input[type="file"] { font-size: 11px; }
-.photo-slot img { width: 100%; height: 90px; object-fit: cover; border-radius: 6px; margin-top: 6px; border: 1px solid #d0d9e8; }
-
-.add-point-btn { width: 100%; padding: 10px; background: #fff; border: 1.5px dashed #1871b5; color: #1871b5; border-radius: 6px; font-size: 13px; cursor: pointer; font-family: inherit; }
-.add-point-btn:hover { background: #eef5ff; }
-
-.generate-btn { display: block; width: 100%; background: #1871b5; color: white; border: none; padding: 16px; border-radius: 10px; font-size: 16px; font-weight: 700; font-family: inherit; cursor: pointer; letter-spacing: 1px; box-shadow: 0 4px 12px rgba(24,113,181,0.3); transition: background 0.2s; }
-.generate-btn:hover { background: #155fa0; }
-.generate-btn:disabled { background: #aac4de; cursor: not-allowed; }
-.status-msg { text-align: center; font-size: 13px; color: #888; margin-top: 10px; min-height: 20px; }
-.status-msg.error { color: #e53935; }
-.status-msg.success { color: #2e7d32; }
 </style>
 </head>
 <body>
 
-<header><h1>詠順工程行｜施工驗收報告產生器</h1></header>
+<header>
+  <h1>詠順工程行｜第三方委託書產生器</h1>
+  <button class="header-btn" onclick="openIssueDateModal()">輸出 PDF →</button>
+</header>
 
 <div class="main-layout">
-  <div class="container">
+<div class="container">
 
-    <!-- 載入案件資料 -->
-    <div class="card">
-      <div class="card-title">📂 案件資料</div>
+  <!-- Tab 切換 -->
+  <div class="type-tabs">
+    <button class="type-tab active" id="tabInspect" onclick="switchType('inspect')">
+      <span class="tab-icon">🔍</span>
+      <span class="tab-label">檢測委託</span>
+      <span class="tab-sub">委託詠順進行漏水檢測</span>
+    </button>
+    <button class="type-tab" id="tabConstruct" onclick="switchType('construct')">
+      <span class="tab-icon">🔧</span>
+      <span class="tab-label">施工委託</span>
+      <span class="tab-sub">委託詠順進行修繕施工</span>
+    </button>
+  </div>
 
-      <div id="caseLoadedBanner" style="display:none; background:#eaf7ec; border:1.5px solid #2e7d32; border-radius:8px; padding:14px 16px; margin-bottom:16px;">
-        <div style="font-size:13.5px; font-weight:700; color:#256a2a;" id="caseLoadedText"></div>
-        <div style="font-size:12px; color:#5a8a5e; margin-top:4px;">資料已自動帶入，可直接繼續填寫下方欄位。</div>
-      </div>
-
-      <div id="caseNotLoadedNotice" style="background:#fff8e6; border:1.5px solid #e0a82e; border-radius:8px; padding:14px 16px; margin-bottom:16px;">
-        <div style="font-size:13px; color:#8a6d1a; line-height:1.7;">
-          請回到<strong>文件產生器首頁</strong>的「最近項目」，點選委託方旁的「建立驗收報告」按鈕，會自動帶入該案件的客戶資料與檢測點位。
-        </div>
-      </div>
+  <!-- 案件資料 -->
+  <div class="card">
+    <div class="card-title">📂 案件資料</div>
+    <div id="caseLoadedBanner" style="display:none; background:#eaf7ec; border:1.5px solid #2e7d32; border-radius:8px; padding:14px 16px; margin-bottom:16px;">
+      <div style="font-size:13.5px; font-weight:700; color:#256a2a;" id="caseLoadedText"></div>
+      <div style="font-size:12px; color:#5a8a5e; margin-top:4px;">委託方資料已自動帶入，檢測範圍與工程摘要已預填，可再自行調整。</div>
     </div>
-
-    <!-- 基本資料 -->
-    <div class="card">
-      <div class="card-title">📋 基本資料</div>
-      <div class="form-grid">
-        <div class="form-group">
-          <label>案件編號</label>
-          <input type="text" id="caseNumber" placeholder="例：TCG-202607-A01">
-        </div>
-        <input type="hidden" id="acceptDate">
-        <div class="form-group">
-          <label>委託方</label>
-          <input type="text" id="clientName" placeholder="例：屋主姓名／社區名稱／公司名稱">
-        </div>
-        <div class="form-group">
-          <label>負責人</label>
-          <input type="text" id="clientContact" placeholder="例：本人／負責人姓名">
-        </div>
-        <div class="form-group">
-          <label>聯絡電話</label>
-          <input type="text" id="phone" placeholder="0912-345-678">
-        </div>
-        <div class="form-group full">
-          <label>施工地址</label>
-          <input type="text" id="address" placeholder="例：臺中市○○區○○路二段100號">
-        </div>
+    <div id="caseNotLoadedNotice" style="background:#fff8e6; border:1.5px solid #e0a82e; border-radius:8px; padding:14px 16px;">
+      <div style="font-size:13px; color:#8a6d1a; line-height:1.7;">
+        請回到<strong>文件產生器首頁</strong>的「最近項目」，點選委託方旁的「建立委託書」按鈕，會自動帶入該案件的委託方資料。
       </div>
     </div>
+  </div>
 
-    <!-- 問題點位複查 -->
-    <div class="card">
-      <div class="card-title">🔍 問題點位複查</div>
-      <div id="pointList"></div>
-      <button class="add-point-btn" onclick="addPoint()">＋ 手動新增點位</button>
-    </div>
-
-    <!-- 試水測試記錄 -->
-    <div class="card">
-      <div class="card-title">💧 試水測試記錄</div>
-      <div class="form-grid">
-        <div class="form-group">
-          <label>測試時間</label>
-          <input type="text" id="testTime" placeholder="例：2026/07/03 14:00">
-        </div>
-        <div class="form-group">
-          <label>測試方式</label>
-          <input type="text" id="testMethod" placeholder="例：持續放水30分鐘">
-        </div>
-        <div class="form-group full">
-          <label>測試結果</label>
-          <textarea id="testResult">各測試點位持續放水觀察，均無滲漏現象，測試結果正常。</textarea>
-        </div>
+  <!-- ── 共用：委託方資訊 ── -->
+  <div class="card">
+    <div class="card-title">📋 基本資訊</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>委託書編號（手動填寫）</label>
+        <input type="text" id="docNo" placeholder="例：與檢測書編號相同" oninput="update()">
       </div>
-    </div>
-
-    <!-- 觀察期提醒 -->
-    <div class="card">
-      <div class="card-title">📝 觀察期提醒</div>
+      <input type="hidden" id="signDate">
+      <div class="form-group">
+        <label>委託方</label>
+        <input type="text" id="clientName" placeholder="例：屋主姓名／社區名稱／公司名稱" oninput="update()">
+      </div>
+      <div class="form-group">
+        <label>負責人</label>
+        <input type="text" id="clientContact" placeholder="例：本人／負責人姓名" oninput="update()">
+      </div>
+      <div class="form-group">
+        <label>聯絡電話</label>
+        <input type="text" id="clientPhone" placeholder="例：0912-345-678" oninput="update()">
+      </div>
+      <div class="form-group">
+        <label>委託方身份</label>
+        <select id="clientRole" onchange="toggleRoleOther(); update()">
+          <option value="" selected disabled>請選擇委託方身分</option>
+          <option value="室內設計師">室內設計師</option>
+          <option value="室內設計公司">室內設計公司</option>
+          <option value="房屋仲介">房屋仲介</option>
+          <option value="建設公司">建設公司</option>
+          <option value="物業管理公司">物業管理公司</option>
+          <option value="其他">其他</option>
+        </select>
+      </div>
+      <div class="form-group" id="clientRoleOtherWrap" style="display:none;">
+        <label>請說明委託方身份</label>
+        <input type="text" id="clientRoleOther" placeholder="請輸入委託方身份" oninput="update()">
+      </div>
       <div class="form-group full">
-        <textarea id="watchNote" style="min-height:80px;">本次施工完成後，建議留意下雨或用水後之現場狀況，如於30天觀察期內發現異常滲漏情形，請盡速與本公司聯繫安排複查，以維護您的保固權益。</textarea>
+        <label>施工／檢測地址</label>
+        <input type="text" id="siteAddress" placeholder="例：臺中市○○區○○路○○號○樓" oninput="update()">
       </div>
     </div>
+  </div>
 
-    <button class="generate-btn" id="generateBtn" onclick="openIssueDateModal()">產生驗收報告 PDF</button>
+  <!-- ── 檢測委託專屬 ── -->
+  <div id="inspectFields">
+    <div class="card">
+      <div class="card-title">🔍 檢測委託內容</div>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>屋主姓名（實際居住／所有人）</label>
+          <input type="text" id="ownerName" placeholder="例：陳○○" oninput="update()">
+          <span class="hint-text">委託方已取得屋主同意，授權詠順工程行進場檢測</span>
+        </div>
+        <div class="form-group full">
+          <label>檢測範圍</label>
+          <textarea id="inspectScope" placeholder="例：3樓陽台地板、天花板與牆面交界處之漏水原因調查" oninput="update()"></textarea>
+        </div>
+        <div class="form-group full">
+          <label>檢測目的</label>
+          <select id="inspectPurpose" onchange="updateInspectPurposePreview(); toggleInspectPurposeOther(); update();">
+            <option value="為釐清本案漏水之責任歸屬，作為後續協調、求償或修繕分工之依據。">釐清漏水責任</option>
+            <option value="委託方欲了解本案漏水發生之原因與確切位置，目前尚未涉及責任歸屬爭議。">釐清漏水原因與位置</option>
+            <option value="作為後續修繕或防水施工規劃之依據。">作為修繕/施工依據</option>
+            <option value="配合不動產買賣交易，鑑定是否存在漏水情形，作為交易評估之參考。">不動產買賣前鑑定</option>
+            <option value="其他">其他</option>
+          </select>
+          <div id="inspectPurposePreview" style="font-size:12px;color:#888;margin-top:6px;line-height:1.5;"></div>
+          <input type="text" id="inspectPurposeOther" placeholder="請輸入檢測目的" style="display:none;margin-top:6px;" oninput="updateInspectPurposePreview(); update()">
+        </div>
+        <div class="form-group">
+          <label>報告交付對象</label>
+          <div class="radio-row">
+            <label class="radio-item"><input type="radio" name="reportTo" value="委託方" onchange="update()" checked>委託方</label>
+            <label class="radio-item"><input type="radio" name="reportTo" value="屋主" onchange="update()">屋主</label>
+            <label class="radio-item"><input type="radio" name="reportTo" value="委託方及屋主" onchange="update()">兩者皆交付</label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>費用負擔方</label>
+          <div class="radio-row">
+            <label class="radio-item"><input type="radio" name="payBy" value="委託方" onchange="update()" checked>委託方</label>
+            <label class="radio-item"><input type="radio" name="payBy" value="屋主" onchange="update()">屋主</label>
+            <label class="radio-item"><input type="radio" name="payBy" value="雙方協議" onchange="update()">雙方協議</label>
+          </div>
+        </div>
+        <div class="form-group full">
+          <label>備註（選填）</label>
+          <textarea id="inspectNote" placeholder="例：需於平日上午進行，請提前確認屋主行程" oninput="update()"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 施工委託專屬 ── -->
+  <div id="constructFields" style="display:none;">
+    <div class="card">
+      <div class="card-title">🔧 施工委託內容</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>預計施工日期</label>
+          <input type="date" id="constructDate" oninput="update()">
+        </div>
+        <div class="form-group full">
+          <label>工程範圍摘要</label>
+          <div id="scopeList" style="margin-bottom:8px;"></div>
+          <button class="add-scope-btn" onclick="addScope()">＋ 新增施工項目</button>
+        </div>
+        <div class="form-group">
+          <label>付款方式</label>
+          <select id="paymentMethod" onchange="update()">
+            <option value="依報價單約定" selected>依報價單約定</option>
+            <option value="完工後付清">完工後付清</option>
+            <option value="簽約時付40%，完工付60%">簽約40%，完工60%</option>
+            <option value="分三期付款">分三期付款</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>發票開立對象</label>
+          <div class="radio-row">
+            <label class="radio-item"><input type="radio" name="invoiceTo" value="委託方" onchange="update()" checked>委託方</label>
+            <label class="radio-item"><input type="radio" name="invoiceTo" value="屋主" onchange="update()">屋主</label>
+            <label class="radio-item"><input type="radio" name="invoiceTo" value="不需發票" onchange="update()">不需發票</label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>保固書交付對象</label>
+          <div class="radio-row">
+            <label class="radio-item"><input type="radio" name="warrantyTo" value="委託方" onchange="update()" checked>委託方</label>
+            <label class="radio-item"><input type="radio" name="warrantyTo" value="屋主" onchange="update()">屋主</label>
+            <label class="radio-item"><input type="radio" name="warrantyTo" value="委託方及屋主" onchange="update()">兩者皆交付</label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>驗收方式</label>
+          <div class="radio-row">
+            <label class="radio-item"><input type="radio" name="acceptBy" value="委託方現場驗收" onchange="update()" checked>委託方現場驗收</label>
+            <label class="radio-item"><input type="radio" name="acceptBy" value="屋主現場驗收" onchange="update()">屋主現場驗收</label>
+            <label class="radio-item"><input type="radio" name="acceptBy" value="照片驗收" onchange="update()">照片驗收</label>
+          </div>
+        </div>
+        <div class="form-group full">
+          <label>備註（選填）</label>
+          <textarea id="constructNote" placeholder="例：需配合屋主在家時間施工，完工後拍照存檔" oninput="update()"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 輸出 -->
+  <div class="card" style="padding:24px;">
+    <button class="generate-btn" onclick="openIssueDateModal()">輸出 PDF →</button>
     <div class="status-msg" id="statusMsg"></div>
   </div>
 
-  <div class="preview-sticky">
-    <div class="preview-card">
-      <div class="card-title">👀 PDF 驗收報告即時模擬</div>
-      <iframe class="preview-iframe" id="pdfPreviewer" src="about:blank"></iframe>
-    </div>
+</div>
+
+<!-- 右：預覽 -->
+<div class="preview-sticky">
+  <div class="preview-card">
+    <div class="preview-title">📄 即時預覽</div>
+    <iframe class="preview-iframe" id="previewIframe" src="about:blank"></iframe>
   </div>
+</div>
 </div>
 
 <script>
-/* ══════════════ 常數（沿用詠順工程行系統規格） ══════════════ */
+/* ══ 常數 ══ */
+const SCALE_PREVIEW = 1.5, SCALE_EXPORT = 3;
 const PW = 794, PH = 1123;
-const SCALE_EXPORT = 3, SCALE_PREVIEW = 1.5;
-const M = 75, MT = 94, MB = 94;
+const M = 62, MT = 76, MB = 76, CW = PW - M * 2;
+const BLUE = '#1871b5';
 const ff = '"Microsoft JhengHei","微軟正黑體","PingFang TC",Arial,sans-serif';
-const STATUS_COLOR = { "已改善": "#2e7d32", "待觀察": "#c98a1d", "需複修": "#e53935" };
+let currentScale = SCALE_PREVIEW;
+let lastURL = null, previewTimer = null;
+let currentType = 'inspect'; // 'inspect' | 'construct'
+let scopeCount = 0;
 
-let points = [];
-let pointSeq = 0;
-let previewTimeout = null;
-let lastPreviewObjectURL = null;
-let currentCaseId = null; // 目前載入/編輯中的雲端案件 doc ID
-
-function triggerLivePreview() {
-  clearTimeout(previewTimeout);
-  previewTimeout = setTimeout(() => generatePDF(true), 600);
+/* ══ Tab 切換 ══ */
+function switchType(type) {
+  currentType = type;
+  document.getElementById('tabInspect').classList.toggle('active', type === 'inspect');
+  document.getElementById('tabConstruct').classList.toggle('active', type === 'construct');
+  document.getElementById('inspectFields').style.display = type === 'inspect' ? '' : 'none';
+  document.getElementById('constructFields').style.display = type === 'construct' ? '' : 'none';
+  update();
 }
 
-/* ══════════════ Firebase 初始化 ══════════════ */
-const firebaseConfig = {
-  apiKey: "AIzaSyD2wWHP27kqd005xAuz-DEuEg_z9A8YCVc",
-  authDomain: "yong-shun.firebaseapp.com",
-  projectId: "yong-shun",
-  storageBucket: "yong-shun.firebasestorage.app",
-  messagingSenderId: "530988019396",
-  appId: "1:530988019396:web:6554ce1e9f977bd5182391"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const CASES_COLLECTION = 'cases';
-
-/* ══════════════ 從 Portal 網址參數自動載入案件（?case=xxx） ══════════════ */
-async function loadCaseFromUrl() {
-  const params = new URLSearchParams(window.location.search);
-  const caseId = params.get('case');
-  if (!caseId) return; // 沒有帶參數，維持顯示「尚未選擇案件」提示
-
-  try {
-    const doc = await db.collection(CASES_COLLECTION).doc(caseId).get();
-    if (!doc.exists) {
-      showToast('⚠️ 找不到對應的案件資料（可能已被刪除）');
-      return;
-    }
-    applyCase(caseId, doc.data());
-    document.getElementById('caseNotLoadedNotice').style.display = 'none';
-    const banner = document.getElementById('caseLoadedBanner');
-    const c = doc.data();
-    document.getElementById('caseLoadedText').textContent = `✅ 已從 Portal 載入案件：${c.clientName || ''}　${c.caseNumber || ''}`;
-    banner.style.display = 'block';
-  } catch (err) {
-    console.error(err);
-    showToast('❌ 載入案件失敗：' + err.message);
-  }
+/* ══ 施工項目 ══ */
+function addScope() {
+  scopeCount++;
+  const id = scopeCount;
+  const div = document.createElement('div');
+  div.className = 'scope-item'; div.id = `scope-${id}`;
+  div.innerHTML = `<div class="scope-bullet"></div><input type="text" placeholder="例：3樓陽台防水層施作" oninput="update()"><button class="del-scope-btn" onclick="delScope(${id})">×</button>`;
+  document.getElementById('scopeList').appendChild(div);
+  div.querySelector('input').addEventListener('input', update);
+  update();
 }
 
-function applyCase(id, c) {
-  currentCaseId = id;
-  window.YSCurrentCaseId = id;
-  document.getElementById('caseNumber').value = c.caseNumber || '';
-  document.getElementById('clientName').value = c.clientName || '';
-  document.getElementById('clientContact').value = c.clientContact || '';
-  document.getElementById('address').value = c.clientAddress || '';
-  document.getElementById('phone').value = c.phone || '';
-
-  // 優先使用此案件先前存過的驗收資料（若有），否則從檢測資料帶入問題點位
-  if (c.acceptance && Array.isArray(c.acceptance.points) && c.acceptance.points.length > 0) {
-    points = c.acceptance.points.map(pt => { pointSeq++; return { ...pt, id: pointSeq, beforeImg: null, afterImg: null }; });
-    if (c.acceptance.testTime) document.getElementById('testTime').value = c.acceptance.testTime;
-    if (c.acceptance.testMethod) document.getElementById('testMethod').value = c.acceptance.testMethod;
-    if (c.acceptance.testResult) document.getElementById('testResult').value = c.acceptance.testResult;
-    if (c.acceptance.watchNote) document.getElementById('watchNote').value = c.acceptance.watchNote;
-  } else if (c.detection && Array.isArray(c.detection.points)) {
-    points = c.detection.points.map(card => {
-      pointSeq++;
-      const issueParts = [];
-      if (card.recordA) issueParts.push(card.recordA);
-      if (card.recordB) issueParts.push(card.recordB);
-      if (card.analysis) issueParts.push('判讀：' + card.analysis);
-      return { id: pointSeq, location: card.position || '', originalIssue: issueParts.join('；'), status: '已改善', note: '', fromReport: true, beforeImg: null, afterImg: null };
-    });
-  } else {
-    points = [];
-  }
-
-  renderPoints();
-  triggerLivePreview();
+function delScope(id) {
+  const el = document.getElementById(`scope-${id}`);
+  if (el) { el.remove(); update(); }
 }
 
-function showToast(text) {
-  const msg = document.getElementById('statusMsg');
-  msg.className = 'status-msg success';
-  msg.textContent = text;
-  setTimeout(() => { if (msg.textContent === text) { msg.textContent = ''; msg.className = 'status-msg'; } }, 3500);
+function getScopeItems() {
+  return [...document.querySelectorAll('#scopeList .scope-item input')]
+    .map(i => i.value.trim()).filter(Boolean);
 }
 
-/* ══════════════ 問題點位卡片（表單） ══════════════ */
-function newPoint() {
-  pointSeq++;
-  return { id: pointSeq, location: '', originalIssue: '', status: '已改善', note: '', fromReport: false, beforeImg: null, afterImg: null };
+/* ══ 工具 ══ */
+function toROC(dateStr) {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return `民國 ${y - 1911} 年 ${m} 月 ${d} 日`;
 }
 
-function addPoint() {
-  points.push(newPoint());
-  renderPoints();
-  triggerLivePreview();
+function getRadio(name) {
+  const el = document.querySelector(`input[name="${name}"]:checked`);
+  return el ? el.value : '';
 }
 
-function removePoint(id) {
-  points = points.filter(p => p.id !== id);
-  renderPoints();
-  triggerLivePreview();
-}
-
-function getPoint(id) {
-  return points.find(p => p.id === Number(id));
-}
-
-function esc(str) { return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function escAttr(str) { return (str || '').replace(/"/g,'&quot;'); }
-
-function renderPoints() {
-  const list = document.getElementById('pointList');
-  if (points.length === 0) {
-    list.innerHTML = '<div class="draft-empty">尚無問題點位，請從 Portal 載入案件，或手動新增。</div>';
-    return;
-  }
-  list.innerHTML = points.map((p, i) => `
-    <div class="point-card">
-      <span class="idx-badge">點位 ${i+1}</span>
-      ${p.fromReport ? '<span class="src-badge">來自檢測報告</span>' : ''}
-      <button class="del-btn" onclick="removePoint(${p.id})">刪除</button>
-      <label>位置</label>
-      <input type="text" value="${escAttr(p.location)}" oninput="getPoint(${p.id}).location=this.value; triggerLivePreview();" placeholder="例：主臥浴室天花板">
-      <label style="margin-top:10px;">原始問題描述</label>
-      <textarea oninput="getPoint(${p.id}).originalIssue=this.value; triggerLivePreview();" placeholder="例：天花板滲水發黃，經檢測為樓上排水管接頭破損">${esc(p.originalIssue)}</textarea>
-      <label style="margin-top:10px;">複查結果</label>
-      <select onchange="getPoint(${p.id}).status=this.value; triggerLivePreview();">
-        <option value="已改善" ${p.status==='已改善'?'selected':''}>已改善</option>
-        <option value="待觀察" ${p.status==='待觀察'?'selected':''}>待觀察</option>
-        <option value="需複修" ${p.status==='需複修'?'selected':''}>需複修</option>
-      </select>
-      <label style="margin-top:10px;">備註</label>
-      <input type="text" value="${escAttr(p.note)}" oninput="getPoint(${p.id}).note=this.value; triggerLivePreview();" placeholder="選填">
-      <div class="photo-row">
-        <div class="photo-slot">
-          <div class="ptitle">施工前照片</div>
-          <input type="file" accept="image/*" onchange="handleImage(event, ${p.id}, 'beforeImg')">
-          ${p.beforeImg ? `<img src="${p.beforeImg}">` : ''}
-        </div>
-        <div class="photo-slot">
-          <div class="ptitle">施工後照片</div>
-          <input type="file" accept="image/*" onchange="handleImage(event, ${p.id}, 'afterImg')">
-          ${p.afterImg ? `<img src="${p.afterImg}">` : ''}
-        </div>
-      </div>
-    </div>
-  `).join('');
-}
-
-function handleImage(e, id, field) {
-  const file = e.target.files[0];
-  if (!file) return;
-  // 驗收報告的施工前／後原始照片同步到私人 Storage。
-  uploadCasePhoto(currentCaseId, field === 'beforeImg' ? 'before' : 'after', file, `驗收報告點位 ${id}／${field === 'beforeImg' ? '施工前' : '施工後'}`)
-    .catch(err => console.warn('照片上傳失敗（不影響本頁預覽）：', err));
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    getPoint(id)[field] = ev.target.result;
-    renderPoints();
-    triggerLivePreview();
-  };
-  reader.readAsDataURL(file);
-}
-
-/* ══════════════ 圖片預載（canvas 繪製需要 Image 物件） ══════════════ */
-function preloadImages() {
-  const promises = [];
-  points.forEach(p => {
-    ['beforeImg','afterImg'].forEach(field => {
-      if (p[field]) {
-        const cacheKey = `_img_${field}`;
-        if (!p[cacheKey] || p[cacheKey].src !== p[field]) {
-          const img = new Image();
-          const pr = new Promise(res => { img.onload = res; img.onerror = res; });
-          img.src = p[field];
-          p[cacheKey] = img;
-          promises.push(pr);
-        }
-      }
-    });
-  });
-  return Promise.all(promises);
-}
-
-function wrapText(ctx, text, maxWidth, font) {
+function wrapText(ctx, text, maxW, font) {
+  if (!text) return [''];
   ctx.font = font;
-  const lines = [];
-  let line = '';
-  for (const ch of (text || '')) {
-    const test = line + ch;
-    if (ctx.measureText(test).width > maxWidth && line) { lines.push(line); line = ch; }
-    else line = test;
+  const chars = [...text];
+  const lines = []; let cur = '';
+  for (const ch of chars) {
+    if (ctx.measureText(cur + ch).width > maxW && cur) { lines.push(cur); cur = ch; }
+    else cur += ch;
   }
-  if (line) lines.push(line);
-  return lines;
+  if (cur) lines.push(cur);
+  return lines.length ? lines : [''];
 }
 
-/* ══════════════ 分頁：每頁最多 3 個點位卡片 ══════════════ */
-const CARDS_PER_PAGE = 3;
-function getPointPages() {
-  if (points.length === 0) return [];
-  const pages = [];
-  for (let i = 0; i < points.length; i += CARDS_PER_PAGE) pages.push(points.slice(i, i + CARDS_PER_PAGE));
-  return pages;
+function getDocNo() {
+  return document.getElementById('docNo').value.trim();
 }
 
-/* ══════════════ 頁面繪製 ══════════════ */
-function drawHeader(ctx, pageNum, totalPages) {
-  ctx.fillStyle = '#1871b5';
-  ctx.fillRect(0, 0, PW, 8);
-  ctx.fillStyle = '#1a1a1a';
-  ctx.font = `bold 26px ${ff}`;
-  ctx.fillText('施工驗收報告', M, MT - 20);
-  ctx.font = `13px ${ff}`;
-  ctx.fillStyle = '#888';
-  ctx.fillText('詠順工程行｜漏水抓漏工程', M, MT + 4);
-  ctx.textAlign = 'right';
-  ctx.font = `11px ${ff}`;
-  ctx.fillText(`第 ${pageNum} / ${totalPages} 頁`, PW - M, MT - 20);
+function getClientRoleDisplay() {
+  const sel = document.getElementById('clientRole').value;
+  if (!sel) return '　　　　　　';
+  if (sel !== '其他') return sel;
+  const other = document.getElementById('clientRoleOther').value.trim();
+  return other || '其他';
+}
+
+function toggleRoleOther() {
+  const sel = document.getElementById('clientRole');
+  const wrap = document.getElementById('clientRoleOtherWrap');
+  if (!sel || !wrap) return;
+  wrap.style.display = sel.value === '其他' ? 'block' : 'none';
+}
+
+function toggleInspectPurposeOther() {
+  const sel = document.getElementById('inspectPurpose');
+  const other = document.getElementById('inspectPurposeOther');
+  if (!sel || !other) return;
+  other.style.display = sel.value === '其他' ? 'block' : 'none';
+}
+
+function updateInspectPurposePreview() {
+  const sel = document.getElementById('inspectPurpose');
+  const el = document.getElementById('inspectPurposePreview');
+  if (!sel || !el) return;
+  if (sel.value === '其他') {
+    const other = document.getElementById('inspectPurposeOther').value.trim();
+    el.textContent = other ? `將印在文件上：${other}` : '';
+  } else {
+    el.textContent = `將印在文件上：${sel.value}`;
+  }
+}
+
+/* ══ UI 更新 ══ */
+function update() {
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(drawAndPreview, 600);
+}
+
+/* ══ Canvas 繪圖 ══ */
+function newCanvas() {
+  const canvas = document.createElement('canvas');
+  canvas.width = PW * currentScale; canvas.height = PH * currentScale;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(currentScale, currentScale);
+  return { canvas, ctx };
+}
+
+async function drawWatermark(ctx) {
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, PW, PH);
+  try {
+    const wm = new Image(); wm.crossOrigin = 'anonymous';
+    await new Promise((res, rej) => { wm.onload = res; wm.onerror = rej; wm.src = '浮水印.png'; });
+    ctx.drawImage(wm, 0, 0, PW, PH);
+  } catch(e) {}
+}
+
+async function drawPage() {
+  const { canvas, ctx } = newCanvas();
+  await drawWatermark(ctx);
+
+  const FS = 13, LH = 21;
+  const bodyFont = `${FS}px ${ff}`;
+  const boldFont = `bold ${FS}px ${ff}`;
+  const smallFont = `11.5px ${ff}`;
+
+  /* 讀值 */
+  const docNo       = getDocNo();
+  const signDate    = document.getElementById('signDate').value;
+  const clientName  = document.getElementById('clientName').value.trim() || '　　　　　　';
+  const clientContact = document.getElementById('clientContact').value.trim() || '　　　　';
+  const clientPhone = document.getElementById('clientPhone').value.trim() || '　　　　　　';
+  const clientRole  = getClientRoleDisplay();
+  const siteAddress = document.getElementById('siteAddress').value.trim() || '　　　　　　　　　　';
+  const isInspect   = currentType === 'inspect';
+  const typeLabel   = isInspect ? '（檢測）' : '（施工）';
+
+  let y = MT;
+
+  /* ══ 標題 + 編號 + 分隔線 ══ */
+  ctx.font = `bold 21px ${ff}`; ctx.fillStyle = '#1a1a1a'; ctx.textAlign = 'left';
+  ctx.fillText(`第三方委託書${typeLabel}`, M, y + 22);
+  ctx.font = `11px ${ff}`; ctx.fillStyle = '#555'; ctx.textAlign = 'right';
+  ctx.fillText(`編號：${docNo || '—'}`, PW - M, y + 22);
   ctx.textAlign = 'left';
-  ctx.strokeStyle = '#dddddd'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(M, MT + 18); ctx.lineTo(PW - M, MT + 18); ctx.stroke();
-}
-
-function drawFooter(ctx) {
-  ctx.strokeStyle = '#dddddd';
-  ctx.beginPath(); ctx.moveTo(M, PH - MB); ctx.lineTo(PW - M, PH - MB); ctx.stroke();
-  ctx.fillStyle = '#999';
-  ctx.font = `10.5px ${ff}`;
-  ctx.fillText('詠順工程行　聯絡人：鍾師富　電話：0985-226-510', M, PH - MB + 20);
-}
-
-function sectionTitle(ctx, text, y) {
-  ctx.fillStyle = '#1871b5';
-  ctx.font = `bold 16px ${ff}`;
-  ctx.fillText(text, M, y);
-  ctx.strokeStyle = '#e8f0fb'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(M, y + 10); ctx.lineTo(PW - M, y + 10); ctx.stroke();
-  return y + 34;
-}
-
-function drawInfoPage(ctx, pageNum, totalPages, includeSignature) {
-  drawHeader(ctx, pageNum, totalPages);
-  let y = MT + 60;
-
-  const caseNumber = document.getElementById('caseNumber').value || '（未填寫）';
-  const clientName = document.getElementById('clientName').value || '（未填寫）';
-  const clientContact = document.getElementById('clientContact').value || '（未填寫）';
-  const address = document.getElementById('address').value || '（未填寫）';
-  const phone = document.getElementById('phone').value || '（未填寫）';
-  const acceptDate = document.getElementById('acceptDate').value || '（未填寫）';
-
-  y = sectionTitle(ctx, '基本資料', y);
-  ctx.font = `13px ${ff}`;
-  const rows = [['案件編號', caseNumber, '驗收日期', acceptDate], ['委託方', clientName, '負責人', clientContact], ['聯絡電話', phone, '', '']];
-  rows.forEach(([l1,v1,l2,v2]) => {
-    ctx.fillStyle = '#888'; ctx.fillText(l1, M, y);
-    ctx.fillStyle = '#222'; ctx.fillText(v1, M + 85, y);
-    ctx.fillStyle = '#888'; ctx.fillText(l2, M + 350, y);
-    ctx.fillStyle = '#222'; ctx.fillText(v2, M + 430, y);
-    y += 28;
-  });
-  ctx.fillStyle = '#888'; ctx.fillText('施工地址', M, y);
-  ctx.fillStyle = '#222'; ctx.fillText(address, M + 85, y);
-  y += 44;
-
-  y = sectionTitle(ctx, '試水測試記錄', y);
-  ctx.font = `13px ${ff}`;
-  const testTime = document.getElementById('testTime').value || '（未填寫）';
-  const testMethod = document.getElementById('testMethod').value || '（未填寫）';
-  ctx.fillStyle = '#888'; ctx.fillText('測試時間', M, y);
-  ctx.fillStyle = '#222'; ctx.fillText(testTime, M + 85, y);
-  ctx.fillStyle = '#888'; ctx.fillText('測試方式', M + 350, y);
-  ctx.fillStyle = '#222'; ctx.fillText(testMethod, M + 430, y);
-  y += 28;
-  ctx.fillStyle = '#888'; ctx.fillText('測試結果', M, y);
-  y += 20;
-  ctx.fillStyle = '#222'; ctx.font = `12.5px ${ff}`;
-  wrapText(ctx, document.getElementById('testResult').value, PW - 2*M, `12.5px ${ff}`).forEach(line => { ctx.fillText(line, M, y); y += 19; });
-  y += 20;
-
-  y = sectionTitle(ctx, '觀察期提醒', y);
-  ctx.fillStyle = '#222'; ctx.font = `12.5px ${ff}`;
-  wrapText(ctx, document.getElementById('watchNote').value, PW - 2*M, `12.5px ${ff}`).forEach(line => { ctx.fillText(line, M, y); y += 19; });
-
-  if (includeSignature) drawSignature(ctx, Math.max(y + 20, PH - MB - 130));
-  drawFooter(ctx);
-}
-
-function drawSignature(ctx, y) {
-  const dividerY = y; // 分隔線位置（蓋章區間上緣）
-  ctx.strokeStyle = '#c8c8c8'; ctx.lineWidth = 0.8;
+  y += 34;
+  ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 0.85;
   ctx.beginPath(); ctx.moveTo(M, y); ctx.lineTo(PW - M, y); ctx.stroke();
-  y += 30;
-  const CW = PW - 2*M;
-  const midX = M + CW / 2;
+  y += 22;
+
+  /* ══ 受委託方固定欄 ══ */
+  function drawKV(label, value) {
+    const LABEL_W = 90; // 固定 label 欄寬，對齊 value
+    ctx.font = boldFont; ctx.fillStyle = '#555';
+    ctx.fillText(label, M, y);
+    ctx.font = bodyFont; ctx.fillStyle = '#1a1a1a';
+    wrapText(ctx, value, CW - LABEL_W, bodyFont).forEach((line, i) => {
+      ctx.fillText(line, M + LABEL_W, y + i * LH);
+    });
+    y += LH * 1.3;
+  }
+
+  function drawSection(title) {
+    y += 6;
+    // 藍色標題
+    ctx.font = `bold 13.5px ${ff}`; ctx.fillStyle = BLUE;
+    ctx.fillText(title, M, y);
+    y += 5;
+    // 標題正下方的橫線（從 M 到右邊界）
+    ctx.strokeStyle = '#bccfe8'; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(M, y); ctx.lineTo(PW - M, y); ctx.stroke();
+    y += LH * 0.75;
+  }
+
+  /* ── 甲方（委託方） ── */
+  drawSection('甲方（委託方）');
+  drawKV('名　　稱：', `${clientName}　（${clientRole}）`);
+  drawKV('負 責 人：', clientContact);
+  drawKV('聯絡電話：', clientPhone);
+  y += 4;
+
+  /* ── 乙方（受委託方） ── */
+  drawSection('乙方（受委託方）');
+  drawKV('名　　稱：', '詠順工程行');
+  drawKV('負 責 人：', '鍾師富');
+  drawKV('聯絡電話：', '0985-226-510');
+  y += 4;
+
+  /* ── 委託標的 ── */
+  drawSection('委託標的');
+  drawKV('施工地址：', siteAddress);
+
+  if (isInspect) {
+    /* ────── 檢測版 ────── */
+    const ownerName    = document.getElementById('ownerName').value.trim() || '　　　　';
+    const scope        = document.getElementById('inspectScope').value.trim() || '　　　　　　　　　　';
+    const purposeSel    = document.getElementById('inspectPurpose').value;
+    const purpose       = purposeSel === '其他'
+      ? (document.getElementById('inspectPurposeOther').value.trim() || '其他')
+      : (purposeSel || '　　　　　　　　　　');
+    const reportTo     = getRadio('reportTo') || '委託方';
+    const payBy        = getRadio('payBy') || '委託方';
+    const note         = document.getElementById('inspectNote').value.trim();
+
+    drawKV('實際屋主：', ownerName);
+    y += 2;
+
+    ctx.font = boldFont; ctx.fillStyle = '#1a1a1a';
+    ctx.fillText('檢測範圍：', M, y); y += LH;
+    ctx.font = bodyFont; ctx.fillStyle = '#333';
+    wrapText(ctx, scope, CW - 20, bodyFont).forEach(line => {
+      ctx.fillText(line, M + 12, y); y += LH;
+    });
+    y += 4;
+
+    ctx.font = boldFont; ctx.fillStyle = '#1a1a1a';
+    ctx.fillText('檢測目的：', M, y); y += LH;
+    ctx.font = bodyFont; ctx.fillStyle = '#333';
+    wrapText(ctx, purpose, CW - 20, bodyFont).forEach(line => {
+      ctx.fillText(line, M + 12, y); y += LH;
+    });
+    y += 8;
+
+    drawSection('委託條件');
+    drawKV('報告交付：', reportTo);
+    drawKV('費用負擔：', payBy);
+
+    if (note) {
+      y += 4;
+      drawSection('備　　　註');
+      ctx.font = bodyFont; ctx.fillStyle = '#333';
+      wrapText(ctx, note, CW, bodyFont).forEach(line => {
+        ctx.fillText(line, M, y); y += LH;
+      });
+    }
+
+  } else {
+    /* ────── 施工版 ────── */
+    const constructDate = document.getElementById('constructDate').value;
+    const payMethod     = document.getElementById('paymentMethod').value;
+    const invoiceTo     = getRadio('invoiceTo') || '委託方';
+    const warrantyTo    = getRadio('warrantyTo') || '委託方';
+    const acceptBy      = getRadio('acceptBy') || '委託方現場驗收';
+    const note          = document.getElementById('constructNote').value.trim();
+    const scopes        = getScopeItems();
+
+    if (constructDate) drawKV('預計施工：', toROC(constructDate));
+    y += 4;
+
+    drawSection('工程範圍');
+    ctx.font = bodyFont; ctx.fillStyle = '#333';
+    if (scopes.length === 0) {
+      ctx.fillText('（未填寫）', M + 12, y); y += LH;
+    } else {
+      scopes.forEach((s, i) => {
+        const bullet = `${i + 1}.`;
+        ctx.font = boldFont; ctx.fillStyle = BLUE;
+        ctx.fillText(bullet, M + 4, y);
+        ctx.font = bodyFont; ctx.fillStyle = '#333';
+        const bw = ctx.measureText(bullet).width;
+        wrapText(ctx, s, CW - bw - 16, bodyFont).forEach((line, li) => {
+          ctx.fillText(line, M + bw + 12, y); y += LH;
+        });
+      });
+    }
+    y += 4;
+
+    drawSection('施工條件');
+    drawKV('付款方式：', payMethod);
+    drawKV('發票開立：', invoiceTo);
+    drawKV('保固書交付：', warrantyTo);
+    drawKV('驗　　收：', acceptBy);
+
+    if (note) {
+      y += 4;
+      drawSection('備　　　註');
+      ctx.font = bodyFont; ctx.fillStyle = '#333';
+      wrapText(ctx, note, CW, bodyFont).forEach(line => {
+        ctx.fillText(line, M, y); y += LH;
+      });
+    }
+  }
+
+  /* ══ 授權聲明 ══ */
+  y += 8;
+  drawSection('授權聲明');
+  ctx.font = bodyFont; ctx.fillStyle = '#333';
+  const declare = isInspect
+    ? '甲方聲明已取得實際屋主同意，授權乙方（詠順工程行）進場進行漏水檢測。甲方應確保乙方人員得以順利進入現場，並對所提供之屋主資訊之真實性負責。'
+    : '甲方確認已獲授權委託乙方（詠順工程行）於上列地址進行修繕施工，並同意依本委託書所載條件執行。甲方應協助乙方人員順利進場施工，並依約定付款。';
+  wrapText(ctx, declare, CW, bodyFont).forEach(line => {
+    ctx.fillText(line, M, y); y += LH;
+  });
+  y += LH * 0.6;
+
+  /* ══ 分隔線 ══ */
+  ctx.strokeStyle = '#c8c8c8'; ctx.lineWidth = 0.7;
+  const dividerY = y; // 分隔線位置（蓋章區間上緣）
+  ctx.beginPath(); ctx.moveTo(M, y); ctx.lineTo(PW - M, y); ctx.stroke();
+  y += LH * 1.3;
+
+  /* ══ 簽章 ══ */
   const colW = (CW - 40) / 2;
-  ctx.font = `13px ${ff}`; ctx.fillStyle = '#333';
-  ctx.fillText('詠順工程行', M, y);
-  ctx.fillText('委託方（負責人）', midX + 20, y);
-  const lineY = y + 70; // 加大分隔線～簽名線距離，讓印章有更大的可用高度
+  const midX = M + colW + 40;
+
+  ctx.font = bodyFont; ctx.fillStyle = '#333';
+  ctx.fillText('甲方（委託方）', M, y);
+  ctx.fillText('乙方（詠順工程行）', midX, y);
+  y += LH * 0.5;
+
+  const lineY = y + 72; // 加大分隔線～簽名線距離，讓印章有更大的可用高度
+  // 記錄詠順（乙方）簽章欄的分隔線～簽名線區間，供蓋章使用
+  // 印章往右偏移，避免蓋到左側「乙方（詠順工程行）」「鍾師富」等文字
+  window._stampPos = { cx: midX + colW * 0.72, topY: dividerY, lineY: lineY, maxW: colW * 0.5 };
   ctx.strokeStyle = '#333'; ctx.lineWidth = 0.9;
   ctx.beginPath(); ctx.moveTo(M, lineY); ctx.lineTo(M + colW, lineY); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(midX + 20, lineY); ctx.lineTo(midX + 20 + colW, lineY); ctx.stroke();
-  // 記錄詠順簽章欄的分隔線～簽名線區間，供蓋章使用
-  window._stampPos = { cx: M + colW/2, topY: dividerY, lineY: lineY, maxW: colW };
-  ctx.font = `10.5px ${ff}`; ctx.fillStyle = '#888';
-  ctx.fillText('鍾師富', M, lineY + 20);
-  ctx.fillText('簽名 / 蓋章', midX + 20, lineY + 20);
-}
+  ctx.beginPath(); ctx.moveTo(midX, lineY); ctx.lineTo(midX + colW, lineY); ctx.stroke();
 
-function drawPointsPage(ctx, pagePoints, pageIndex, pageNum, totalPages, isLastPage) {
-  drawHeader(ctx, pageNum, totalPages);
-  let y = MT + 60;
-  y = sectionTitle(ctx, '問題點位複查', y);
+  const subY = lineY + LH * 0.9;
+  ctx.font = smallFont; ctx.fillStyle = '#888';
+  ctx.fillText('負責人簽名 / 蓋章', M, subY);
+  ctx.fillText('鍾師富', midX, subY);
+  y = subY + LH * 1.5;
 
-  const cardH = 250, cardGap = 16;
-  pagePoints.forEach((p, i) => {
-    const globalIdx = pageIndex * CARDS_PER_PAGE + i + 1;
-    const cardY = y;
-    ctx.strokeStyle = '#dddddd'; ctx.lineWidth = 1;
-    ctx.strokeRect(M, cardY, PW - 2*M, cardH);
-
-    ctx.fillStyle = '#1871b5'; ctx.fillRect(M, cardY, 86, 26);
-    ctx.fillStyle = '#fff'; ctx.font = `bold 12px ${ff}`;
-    ctx.fillText(`點位 ${globalIdx}`, M + 12, cardY + 17);
-
-    const statusColor = STATUS_COLOR[p.status] || '#888';
-    const badgeW = 66;
-    ctx.fillStyle = statusColor; ctx.fillRect(PW - M - badgeW, cardY, badgeW, 26);
-    ctx.fillStyle = '#fff'; ctx.font = `bold 12px ${ff}`; ctx.textAlign = 'center';
-    ctx.fillText(p.status, PW - M - badgeW/2, cardY + 17);
-    ctx.textAlign = 'left';
-
-    let ty = cardY + 46;
-    ctx.font = `13px ${ff}`; ctx.fillStyle = '#888'; ctx.fillText('位置', M + 12, ty);
-    ctx.font = `bold 13px ${ff}`; ctx.fillStyle = '#222'; ctx.fillText(p.location || '（未填寫）', M + 54, ty);
-
-    ty += 24;
-    ctx.font = `11px ${ff}`; ctx.fillStyle = '#888'; ctx.fillText('原始問題', M + 12, ty);
-    ty += 16;
-    ctx.font = `11.5px ${ff}`; ctx.fillStyle = '#333';
-    wrapText(ctx, p.originalIssue || '（未填寫）', 250, `11.5px ${ff}`).slice(0,5).forEach(line => { ctx.fillText(line, M + 12, ty); ty += 16; });
-
-    if (p.note) {
-      ty += 6;
-      ctx.font = `11px ${ff}`; ctx.fillStyle = '#888';
-      ctx.fillText('備註：' + p.note, M + 12, ty);
-    }
-
-    const photoW = 122, photoH = 88;
-    const photoX = PW - M - 12 - photoW*2 - 10;
-    const photoY = cardY + 42;
-    ['beforeImg','afterImg'].forEach((field, fi) => {
-      const px = photoX + fi*(photoW+10);
-      ctx.strokeStyle = '#d0d9e8';
-      ctx.strokeRect(px, photoY, photoW, photoH);
-      if (p[field] && p[`_img_${field}`]) {
-        ctx.drawImage(p[`_img_${field}`], px, photoY, photoW, photoH);
-      } else {
-        ctx.fillStyle = '#f0f4f8'; ctx.fillRect(px, photoY, photoW, photoH);
-        ctx.fillStyle = '#bbb'; ctx.font = `10.5px ${ff}`; ctx.textAlign = 'center';
-        ctx.fillText('無照片', px + photoW/2, photoY + photoH/2);
-        ctx.textAlign = 'left';
-      }
-      ctx.font = `10.5px ${ff}`; ctx.fillStyle = '#888'; ctx.textAlign = 'center';
-      ctx.fillText(fi===0?'施工前':'施工後', px + photoW/2, photoY + photoH + 14);
-      ctx.textAlign = 'left';
-    });
-
-    y = cardY + cardH + cardGap;
-  });
-
-  if (isLastPage) {
-    const sigY = y + 10;
-    if (sigY < PH - MB - 110) drawSignature(ctx, sigY);
+  /* ══ 備注小字 + 日期 ══ */
+  ctx.font = `10px ${ff}`; ctx.fillStyle = '#999'; ctx.textAlign = 'center';
+  ctx.fillText('※ 本委託書一式兩份，雙方簽章後各執一份為憑。', PW / 2, y);
+  y += LH * 1.5;
+  ctx.font = `bold 14px ${ff}`; ctx.fillStyle = '#1a1a1a';
+  if (signDate) {
+    const [sy, sm, sd] = signDate.split('-').map(Number);
+    ctx.fillText(`中　華　民　國　　${sy - 1911}　　年　　${sm}　　月　　${sd}　　日`, PW / 2, y);
+  } else {
+    ctx.fillText('中　華　民　國　　　　　年　　　　月　　　　日', PW / 2, y);
   }
-  drawFooter(ctx);
+  ctx.textAlign = 'left';
+
+  return { canvas, ctx };
 }
 
-/* ══════════════ PDF 產生（即時預覽 + 正式輸出共用） ══════════════ */
+/* ══ 預覽 ══ */
+async function drawAndPreview() {
+  currentScale = SCALE_PREVIEW;
+  try {
+    const page = await drawPage();
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    doc.addImage(page.canvas.toDataURL('image/png', 0.75), 'PNG', 0, 0, 210, 297);
+    const blob = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    document.getElementById('previewIframe').src = url + '#toolbar=0&navpanes=0&scrollbar=0';
+    if (lastURL) URL.revokeObjectURL(lastURL);
+    lastURL = url;
+  } catch(e) { console.error(e); }
+}
+
 function formatDateCN(dateStr) {
   if (!dateStr) return '';
   const [y, m, d] = dateStr.split('-');
   return `${y}年${parseInt(m,10)}月${parseInt(d,10)}日`;
 }
 
-/* ══════════════ 驗收日期確認彈窗（輸出前最後一步）══════════════ */
+/* ══════════════ 簽署日期確認彈窗（輸出前最後一步）══════════════ */
 function openIssueDateModal() {
-  const cur = document.getElementById('acceptDate').value || new Date().toISOString().split('T')[0];
+  const cur = document.getElementById('signDate').value || new Date().toISOString().split('T')[0];
   const ov = document.createElement('div');
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:9999;';
   ov.innerHTML = `<div style="background:#fff;border-radius:14px;padding:28px 30px;max-width:340px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,.2);font-family:'Microsoft JhengHei',Arial,sans-serif;">
-    <div style="font-size:16px;font-weight:700;color:#1a2233;margin-bottom:6px;">請選擇驗收日期</div>
+    <div style="font-size:16px;font-weight:700;color:#1a2233;margin-bottom:6px;">請選擇簽署日期</div>
     <div style="font-size:12px;color:#888;margin-bottom:16px;">這是文件上會印出、也是交付給委託方的日期，預設為今天，可自行修改</div>
     <input type="date" id="_issueDateInput" value="${cur}" style="width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:8px;font-size:14px;font-family:inherit;margin-bottom:20px;">
     <div style="display:flex;gap:10px;">
@@ -583,107 +675,157 @@ function openIssueDateModal() {
   document.getElementById('_issueDateCancel').onclick = () => document.body.removeChild(ov);
   document.getElementById('_issueDateConfirm').onclick = () => {
     const chosen = document.getElementById('_issueDateInput').value || new Date().toISOString().split('T')[0];
-    document.getElementById('acceptDate').value = chosen;
+    document.getElementById('signDate').value = chosen;
     document.body.removeChild(ov);
-    generatePDF(false);
+    update(); // 讓即時預覽也反映最終選定的日期
+    generatePDF();
   };
 }
 
-async function generatePDF(isPreview = false) {
-  const btn = document.getElementById('generateBtn');
+/* ══ 輸出 PDF ══ */
+async function generatePDF() {
+  const btn = document.querySelector('.generate-btn');
   const msg = document.getElementById('statusMsg');
-  if (!isPreview) { btn.disabled = true; msg.className = 'status-msg'; msg.textContent = '正在產生驗收報告...'; }
-
+  btn.disabled = true; msg.className = 'status-msg'; msg.textContent = '正在產生委託書...';
+  currentScale = SCALE_EXPORT;
   try {
-    await preloadImages();
-    const scale = isPreview ? SCALE_PREVIEW : SCALE_EXPORT;
-    const pointPages = getPointPages();
-    const hasPoints = pointPages.length > 0;
-    const totalPages = 1 + pointPages.length;
-
-    const makePageCanvas = () => {
-      const c = document.createElement('canvas');
-      c.width = PW * scale; c.height = PH * scale;
-      const ctx = c.getContext('2d');
-      ctx.scale(scale, scale);
-      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, PW, PH);
-      return { canvas: c, ctx };
-    };
-
-    const pages = [];
-    const p1 = makePageCanvas();
-    drawInfoPage(p1.ctx, 1, totalPages, !hasPoints);
-    pages.push(p1.canvas);
-
-    pointPages.forEach((pp, idx) => {
-      const isLast = idx === pointPages.length - 1;
-      const pg = makePageCanvas();
-      drawPointsPage(pg.ctx, pp, idx, idx + 2, totalPages, isLast);
-      pages.push(pg.canvas);
-    });
-
+    // 安全防呆：理論上一定會經過簽署日期彈窗才會走到這裡
+    if (!document.getElementById('signDate').value) {
+      document.getElementById('signDate').value = new Date().toISOString().split('T')[0];
+    }
+    const page = await drawPage();
+    // 詢問是否蓋章（座標來自簽名線繪製時記錄的實際位置，會隨內容自動調整）
+    const stampedCanvas = await askAndStamp(page.canvas, window._stampPos || { cx: 644, topY: 960, lineY: 1020, maxW: 158 });
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    pages.forEach((c, i) => {
-      if (i > 0) doc.addPage();
-      doc.addImage(c.toDataURL('image/png', isPreview ? 0.7 : 0.92), 'PNG', 0, 0, 210, 297);
-    });
-
-    const blob = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
+    doc.addImage(stampedCanvas.toDataURL('image/png', 0.88), 'PNG', 0, 0, 210, 297);
+    const no = getDocNo() || 'commission';
+    const typeName = currentType === 'inspect' ? '檢測委託' : '施工委託';
+    const blob = doc.output('blob');
     const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `${no}_${typeName}.pdf`;
+    a.click(); URL.revokeObjectURL(url);
+    msg.className = 'status-msg success'; msg.textContent = `✅ 已輸出：${no}_${typeName}.pdf`;
 
-    if (isPreview) {
-      document.getElementById('pdfPreviewer').src = url + '#toolbar=0&navpanes=0';
-      if (lastPreviewObjectURL) URL.revokeObjectURL(lastPreviewObjectURL);
-      lastPreviewObjectURL = url;
-    } else {
-      // 安全防呆：理論上一定會經過驗收日期彈窗才會走到這裡
-      if (!document.getElementById('acceptDate').value) {
-        document.getElementById('acceptDate').value = new Date().toISOString().split('T')[0];
+    // 確保案件存在於 Supabase（若非從 Portal 載入，這裡會依電話／地址找到或新建案件），再存入 documents 表
+    try {
+      const clientName = document.getElementById('clientName').value || '';
+      const clientPhone = document.getElementById('clientPhone').value || '';
+      const siteAddress = document.getElementById('siteAddress').value || '';
+
+      if (!currentCaseId) {
+        const resolved = await ysResolveCustomerAndCase({ name: clientName, phone: clientPhone, address: siteAddress });
+        currentCustomerId = resolved.customerId;
+        currentCaseId = resolved.caseId;
       }
-      const caseNumber = document.getElementById('caseNumber').value || '驗收報告';
-      // 詢問是否蓋章（座標來自簽名線繪製時記錄的實際位置，會隨內容自動調整）
-      // 蓋章疊加在最後一頁 canvas（簽章頁）
-      const lastCanvas = pages[pages.length - 1];
-      const stampedCanvas = await askAndStamp(lastCanvas, window._stampPos || { cx: 226, topY: 913, lineY: 973, maxW: 300 });
-      pages[pages.length - 1] = stampedCanvas;
-      // 重新產生 PDF（含蓋章後的 canvas）
-      const doc2 = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      pages.forEach((c, i) => {
-        if (i > 0) doc2.addPage();
-        doc2.addImage(c.toDataURL('image/png', 0.92), 'PNG', 0, 0, 210, 297);
+      currentCaseId = await ysUpsertCase({
+        caseId: currentCaseId, customerId: currentCustomerId,
+        caseNumber: no, address: siteAddress
       });
-      const blob2 = new Blob([doc2.output('arraybuffer')], { type: 'application/pdf' });
-      const url2 = URL.createObjectURL(blob2);
-      const a = document.createElement('a');
-      a.href = url2; a.download = `${caseNumber}_驗收.pdf`;
-      a.click(); URL.revokeObjectURL(url2);
-      msg.className = 'status-msg success'; msg.textContent = '✅ 驗收報告已產生';
+      window.YSCurrentCaseId = currentCaseId;
 
-      const acceptDateVal = document.getElementById('acceptDate').value;
-      setTimeout(() => {
-        alert(`📌 提醒：請記得依驗收日期（${formatDateCN(acceptDateVal)}）將檔案交付給委託方。`);
-      }, 300);
+      await ysSaveDocument({
+        caseId: currentCaseId,
+        docType: 'commission',
+        docNumber: no,
+        title: `第三方委託書（${typeName}） ${no}`,
+        pdfBlob: blob,
+        formData: {
+          type: currentType,
+          signDate: document.getElementById('signDate').value || '',
+          ownerName: document.getElementById('ownerName') ? document.getElementById('ownerName').value : '',
+          inspectScope: document.getElementById('inspectScope') ? document.getElementById('inspectScope').value : '',
+          scopeItems: getScopeItems(),
+          stampType: window._lastStampType || 'none'
+        }
+      });
+      msg.className = 'status-msg success'; msg.textContent = `✅ 已輸出：${no}_${typeName}.pdf（已同步至雲端）`;
+    } catch (cloudErr) {
+      console.warn('文件雲端存檔失敗（PDF 已成功下載到本機）：', cloudErr);
+      msg.className = 'status-msg'; msg.textContent = `⚠️ PDF 已下載，但雲端存檔失敗：` + cloudErr.message;
     }
-  } catch (err) {
-    if (!isPreview) { msg.className = 'status-msg error'; msg.textContent = '❌ 產生失敗：' + err.message; }
-    console.error(err);
+
+    const signDateVal = document.getElementById('signDate').value;
+    setTimeout(() => {
+      alert(`📌 提醒：請記得依簽署日期（${formatDateCN(signDateVal)}）將檔案交付給委託方。`);
+    }, 300);
+  } catch(e) {
+    msg.className = 'status-msg error'; msg.textContent = '❌ 輸出失敗：' + e.message;
+  } finally {
+    btn.disabled = false; currentScale = SCALE_PREVIEW;
   }
-  if (!isPreview) btn.disabled = false;
 }
 
-/* ══════════════ 初始化 ══════════════ */
-window.onload = () => {
-  // 驗收日期不在此預填，改為輸出前的最後一步再確認（即實際交付日期）
-  renderPoints();
-  loadCaseFromUrl();
+/* ══ 初始化 ══ */
+/* ══════════════ 案件雲端資料庫（Supabase，共用） ══════════════ */
+// supabaseClient 已由 ../supabase-shared.js 建立好
+let currentCaseId = null;
+let currentCustomerId = null;
 
+/* ══════════════ 從 Portal 網址參數自動載入案件（?case=xxx） ══════════════ */
+async function loadCaseFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const caseId = params.get('case');
+  if (!caseId) return;
+
+  try {
+    const c = await ysLoadCaseForEdit(caseId);
+    if (!c) return;
+    currentCaseId = c.caseId;
+    currentCustomerId = c.customerId;
+    window.YSCurrentCaseId = c.caseId;
+
+    document.getElementById('clientName').value = c.clientName || '';
+    document.getElementById('clientPhone').value = c.clientPhone || '';
+    document.getElementById('siteAddress').value = c.address || '';
+
+    const priorInspection = await ysLoadCaseDocuments(c.caseId, 'inspection_report');
+    const fd = priorInspection[0] ? priorInspection[0].form_data || {} : {};
+
+    // 檢測範圍：與檢測報告書一致
+    if (fd.inspectScope) document.getElementById('inspectScope').value = fd.inspectScope;
+
+    // 施工委託：工程摘要僅帶入 5.2 責任判定的漏水來源 + 建議施工項目，精簡成一句話
+    if (fd.conclusion && (fd.conclusion.source || fd.conclusion.repairItem)) {
+      const source = fd.conclusion.source || '';
+      const repairItem = fd.conclusion.repairItem === '其他' ? (fd.conclusion.repairOther || '其他') : (fd.conclusion.repairItem || '');
+      let summary = '';
+      if (source && repairItem) {
+        summary = `漏水來源位於${source}，建議施工項目為${repairItem}。`;
+      } else if (source) {
+        summary = `漏水來源位於${source}。`;
+      } else if (repairItem) {
+        summary = `建議施工項目為${repairItem}。`;
+      }
+      if (summary) {
+        addScope();
+        const inputs = document.querySelectorAll('#scopeList .scope-item input');
+        const lastInput = inputs[inputs.length - 1];
+        if (lastInput) lastInput.value = summary;
+      }
+    }
+
+    document.getElementById('caseNotLoadedNotice').style.display = 'none';
+    document.getElementById('caseLoadedText').textContent = `✅ 已從 Portal 載入案件：${c.clientName || ''}　${c.caseNumber || ''}`;
+    document.getElementById('caseLoadedBanner').style.display = 'block';
+
+    update();
+  } catch (err) {
+    console.error('載入案件失敗：', err);
+  }
+}
+
+window.onload = async () => {
+  // 簽署日期不在此預填，改為輸出前的最後一步再確認（即實際交付日期）
+  updateInspectPurposePreview();
+  await loadCaseFromUrl();
+  if (document.querySelectorAll('#scopeList .scope-item').length === 0) addScope();
   document.querySelectorAll('.container input, .container select, .container textarea').forEach(el => {
-    el.addEventListener('input', triggerLivePreview);
-    el.addEventListener('change', triggerLivePreview);
+    el.addEventListener('input', update);
+    el.addEventListener('change', update);
   });
-
-  generatePDF(true);
+  update();
 };
 
 /* ══════════════════════════════════════════════════════
@@ -780,7 +922,7 @@ async function askAndStamp(canvasEl, stampPos) {
     document.body.appendChild(ov);
     const setMsg = (t,c='#e53935') => { const el=document.getElementById('_sMsg'); el.textContent=t; el.style.color=c; };
     const close = () => document.body.removeChild(ov);
-    document.getElementById('_sSkip').onclick = () => { close(); resolve(canvasEl); };
+    document.getElementById('_sSkip').onclick = () => { window._lastStampType = 'none'; close(); resolve(canvasEl); };
     const doStamp = async (type) => {
       ['_sInv','_sPer','_sSkip'].forEach(id => document.getElementById(id).disabled=true);
       setMsg('讀取印章中…','#1871b5');
@@ -789,8 +931,9 @@ async function askAndStamp(canvasEl, stampPos) {
         const img = new Image();
         await new Promise((res,rej) => { img.onload=res; img.onerror=rej; img.src=dataURL; });
         const ctx   = canvasEl.getContext('2d');
-        // 注意：canvasEl 的 context 已經在建立時 ctx.scale() 過，這裡不能再乘一次縮放，
-        // 否則座標會被放大兩次、畫到畫布外面看不到。
+        // 注意：canvasEl 的 context 在 newCanvas() 時已經 ctx.scale(currentScale, currentScale)，
+        // 這個縮放會一直留在 context 上，所以這裡直接用 794×1123 邏輯座標即可，
+        // 不能再乘一次 canvasEl.width / 794，否則會被縮放兩次、畫到畫布外面。
         // 印章高度固定在「分隔線～簽名線」這段區間內，寬度依圖片比例縮放，
         // 並限制最大寬度不超過簽名欄寬度，避免蓋到日期或超出欄位。
         const PAD = 4;
@@ -801,6 +944,7 @@ async function askAndStamp(canvasEl, stampPos) {
         const px = stampPos.cx - sW / 2;
         const py = stampPos.topY + PAD + (availH - sH) / 2;
         ctx.drawImage(img, px, py, sW, sH);
+        window._lastStampType = type;
         setMsg('✔ 蓋章完成！','#2e7d32');
         setTimeout(() => { close(); resolve(canvasEl); }, 350);
       } catch(e) {
