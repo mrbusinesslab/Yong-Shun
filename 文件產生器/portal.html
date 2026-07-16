@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>詠順工程行｜文件產生器</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -27,10 +28,11 @@
     background: var(--bg);
     min-height: 100vh;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     padding: 32px 16px;
   }
+  body.login-mode { align-items: center; }
 
   /* ── 密碼頁 ── */
   #loginPage {
@@ -164,7 +166,7 @@
   /* ── 選單頁 ── */
   #menuPage {
     width: 100%;
-    max-width: 1320px;
+    max-width: 1500px;
     display: none;
     animation: fadeIn .4s ease;
   }
@@ -401,9 +403,133 @@
   .recent-btn.edit-btn { background: #fdf0e0; color: #b56a1a; }
   .recent-btn.edit-btn:hover { background: #e8a13c; color: #fff; }
   .recent-empty, .recent-loading { font-size: 13px; color: var(--sub); padding: 16px; text-align: center; background: var(--white); border-radius: 10px; border: 1.5px dashed var(--line); }
+
+  /* ── App Shell：側邊導覽 + 多頁面 ── */
+  .app-shell { display: flex; gap: 0; width: 100%; max-width: 1500px; align-items: flex-start; }
+  .sidebar {
+    width: 208px; flex-shrink: 0; background: var(--white); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 18px 12px; position: sticky; top: 24px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .sidebar-brand { display: flex; align-items: center; gap: 8px; padding: 6px 10px 16px; }
+  .sidebar-brand .logo-icon { width: 30px; height: 30px; }
+  .sidebar-brand .logo-icon svg { width: 18px; height: 18px; }
+  .sidebar-brand span { font-size: 14px; font-weight: 700; color: var(--text); }
+  .sidebar-item {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px;
+    font-size: 13.5px; color: var(--sub); cursor: pointer; font-weight: 600; user-select: none;
+    transition: background .15s, color .15s;
+  }
+  .sidebar-item:hover { background: var(--blue-pale); color: var(--blue); }
+  .sidebar-item.active { background: var(--blue); color: #fff; }
+  .sidebar-item .emo { font-size: 15px; width: 18px; text-align: center; }
+  .sidebar-divider { border-top: 1px solid var(--line); margin: 8px 4px; }
+
+  .app-main { flex: 1; min-width: 0; padding-left: 24px; }
+  .view { display: none; animation: fadeIn .3s ease; }
+  .view.active { display: block; }
+
+  .view-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .view-title-row h2 { font-size: 19px; font-weight: 700; color: var(--text); }
+
+  .placeholder-view {
+    background: var(--white); border: 1.5px dashed var(--line); border-radius: var(--radius);
+    padding: 60px 24px; text-align: center; color: var(--sub); font-size: 14px; line-height: 1.8;
+  }
+  .placeholder-view .big-emo { font-size: 34px; margin-bottom: 10px; display: block; }
+
+  /* ── 案件管理 ── */
+  .case-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .case-tab {
+    padding: 8px 16px; border-radius: 20px; border: 1.5px solid var(--line); background: var(--white);
+    font-size: 13px; font-weight: 600; color: var(--sub); cursor: pointer; font-family: inherit;
+  }
+  .case-tab.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .case-search-row { margin-bottom: 16px; }
+  .case-search-row input {
+    width: 100%; max-width: 360px; border: 1.5px solid var(--line); border-radius: 8px;
+    padding: 9px 14px; font-size: 13.5px; font-family: inherit; background: #fafcff; outline: none;
+  }
+  .case-search-row input:focus { border-color: var(--blue); background: #fff; }
+  .case-list { display: flex; flex-direction: column; gap: 10px; }
+  .case-row {
+    background: var(--white); border: 1.5px solid var(--line); border-radius: 10px;
+    padding: 14px 18px; box-shadow: var(--shadow);
+  }
+  .case-row-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .case-row-name { font-size: 14.5px; font-weight: 700; color: var(--text); }
+  .case-row-meta { font-size: 12px; color: var(--sub); margin-top: 3px; }
+  .status-badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; white-space: nowrap; }
+  .status-badge.active    { background: #e8f2fb; color: var(--blue); }
+  .status-badge.completed { background: #fff6e8; color: #b5720f; }
+  .status-badge.closed    { background: #eef1f4; color: #667; }
+  .status-badge.cancelled { background: #fdecea; color: #c0392b; }
+  .case-row-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+  /* ── 客戶管理 ── */
+  .customer-row {
+    background: var(--white); border: 1.5px solid var(--line); border-radius: 10px;
+    padding: 14px 18px; box-shadow: var(--shadow); display: flex; align-items: center;
+    justify-content: space-between; gap: 12px; flex-wrap: wrap; cursor: pointer;
+  }
+  .customer-row:hover { border-color: var(--blue); }
+  .customer-row-name { font-size: 14.5px; font-weight: 700; color: var(--text); }
+  .customer-row-meta { font-size: 12px; color: var(--sub); margin-top: 3px; }
+  .returning-badge { background: #fdf0e0; color: #b56a1a; font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 20px; margin-left: 6px; }
+  .customer-case-count { font-size: 12.5px; color: var(--blue); font-weight: 700; white-space: nowrap; }
+  .back-link { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--blue); cursor: pointer; font-weight: 600; margin-bottom: 16px; }
+  .back-link:hover { text-decoration: underline; }
+  .detail-card { background: var(--white); border: 1.5px solid var(--line); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; box-shadow: var(--shadow); }
+  .detail-card h3 { font-size: 16px; color: var(--text); margin-bottom: 4px; }
+  .detail-card .detail-meta { font-size: 13px; color: var(--sub); line-height: 1.9; margin-top: 8px; }
+
+  /* ── 文件中心 ── */
+  .doc-filters { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .doc-filters select, .doc-filters input {
+    border: 1.5px solid var(--line); border-radius: 8px; padding: 8px 12px; font-size: 13px;
+    font-family: inherit; background: #fafcff; outline: none;
+  }
+  .doc-filters select:focus, .doc-filters input:focus { border-color: var(--blue); background: #fff; }
+  .doc-row {
+    background: var(--white); border: 1.5px solid var(--line); border-radius: 10px;
+    padding: 12px 18px; box-shadow: var(--shadow); display: flex; align-items: center;
+    justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px;
+  }
+  .doc-type-badge { background: var(--blue-pale); color: var(--blue); font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; white-space: nowrap; }
+  .doc-status-badge { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+  .doc-status-badge.draft  { background: #eef1f4; color: #667; }
+  .doc-status-badge.issued { background: #e6f6ea; color: #2e7d32; }
+  .doc-status-badge.voided { background: #fdecea; color: #c0392b; }
+
+  /* ── 搜尋中心 ── */
+  .search-hero { text-align: center; padding: 20px 0 28px; }
+  .search-hero input {
+    width: 100%; max-width: 520px; border: 2px solid var(--line); border-radius: 12px;
+    padding: 14px 18px; font-size: 15px; font-family: inherit; outline: none; text-align: center;
+  }
+  .search-hero input:focus { border-color: var(--blue); }
+  .search-hint { font-size: 12px; color: var(--sub); margin-top: 10px; }
+
+  /* ── 統計分析 ── */
+  .analytics-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+  .chart-card { background: var(--white); border: 1.5px solid var(--line); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); }
+  .chart-card h4 { font-size: 14px; color: var(--text); margin-bottom: 12px; }
+  .chart-card canvas { max-height: 260px; }
+  @media (max-width: 900px) { .analytics-grid { grid-template-columns: 1fr; } }
+
+  /* ── 系統設定 ── */
+  .settings-section { background: var(--white); border: 1.5px solid var(--line); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; box-shadow: var(--shadow); }
+  .settings-section h4 { font-size: 15px; color: var(--text); margin-bottom: 14px; }
+  .user-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); gap: 10px; flex-wrap: wrap; }
+  .user-row:last-child { border-bottom: none; }
+  .user-row-name { font-size: 13.5px; font-weight: 700; color: var(--text); }
+  .user-row-meta { font-size: 12px; color: var(--sub); }
+  .role-badge { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 20px; background: var(--blue-pale); color: var(--blue); }
+  .role-badge.inactive { background: #fdecea; color: #c0392b; }
+  .settings-note { font-size: 12.5px; color: var(--sub); line-height: 1.8; }
 </style>
 </head>
-<body>
+<body class="login-mode">
 
 <!-- ══════════════ 密碼頁 ══════════════ -->
 <div id="loginPage">
@@ -417,7 +543,7 @@
     </div>
 
     <h1>文件產生系統</h1>
-    <p>請使用 Supabase 帳號登入<br>保固書 ／ 報價單 ／ 檢測報告書 ／ 委託書 產生器</p>
+    <p>保固書 ／ 報價單 ／ 檢測報告書 ／ 委託書 產生器</p>
 
     <div class="input-wrap">
       <input type="email" id="emailInput" placeholder="登入 Email"
@@ -450,25 +576,73 @@
 <!-- ══════════════ 選單頁 ══════════════ -->
 <div id="menuPage">
 
-  <div class="menu-layout">
-  <div class="menu-main">
+  <div class="app-shell">
 
-  <div class="menu-header">
-    <div class="logo-row">
-      <div class="logo-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-             stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-          <polyline points="14 2 14 8 20 8"/>
-          <line x1="16" y1="13" x2="8" y2="13"/>
-          <line x1="16" y1="17" x2="8" y2="17"/>
-          <polyline points="10 9 9 9 8 9"/>
-        </svg>
+    <!-- 側邊導覽 -->
+    <nav class="sidebar">
+      <div class="sidebar-brand">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+          </svg>
+        </div>
+        <span>詠順工程行</span>
       </div>
-      <h2>詠順工程行</h2>
-    </div>
-    <p>請選擇要開啟的文件產生器</p>
-  </div>
+
+      <div class="sidebar-item active" data-view="dashboard" onclick="showView('dashboard')">
+        <span class="emo">🏠</span> Dashboard
+      </div>
+      <div class="sidebar-item" data-view="customers" onclick="showView('customers')">
+        <span class="emo">👤</span> 客戶管理
+      </div>
+      <div class="sidebar-item" data-view="cases" onclick="showView('cases')">
+        <span class="emo">📁</span> 案件管理
+      </div>
+      <div class="sidebar-item" data-view="documents" onclick="showView('documents')">
+        <span class="emo">📄</span> 文件中心
+      </div>
+      <div class="sidebar-item" data-view="search" onclick="showView('search')">
+        <span class="emo">🔍</span> 搜尋中心
+      </div>
+      <div class="sidebar-item" data-view="analytics" onclick="showView('analytics')">
+        <span class="emo">📊</span> 統計分析
+      </div>
+      <div class="sidebar-divider"></div>
+      <div class="sidebar-item" data-view="settings" onclick="showView('settings')">
+        <span class="emo">⚙️</span> 系統設定
+      </div>
+      <div class="sidebar-item" onclick="doLogout()">
+        <span class="emo">←</span> 登出
+      </div>
+    </nav>
+
+    <!-- 主要內容 -->
+    <div class="app-main">
+
+    <!-- ════ Dashboard ════ -->
+    <div id="view-dashboard" class="view active">
+
+      <div class="menu-layout">
+      <div class="menu-main">
+
+      <div class="menu-header">
+        <div class="logo-row">
+          <div class="logo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+              <polyline points="10 9 9 9 8 9"/>
+            </svg>
+          </div>
+          <h2>詠順工程行</h2>
+        </div>
+        <p>請選擇要開啟的文件產生器</p>
+      </div>
 
   <div class="dashboard-stats" id="dashboardStats" aria-label="案件統計">
     <div class="stat-card"><strong>—</strong><span>進行中案件</span></div>
@@ -612,27 +786,147 @@
 
   </div>
 
-  <hr class="divider">
+      </div>
+      <!-- /menu-main -->
 
-  <div class="logout-row">
-    <button class="logout-btn" onclick="doLogout()">
-      ← 登出
-    </button>
-  </div>
+      <!-- 保固到期提醒側欄 -->
+      <div class="warranty-panel">
+        <div class="warranty-panel-title">🛡️ 保固到期提醒</div>
+        <div class="warranty-list" id="warrantyList">
+          <div class="recent-loading">讀取中...</div>
+        </div>
+      </div>
 
-  </div>
-  <!-- /menu-main -->
+      </div>
+      <!-- /menu-layout -->
 
-  <!-- 保固到期提醒側欄 -->
-  <div class="warranty-panel">
-    <div class="warranty-panel-title">🛡️ 保固到期提醒</div>
-    <div class="warranty-list" id="warrantyList">
-      <div class="recent-loading">讀取中...</div>
     </div>
-  </div>
+    <!-- /view-dashboard -->
+
+    <!-- ════ 案件管理 ════ -->
+    <div id="view-cases" class="view">
+      <div class="view-title-row"><h2>📁 案件管理</h2></div>
+
+      <div class="case-search-row">
+        <input type="text" id="caseSearchInput" placeholder="搜尋姓名／電話／地址／案號..." oninput="filterCasesView()">
+      </div>
+
+      <div class="case-tabs">
+        <button class="case-tab active" data-status="all" onclick="switchCaseTab('all')">全部</button>
+        <button class="case-tab" data-status="active" onclick="switchCaseTab('active')">進行中</button>
+        <button class="case-tab" data-status="completed" onclick="switchCaseTab('completed')">已完工</button>
+        <button class="case-tab" data-status="closed" onclick="switchCaseTab('closed')">已結案</button>
+        <button class="case-tab" data-status="cancelled" onclick="switchCaseTab('cancelled')">已取消</button>
+      </div>
+
+      <div class="case-list" id="caseListView">
+        <div class="recent-loading">讀取中...</div>
+      </div>
+    </div>
+
+    <!-- ════ 客戶管理 ════ -->
+    <div id="view-customers" class="view">
+
+      <div id="customerListPane">
+        <div class="view-title-row"><h2>👤 客戶管理</h2></div>
+        <div class="case-search-row">
+          <input type="text" id="customerSearchInput" placeholder="搜尋姓名／電話..." oninput="filterCustomersView()">
+        </div>
+        <div class="case-list" id="customerListView">
+          <div class="recent-loading">讀取中...</div>
+        </div>
+      </div>
+
+      <div id="customerDetailPane" style="display:none;">
+        <div class="back-link" onclick="backToCustomerList()">← 返回客戶列表</div>
+        <div id="customerDetailContent"></div>
+      </div>
+
+    </div>
+
+    <!-- ════ 文件中心 ════ -->
+    <div id="view-documents" class="view">
+      <div class="view-title-row"><h2>📄 文件中心</h2></div>
+
+      <div class="doc-filters">
+        <input type="text" id="docSearchInput" placeholder="搜尋姓名／案號..." oninput="filterDocumentsView()" style="min-width:220px;">
+        <select id="docTypeFilter" onchange="filterDocumentsView()">
+          <option value="all">全部類型</option>
+          <option value="inspection_report">檢測報告書</option>
+          <option value="quotation">工程報價單</option>
+          <option value="warranty">施工保固書</option>
+          <option value="acceptance_report">施工驗收報告</option>
+          <option value="commission">第三方委託書</option>
+        </select>
+        <select id="docStatusFilter" onchange="filterDocumentsView()">
+          <option value="all">全部狀態</option>
+          <option value="draft">草稿</option>
+          <option value="issued">已出具</option>
+          <option value="voided">已作廢</option>
+        </select>
+      </div>
+
+      <div id="documentListView">
+        <div class="recent-loading">讀取中...</div>
+      </div>
+    </div>
+
+    <!-- ════ 搜尋中心 ════ -->
+    <div id="view-search" class="view">
+      <div class="view-title-row"><h2>🔍 搜尋中心</h2></div>
+
+      <div class="search-hero">
+        <input type="text" id="globalSearchInput" placeholder="輸入姓名／電話／地址／案號..."
+               oninput="doGlobalSearch()" onkeydown="if(event.key==='Enter') doGlobalSearch()">
+        <div class="search-hint">目前搜尋範圍：客戶姓名、電話、地址、案件編號</div>
+      </div>
+
+      <div class="case-list" id="globalSearchResults"></div>
+    </div>
+
+    <!-- ════ 統計分析 ════ -->
+    <div id="view-analytics" class="view">
+      <div class="view-title-row"><h2>📊 統計分析</h2></div>
+
+      <div class="analytics-grid">
+        <div class="chart-card"><h4>月度案件趨勢（近 12 個月）</h4><canvas id="chartCasesTrend"></canvas></div>
+        <div class="chart-card"><h4>月度成交金額（近 12 個月）</h4><canvas id="chartDealAmount"></canvas></div>
+        <div class="chart-card"><h4>建物類型分佈</h4><canvas id="chartBuildingType"></canvas></div>
+        <div class="chart-card"><h4>各類文件出具量（已出具）</h4><canvas id="chartDocCount"></canvas></div>
+      </div>
+    </div>
+
+    <!-- ════ 系統設定 ════ -->
+    <div id="view-settings" class="view">
+      <div class="view-title-row"><h2>⚙️ 系統設定</h2></div>
+
+      <div class="settings-section">
+        <h4>使用者管理</h4>
+        <div id="userListView"><div class="recent-loading">讀取中...</div></div>
+      </div>
+
+      <div class="settings-section">
+        <h4>文件模板</h4>
+        <div class="settings-note">
+          目前尚未建立對應的資料表，文件模板（例如固定文案、公司抬頭樣式）目前仍寫死在各文件產生器的程式碼裡。<br>
+          如果需要在這裡直接編輯，需要另外設計一張設定用的資料表，之後可以再規劃。
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h4>公司資訊</h4>
+        <div class="settings-note">
+          目前尚未建立對應的資料表，公司名稱、統編、聯絡方式等目前仍寫死在各文件產生器裡。<br>
+          如果需要集中管理，需要另外設計一張設定用的資料表，之後可以再規劃。
+        </div>
+      </div>
+    </div>
+
+    </div>
+    <!-- /app-main -->
 
   </div>
-  <!-- /menu-layout -->
+  <!-- /app-shell -->
 
 </div>
 
@@ -847,7 +1141,7 @@
     const { data } = await supabaseClient.auth.getSession();
     currentUser = data.session?.user || null;
     if (currentUser) showMenu();
-    else document.getElementById('loginPage').style.display = '';
+    else { document.getElementById('loginPage').style.display = ''; document.body.classList.add('login-mode'); }
   };
 
   async function doLogin() {
@@ -880,8 +1174,461 @@
     }
   }
 
+  /* ══════════════ 側邊導覽：頁面切換 ══════════════ */
+  const VIEW_LOADED = {}; // 記錄各頁面是否已載入過資料，避免重複打 API
+
+  function showView(name) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.sidebar-item[data-view]').forEach(i => i.classList.remove('active'));
+    document.getElementById('view-' + name).classList.add('active');
+    const navItem = document.querySelector(`.sidebar-item[data-view="${name}"]`);
+    if (navItem) navItem.classList.add('active');
+
+    if (name === 'cases' && !VIEW_LOADED.cases) {
+      VIEW_LOADED.cases = true;
+      loadCasesView();
+    }
+    if (name === 'customers' && !VIEW_LOADED.customers) {
+      VIEW_LOADED.customers = true;
+      loadCustomersView();
+    }
+    if (name === 'documents' && !VIEW_LOADED.documents) {
+      VIEW_LOADED.documents = true;
+      loadDocumentsView();
+    }
+    if (name === 'analytics' && !VIEW_LOADED.analytics) {
+      VIEW_LOADED.analytics = true;
+      loadAnalyticsView();
+    }
+    if (name === 'settings' && !VIEW_LOADED.settings) {
+      VIEW_LOADED.settings = true;
+      loadSettingsView();
+    }
+  }
+
+  /* ══════════════ 案件管理 ══════════════ */
+  let allCasesFull = [];       // 案件管理頁：完整案件清單（含所有狀態）
+  let currentCaseTab = 'all';
+  const STATUS_LABELS = { active: '進行中', completed: '已完工', closed: '已結案', cancelled: '已取消' };
+
+  function switchCaseTab(status) {
+    currentCaseTab = status;
+    document.querySelectorAll('.case-tab').forEach(t => t.classList.toggle('active', t.dataset.status === status));
+    renderCasesView();
+  }
+
+  async function loadCasesView() {
+    const listEl = document.getElementById('caseListView');
+    listEl.innerHTML = '<div class="recent-loading">讀取中...</div>';
+    try {
+      const { data, error } = await supabaseClient.from('cases')
+        .select('id, case_number, site_address, status, updated_at, customers(name, phone), case_pins!left(user_id)')
+        .order('updated_at', { ascending: false }).limit(300);
+      if (error) throw error;
+      allCasesFull = (data || []).map(c => ({
+        id: c.id, caseNumber: c.case_number, clientAddress: c.site_address, status: c.status,
+        updatedAt: c.updated_at, clientName: c.customers?.name || '', clientPhone: c.customers?.phone || '',
+        pinned: (c.case_pins || []).some(p => p.user_id === currentUser?.id),
+      }));
+      renderCasesView();
+    } catch (err) {
+      console.error(err);
+      listEl.innerHTML = '<div class="recent-empty">⚠️ 無法讀取案件（' + esc(err.message) + '）</div>';
+    }
+  }
+
+  function filterCasesView() { renderCasesView(); }
+
+  function renderCasesView() {
+    const listEl = document.getElementById('caseListView');
+    const term = (document.getElementById('caseSearchInput').value || '').trim().toLowerCase();
+
+    let list = allCasesFull;
+    if (currentCaseTab !== 'all') list = list.filter(c => c.status === currentCaseTab);
+    if (term) {
+      list = list.filter(c => [c.clientName, c.clientAddress, c.caseNumber, c.clientPhone]
+        .join(' ').toLowerCase().includes(term));
+    }
+
+    if (list.length === 0) {
+      listEl.innerHTML = '<div class="recent-empty">沒有符合條件的案件</div>';
+      return;
+    }
+
+    listEl.innerHTML = list.map(c => {
+      const dateStr = c.updatedAt ? new Date(c.updatedAt).toLocaleDateString('zh-TW') : '';
+      const caseParam = encodeURIComponent(c.id);
+      const badgeLabel = STATUS_LABELS[c.status] || c.status;
+      const reopenBtn = (c.status === 'closed' || c.status === 'cancelled')
+        ? `<button class="recent-btn" onclick="changeCaseStatus('${c.id}','active')">↩️ 重新開啟</button>` : '';
+      const completeBtn = c.status === 'active'
+        ? `<button class="recent-btn" onclick="changeCaseStatus('${c.id}','completed')">✅ 標記完工</button>` : '';
+      const closeBtn = (c.status !== 'closed')
+        ? `<button class="recent-btn" onclick="if(confirm('標記為已結案，確定嗎？')) changeCaseStatus('${c.id}','closed')">📁 標記已結案</button>` : '';
+      return `
+        <div class="case-row">
+          <div class="case-row-top">
+            <div>
+              <div class="case-row-name">${c.pinned ? '<span class="pin-badge">📌</span>' : ''}${esc(c.clientName || '（未命名委託方）')}　${esc(c.caseNumber || '')}</div>
+              <div class="case-row-meta">${esc(c.clientAddress || '')}　${c.clientPhone ? '｜　' + esc(c.clientPhone) : ''}　｜　更新於 ${dateStr}</div>
+            </div>
+            <span class="status-badge ${c.status}">${esc(badgeLabel)}</span>
+          </div>
+          <div class="case-row-actions">
+            <a class="recent-btn edit-btn" href="${DOC_URLS.report}?case=${caseParam}" target="_blank" rel="noopener">✏️ 編輯報告書</a>
+            <a class="recent-btn" href="${DOC_URLS.quotation}?case=${caseParam}" target="_blank" rel="noopener">報價單</a>
+            <a class="recent-btn" href="${DOC_URLS.warranty}?case=${caseParam}" target="_blank" rel="noopener">保固書</a>
+            <a class="recent-btn" href="${DOC_URLS.acceptance}?case=${caseParam}" target="_blank" rel="noopener">驗收報告</a>
+            <a class="recent-btn" href="${DOC_URLS.commission}?case=${caseParam}" target="_blank" rel="noopener">委託書</a>
+            ${completeBtn}${reopenBtn}${closeBtn}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function changeCaseStatus(id, status) {
+    try {
+      const payload = { status };
+      if (status === 'closed') payload.closed_at = new Date().toISOString();
+      const { error } = await supabaseClient.from('cases').update(payload).eq('id', id);
+      if (error) throw error;
+      const c = allCasesFull.find(x => x.id === id);
+      if (c) c.status = status;
+      renderCasesView();
+      // 同步更新 Dashboard 最近項目（若該案件也在清單中）
+      if (typeof loadRecentCases === 'function') loadRecentCases();
+    } catch (err) {
+      alert('更新狀態失敗：' + err.message);
+    }
+  }
+
   function showMenu() {
     document.getElementById('loginPage').style.display = 'none';
+    document.body.classList.remove('login-mode');
+    const menu = document.getElementById('menuPage');
+    menu.style.display = 'block';
+    loadDashboard();
+    loadRecentCases();
+    loadWarrantyAlerts();
+  }
+
+  /* ══════════════ 客戶管理 ══════════════ */
+  let allCustomers = [];
+
+  async function loadCustomersView() {
+    const listEl = document.getElementById('customerListView');
+    try {
+      const { data, error } = await supabaseClient.from('customers')
+        .select('id, name, phone, phone_alt, address, is_returning, cases(count)')
+        .is('deleted_at', null).order('name', { ascending: true }).limit(300);
+      if (error) throw error;
+      allCustomers = (data || []).map(c => ({
+        id: c.id, name: c.name, phone: c.phone || '', address: c.address || '',
+        isReturning: c.is_returning, caseCount: c.cases?.[0]?.count || 0,
+      }));
+      renderCustomersList(allCustomers);
+    } catch (err) {
+      console.error(err);
+      listEl.innerHTML = '<div class="recent-empty">⚠️ 無法讀取客戶資料（' + esc(err.message) + '）</div>';
+    }
+  }
+
+  function filterCustomersView() {
+    const term = (document.getElementById('customerSearchInput').value || '').trim().toLowerCase();
+    if (!term) { renderCustomersList(allCustomers); return; }
+    renderCustomersList(allCustomers.filter(c => [c.name, c.phone].join(' ').toLowerCase().includes(term)));
+  }
+
+  function renderCustomersList(list) {
+    const listEl = document.getElementById('customerListView');
+    if (list.length === 0) { listEl.innerHTML = '<div class="recent-empty">沒有符合條件的客戶</div>'; return; }
+    listEl.innerHTML = list.map(c => `
+      <div class="customer-row" onclick="openCustomerDetail('${c.id}')">
+        <div>
+          <div class="customer-row-name">${esc(c.name)}${c.isReturning ? '<span class="returning-badge">回頭客</span>' : ''}</div>
+          <div class="customer-row-meta">${esc(c.phone)}　${esc(c.address)}</div>
+        </div>
+        <div class="customer-case-count">${c.caseCount} 筆案件 →</div>
+      </div>
+    `).join('');
+  }
+
+  async function openCustomerDetail(id) {
+    document.getElementById('customerListPane').style.display = 'none';
+    document.getElementById('customerDetailPane').style.display = 'block';
+    const box = document.getElementById('customerDetailContent');
+    box.innerHTML = '<div class="recent-loading">讀取中...</div>';
+    try {
+      const { data: cust, error: e1 } = await supabaseClient.from('customers').select('*').eq('id', id).single();
+      if (e1) throw e1;
+      const { data: cases, error: e2 } = await supabaseClient.from('cases')
+        .select('id, case_number, site_address, status, updated_at')
+        .eq('customer_id', id).order('updated_at', { ascending: false });
+      if (e2) throw e2;
+
+      const caseListHtml = (cases || []).length === 0
+        ? '<div class="recent-empty">這位客戶目前沒有案件記錄</div>'
+        : cases.map(cs => {
+            const dateStr = cs.updated_at ? new Date(cs.updated_at).toLocaleDateString('zh-TW') : '';
+            const caseParam = encodeURIComponent(cs.id);
+            const badgeLabel = STATUS_LABELS[cs.status] || cs.status;
+            return `
+              <div class="case-row">
+                <div class="case-row-top">
+                  <div>
+                    <div class="case-row-name">${esc(cs.case_number || '')}</div>
+                    <div class="case-row-meta">${esc(cs.site_address || '')}　｜　更新於 ${dateStr}</div>
+                  </div>
+                  <span class="status-badge ${cs.status}">${esc(badgeLabel)}</span>
+                </div>
+                <div class="case-row-actions">
+                  <a class="recent-btn edit-btn" href="${DOC_URLS.report}?case=${caseParam}" target="_blank" rel="noopener">✏️ 編輯報告書</a>
+                  <a class="recent-btn" href="${DOC_URLS.quotation}?case=${caseParam}" target="_blank" rel="noopener">報價單</a>
+                  <a class="recent-btn" href="${DOC_URLS.warranty}?case=${caseParam}" target="_blank" rel="noopener">保固書</a>
+                  <a class="recent-btn" href="${DOC_URLS.acceptance}?case=${caseParam}" target="_blank" rel="noopener">驗收報告</a>
+                  <a class="recent-btn" href="${DOC_URLS.commission}?case=${caseParam}" target="_blank" rel="noopener">委託書</a>
+                </div>
+              </div>
+            `;
+          }).join('');
+
+      box.innerHTML = `
+        <div class="detail-card">
+          <h3>${esc(cust.name)}${cust.is_returning ? '<span class="returning-badge">回頭客</span>' : ''}</h3>
+          <div class="detail-meta">
+            電話：${esc(cust.phone || '—')}${cust.phone_alt ? '　／　' + esc(cust.phone_alt) : ''}<br>
+            通訊地址：${esc(cust.address || '—')}<br>
+            ${cust.note ? '備註：' + esc(cust.note) : ''}
+          </div>
+        </div>
+        <h3 style="font-size:15px;margin-bottom:12px;">📁 歷史案件（${(cases || []).length} 筆）</h3>
+        <div class="case-list">${caseListHtml}</div>
+      `;
+    } catch (err) {
+      box.innerHTML = '<div class="recent-empty">⚠️ 讀取客戶詳情失敗：' + esc(err.message) + '</div>';
+    }
+  }
+
+  function backToCustomerList() {
+    document.getElementById('customerDetailPane').style.display = 'none';
+    document.getElementById('customerListPane').style.display = 'block';
+  }
+
+  /* ══════════════ 文件中心 ══════════════ */
+  let allDocuments = [];
+  const DOC_TYPE_LABELS = {
+    inspection_report: '檢測報告書', quotation: '工程報價單', warranty: '施工保固書',
+    acceptance_report: '施工驗收報告', commission: '第三方委託書',
+  };
+  const DOC_STATUS_LABELS = { draft: '草稿', issued: '已出具', voided: '已作廢' };
+
+  async function loadDocumentsView() {
+    const listEl = document.getElementById('documentListView');
+    try {
+      const { data, error } = await supabaseClient.from('documents')
+        .select('id, doc_type, doc_number, title, status, pdf_path, created_at, issued_at, cases(case_number, customers(name))')
+        .is('deleted_at', null).order('created_at', { ascending: false }).limit(300);
+      if (error) throw error;
+      allDocuments = (data || []).map(d => ({
+        id: d.id, docType: d.doc_type, docNumber: d.doc_number || '', title: d.title,
+        status: d.status, pdfPath: d.pdf_path, createdAt: d.created_at, issuedAt: d.issued_at,
+        caseNumber: d.cases?.case_number || '', clientName: d.cases?.customers?.name || '',
+      }));
+      renderDocumentsList(allDocuments);
+    } catch (err) {
+      console.error(err);
+      listEl.innerHTML = '<div class="recent-empty">⚠️ 無法讀取文件資料（' + esc(err.message) + '）</div>';
+    }
+  }
+
+  function filterDocumentsView() {
+    const term = (document.getElementById('docSearchInput').value || '').trim().toLowerCase();
+    const typeF = document.getElementById('docTypeFilter').value;
+    const statusF = document.getElementById('docStatusFilter').value;
+    let list = allDocuments;
+    if (typeF !== 'all') list = list.filter(d => d.docType === typeF);
+    if (statusF !== 'all') list = list.filter(d => d.status === statusF);
+    if (term) list = list.filter(d => [d.clientName, d.caseNumber, d.docNumber].join(' ').toLowerCase().includes(term));
+    renderDocumentsList(list);
+  }
+
+  function renderDocumentsList(list) {
+    const listEl = document.getElementById('documentListView');
+    if (list.length === 0) { listEl.innerHTML = '<div class="recent-empty">沒有符合條件的文件</div>'; return; }
+    listEl.innerHTML = list.map(d => {
+      const dateStr = (d.issuedAt || d.createdAt) ? new Date(d.issuedAt || d.createdAt).toLocaleDateString('zh-TW') : '';
+      const dlBtn = d.pdfPath
+        ? `<button class="recent-btn" onclick="downloadDocumentPdf('${d.pdfPath.replace(/'/g, "\\'")}')">⬇️ 下載 PDF</button>`
+        : `<span style="font-size:11.5px;color:var(--sub);">尚無已上傳 PDF</span>`;
+      return `
+        <div class="doc-row">
+          <div>
+            <span class="doc-type-badge">${esc(DOC_TYPE_LABELS[d.docType] || d.docType)}</span>
+            <span class="doc-status-badge ${d.status}">${esc(DOC_STATUS_LABELS[d.status] || d.status)}</span>
+            <div style="margin-top:6px;font-size:13.5px;font-weight:700;color:var(--text);">${esc(d.clientName || '（未命名委託方）')}　${esc(d.caseNumber)}</div>
+            <div style="font-size:11.5px;color:var(--sub);margin-top:2px;">${esc(d.docNumber)}　${dateStr}</div>
+          </div>
+          <div>${dlBtn}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function downloadDocumentPdf(path) {
+    try {
+      const { data, error } = await supabaseClient.storage.from('documents').createSignedUrl(path, 3600);
+      if (error) throw error;
+      window.open(data.signedUrl, '_blank');
+    } catch (err) {
+      alert('下載失敗：' + err.message);
+    }
+  }
+
+  /* ══════════════ 搜尋中心 ══════════════ */
+  let globalSearchTimer = null;
+  function doGlobalSearch() {
+    clearTimeout(globalSearchTimer);
+    const term = document.getElementById('globalSearchInput').value.trim();
+    const resultsEl = document.getElementById('globalSearchResults');
+    if (!term) { resultsEl.innerHTML = ''; return; }
+    resultsEl.innerHTML = '<div class="recent-loading">搜尋中...</div>';
+    globalSearchTimer = setTimeout(async () => {
+      const { data, error } = await supabaseClient.rpc('portal_case_search', { search_term: term, result_limit: 30 });
+      if (error) { resultsEl.innerHTML = '<div class="recent-empty">⚠️ 搜尋失敗：' + esc(error.message) + '</div>'; return; }
+      if (!data || data.length === 0) { resultsEl.innerHTML = '<div class="recent-empty">找不到符合的結果</div>'; return; }
+      resultsEl.innerHTML = data.map(c => {
+        const caseParam = encodeURIComponent(c.case_id);
+        const dateStr = c.updated_at ? new Date(c.updated_at).toLocaleDateString('zh-TW') : '';
+        return `
+          <div class="case-row">
+            <div class="case-row-top">
+              <div>
+                <div class="case-row-name">${esc(c.client_name || '（未命名委託方）')}　${esc(c.case_number || '')}</div>
+                <div class="case-row-meta">${esc(c.site_address || '')}　｜　更新於 ${dateStr}</div>
+              </div>
+            </div>
+            <div class="case-row-actions">
+              <a class="recent-btn edit-btn" href="${DOC_URLS.report}?case=${caseParam}" target="_blank" rel="noopener">✏️ 編輯報告書</a>
+              <a class="recent-btn" href="${DOC_URLS.quotation}?case=${caseParam}" target="_blank" rel="noopener">報價單</a>
+              <a class="recent-btn" href="${DOC_URLS.warranty}?case=${caseParam}" target="_blank" rel="noopener">保固書</a>
+              <a class="recent-btn" href="${DOC_URLS.acceptance}?case=${caseParam}" target="_blank" rel="noopener">驗收報告</a>
+              <a class="recent-btn" href="${DOC_URLS.commission}?case=${caseParam}" target="_blank" rel="noopener">委託書</a>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }, 300);
+  }
+
+  /* ══════════════ 統計分析 ══════════════ */
+  async function loadAnalyticsView() {
+    try {
+      const since = new Date(); since.setMonth(since.getMonth() - 11); since.setDate(1);
+      const sinceStr = since.toISOString().slice(0, 10);
+
+      const [{ data: casesData }, { data: docsData }] = await Promise.all([
+        supabaseClient.from('cases').select('created_at, deal_confirmed, deal_amount, deal_date, building_type').is('deleted_at', null),
+        supabaseClient.from('documents').select('doc_type, status').is('deleted_at', null),
+      ]);
+
+      // 近12個月標籤
+      const months = [];
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - i);
+        months.push(`${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}`);
+      }
+      const monthKey = dateStr => { const d = new Date(dateStr); return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}`; };
+
+      // 月度案件趨勢
+      const caseCountMap = {}; months.forEach(m => caseCountMap[m] = 0);
+      (casesData || []).forEach(c => { const k = monthKey(c.created_at); if (k in caseCountMap) caseCountMap[k]++; });
+
+      // 月度成交金額
+      const dealMap = {}; months.forEach(m => dealMap[m] = 0);
+      (casesData || []).forEach(c => {
+        if (c.deal_confirmed && c.deal_date) {
+          const k = monthKey(c.deal_date);
+          if (k in dealMap) dealMap[k] += Number(c.deal_amount || 0);
+        }
+      });
+
+      // 建物類型分佈
+      const buildingMap = {};
+      (casesData || []).forEach(c => {
+        const label = BUILDING_TYPE_LABELS[c.building_type] || c.building_type || '未填寫';
+        buildingMap[label] = (buildingMap[label] || 0) + 1;
+      });
+
+      // 各類文件出具量（已出具）
+      const docCountMap = {}; Object.keys(DOC_TYPE_LABELS).forEach(k => docCountMap[k] = 0);
+      (docsData || []).forEach(d => { if (d.status === 'issued' && d.doc_type in docCountMap) docCountMap[d.doc_type]++; });
+
+      const bluePalette = ['#1871b5', '#4a9bd6', '#7fbce8', '#e8a13c', '#2e7d32', '#c0392b', '#8e5fc4'];
+
+      new Chart(document.getElementById('chartCasesTrend'), {
+        type: 'line',
+        data: { labels: months, datasets: [{ label: '新增案件', data: months.map(m => caseCountMap[m]), borderColor: '#1871b5', backgroundColor: 'rgba(24,113,181,0.1)', tension: .3, fill: true }] },
+        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+      });
+
+      new Chart(document.getElementById('chartDealAmount'), {
+        type: 'bar',
+        data: { labels: months, datasets: [{ label: '成交金額', data: months.map(m => dealMap[m]), backgroundColor: '#e8a13c' }] },
+        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      });
+
+      new Chart(document.getElementById('chartBuildingType'), {
+        type: 'pie',
+        data: { labels: Object.keys(buildingMap), datasets: [{ data: Object.values(buildingMap), backgroundColor: bluePalette }] },
+        options: { plugins: { legend: { position: 'right', labels: { font: { size: 11 } } } } }
+      });
+
+      new Chart(document.getElementById('chartDocCount'), {
+        type: 'bar',
+        data: {
+          labels: Object.keys(docCountMap).map(k => DOC_TYPE_LABELS[k]),
+          datasets: [{ label: '已出具份數', data: Object.values(docCountMap), backgroundColor: '#1871b5' }]
+        },
+        options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
+      });
+    } catch (err) {
+      console.error(err);
+      document.querySelectorAll('#view-analytics .chart-card').forEach(el => {
+        el.innerHTML += '<div class="recent-empty">⚠️ 圖表載入失敗</div>';
+      });
+    }
+  }
+
+  /* ══════════════ 系統設定 ══════════════ */
+  async function loadSettingsView() {
+    const listEl = document.getElementById('userListView');
+    const ROLE_LABELS = { admin: '管理員', technician: '師傅', viewer: '唯讀' };
+    try {
+      const { data, error } = await supabaseClient.from('users').select('id, name, role, phone, is_active').order('created_at', { ascending: true });
+      if (error) throw error;
+      if (!data || data.length === 0) { listEl.innerHTML = '<div class="recent-empty">尚無使用者資料</div>'; return; }
+      listEl.innerHTML = data.map(u => `
+        <div class="user-row">
+          <div>
+            <div class="user-row-name">${esc(u.name)}</div>
+            <div class="user-row-meta">${esc(u.phone || '—')}</div>
+          </div>
+          <div>
+            <span class="role-badge">${esc(ROLE_LABELS[u.role] || u.role)}</span>
+            ${!u.is_active ? '<span class="role-badge inactive">已停用</span>' : ''}
+          </div>
+        </div>
+      `).join('');
+    } catch (err) {
+      console.error(err);
+      listEl.innerHTML = '<div class="recent-empty">⚠️ 無法讀取使用者資料（' + esc(err.message) + '，可能是權限限制只有管理員可查看）</div>';
+    }
+  }
+
+  function showMenu() {
+    document.getElementById('loginPage').style.display = 'none';
+    document.body.classList.remove('login-mode');
     const menu = document.getElementById('menuPage');
     menu.style.display = 'block';
     loadDashboard();
@@ -893,6 +1640,7 @@
     await supabaseClient.auth.signOut();
     currentUser = null;
     document.getElementById('menuPage').style.display = 'none';
+    document.body.classList.add('login-mode');
     const login = document.getElementById('loginPage');
     login.style.display = '';
     login.style.opacity = '1';
