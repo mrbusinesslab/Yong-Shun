@@ -7,7 +7,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-firebase-compat.js"></script>
+<script src="../supabase-firebase-compat.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Microsoft JhengHei','微軟正黑體',Arial,sans-serif; background: #f0f4f8; color: #1a1a1a; min-height: 100vh; }
@@ -479,6 +479,9 @@ function deleteContent(cid) {
 
 function handleImg(e, locId, slot) {
   const file = e.target.files[0]; if (!file) return;
+  // 報價單的施工位置附圖上傳為施工前照片。
+  uploadCasePhoto(currentCaseId, 'before', file, `報價單施工位置 ${locId}／附圖 ${slot}`)
+    .catch(err => console.warn('照片上傳失敗（不影響本頁預覽）：', err));
   const reader = new FileReader();
   reader.onload = ev => {
     const key = `${locId}_${slot}`;
