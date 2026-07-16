@@ -7,7 +7,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../supabase-firebase-compat.js"></script>
+<script src="../supabase-shared.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Microsoft JhengHei','微軟正黑體',Arial,sans-serif; background: #f0f4f8; color: #1a1a1a; min-height: 100vh; }
@@ -789,84 +789,56 @@ const BLUE='#1871b5', LABEL_BLUE='#336590';
 // 頁邊距：上下 25mm(≈94px)、左右 20mm(≈75px)，固定數值（全部步驟共用）
 const mTop = 94, mBottom = 94, mSide = 75, pageCW = PW - mSide*2;
 
-/* ══════════════ Firebase 初始化（案件雲端資料庫，供 Portal / 其他文件產生器共用） ══════════════ */
-const firebaseConfig = {
-  apiKey: "AIzaSyD2wWHP27kqd005xAuz-DEuEg_z9A8YCVc",
-  authDomain: "yong-shun.firebaseapp.com",
-  projectId: "yong-shun",
-  storageBucket: "yong-shun.firebasestorage.app",
-  messagingSenderId: "530988019396",
-  appId: "1:530988019396:web:6554ce1e9f977bd5182391"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const CASES_COLLECTION = 'cases';
-let cloudCaseId = null; // 這筆草稿對應的雲端案件識別碼，一旦產生就固定不變
+/* ══════════════ 案件雲端資料庫（Supabase，供 Portal / 其他文件產生器共用） ══════════════ */
+// supabaseClient 已由 ../supabase-shared.js 建立好，這裡只處理本頁專屬的案件同步邏輯
+let cloudCaseId = null;    // 這筆草稿對應的 Supabase 案件 id（cases.id），一旦產生就固定不變
+let cloudCustomerId = null; // 對應的 Supabase 客戶 id（customers.id）
 
-function sanitizeDocId(str) {
-  return (str || '').trim().replace(/[\/\.\#\$\[\]\s]+/g, '_') || ('case_' + Date.now());
-}
-
-function generateCloudCaseId() {
-  return crypto.randomUUID();
-}
-
-// 依「顧客資料/年/月/案例編號/檔名」自動建立下載子資料夾（Chrome/Edge 支援檔名含斜線自動建資料夾）
-// 年月直接從案號本身取出（案號格式：地區-年月-序號），不受列印當下日期影響
+// 取消資料夾路徑，直接回傳檔名（沿用原本行為）
 function buildDownloadPath(caseNo, clientName, fileNamePart) {
-  // 取消資料夾路徑，直接回傳檔名
-  return fileNamePart; 
+  return fileNamePart;
 }
 
-// 每次「暫存草稿」時，同步一份精簡資料（不含照片）到雲端案件庫，
+// 每次「暫存草稿」時，同步一份精簡資料（不含照片）到 Supabase 案件庫，
 // 讓 Portal「最近項目」與其他文件產生器（報價單／保固書／驗收報告／委託書）都能查到這筆案件。
-// 重點：雲端文件 ID 一旦產生就固定不變，之後案號、客戶姓名等內容有變動，
-// 都是「更新同一份文件」，而不是產生新的一份 —— 這樣其他文件產生器抓到的永遠是最新資料。
+// 重點：cloudCaseId 一旦產生就固定不變，之後案號、客戶姓名等內容有變動，
+// 都是「更新同一筆案件」，而不是產生新的一筆 —— 這樣其他文件產生器抓到的永遠是最新資料。
 async function syncCaseToCloud() {
   try {
     updateCaseNo(); // 確保案號是最新的
     const clientName = (document.getElementById('clientName').value || '').trim();
+    const clientPhone = (document.getElementById('clientPhone').value || '').trim();
     const clientAddress = (document.getElementById('clientAddress').value || '').trim();
     if (!clientName && !clientAddress) return; // 資料太空，不建立雲端案件
 
-    if (!cloudCaseId) cloudCaseId = generateCloudCaseId();
-    window.YSCurrentCaseId = cloudCaseId;
-    const docId = cloudCaseId;
-    const detectionPoints = (cardStore[2] || []).map(card => ({
-      position: card.position || '', instrument: card.instrument || '', recordA: card.recordA || '', recordB: card.recordB || '',
-      analysis: card.analysis || '', template: card.template || 'A'
-    }));
+    if (!cloudCaseId) {
+      const resolved = await ysResolveCustomerAndCase({
+        name: clientName, phone: clientPhone, address: clientAddress
+      });
+      cloudCustomerId = resolved.customerId;
+      cloudCaseId = resolved.caseId; // 若地址已對應到既有進行中案件，直接沿用
+    }
 
-    await db.collection(CASES_COLLECTION).doc(docId).set({
+    cloudCaseId = await ysUpsertCase({
+      caseId: cloudCaseId,
+      customerId: cloudCustomerId,
       caseNumber: currentCaseNo || '',
-      clientName: clientName,
-      clientContact: document.getElementById('clientContact').value || '',
-      clientAddress: clientAddress,
-      phone: document.getElementById('clientPhone').value || '',
+      address: clientAddress,
       buildingType: document.getElementById('buildingType').value || '',
-      inspectDate: document.getElementById('inspectDate').value || '',
-      inspectScope: document.getElementById('inspectScope').value || '',
-      conclusion: {
-        cause: document.getElementById('s5Cause').value || '',
-        type: document.getElementById('s5Type').value || '',
-        source: document.getElementById('s5Source').value || '',
-        repairItem: document.getElementById('s6RepairItem').value || '',
-        repairOther: document.getElementById('s6RepairOther').value || '',
-      },
-      detection: { points: detectionPoints },
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
+      inspectionDate: document.getElementById('inspectDate').value || ''
+    });
+    window.YSCurrentCaseId = cloudCaseId;
 
-    console.log('已同步案件到雲端：' + docId);
+    console.log('已同步案件到 Supabase：' + cloudCaseId);
   } catch (err) {
     // 雲端同步失敗不影響本機暫存草稿的正常運作
     console.warn('雲端同步失敗（不影響本機暫存）：', err);
   }
 }
 
-// 從 Portal 帶 ?case=xxx 進來時，載入雲端案件資料回填表單，供繼續編輯。
-// 載入後 cloudCaseId 會固定為該案件 ID，之後「暫存草稿」會更新同一份雲端資料，不會產生分身。
-// 注意：雲端資料不含照片，載入後卡片會是空白圖片，需要重新上傳。
+// 從 Portal 帶 ?case=xxx 進來時，載入 Supabase 案件資料回填表單，供繼續編輯。
+// 載入後 cloudCaseId 會固定為該案件 id，之後「暫存草稿」會更新同一筆資料，不會產生分身。
+// 注意：這裡只載入案件基本資料（客戶／地址／案號），檢測細節與照片需重新上傳。
 async function loadCaseFromUrlForEdit() {
   const params = new URLSearchParams(window.location.search);
   const caseId = params.get('case');
@@ -875,51 +847,54 @@ async function loadCaseFromUrlForEdit() {
   showAutosaveToast('☁️ 正在從雲端載入案件資料...');
 
   try {
-    const doc = await db.collection(CASES_COLLECTION).doc(caseId).get();
-    if (!doc.exists) {
+    const c = await ysLoadCaseForEdit(caseId);
+    if (!c) {
       showAutosaveToast('⚠️ 找不到對應的案件資料');
       return;
     }
-    const c = doc.data();
-    cloudCaseId = caseId;
-    window.YSCurrentCaseId = caseId;
+    cloudCaseId = c.caseId;
+    cloudCustomerId = c.customerId;
+    window.YSCurrentCaseId = c.caseId;
 
-    const set = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined) el.value = val; };
+    const set = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined && val !== null) el.value = val; };
     set('clientName', c.clientName);
-    set('clientContact', c.clientContact);
-    set('clientPhone', c.phone);
-    set('clientAddress', c.clientAddress);
-    set('inspectScope', c.inspectScope);
-    if (c.inspectDate) set('inspectDate', c.inspectDate);
+    set('clientPhone', c.clientPhone);
+    set('clientAddress', c.address);
+    if (c.inspectionDate) set('inspectDate', c.inspectionDate);
     const bSel = document.getElementById('buildingType');
     if (bSel && c.buildingType) bSel.value = c.buildingType;
 
-    if (c.conclusion) {
-      set('s5Cause', c.conclusion.cause);
-      set('s5Type', c.conclusion.type);
-      set('s5Source', c.conclusion.source);
-      set('s6RepairItem', c.conclusion.repairItem);
-      set('s6RepairOther', c.conclusion.repairOther);
-      const sp = document.getElementById('s5SourcePreview');
-      if (sp) sp.textContent = c.conclusion.source || '（請填寫漏水來源）';
-      toggleRepairOther();
-    }
-
-    if (c.detection && Array.isArray(c.detection.points) && c.detection.points.length > 0) {
-      cardStore[2] = c.detection.points.map(pt => {
-        cardSeqStore[2]++;
-        return {
-          id: cardSeqStore[2],
-          template: pt.template || 'A',
-          position: pt.position || '',
-          instrument: pt.instrument || '',
-          recordA: pt.recordA || '',
-          recordB: pt.recordB || '',
-          analysis: pt.analysis || '',
-          photoTimeA: '', photoTimeB: '',
-        };
-      });
-      renderCards(2);
+    // 若這筆案件已經產生過檢測報告書，帶回結論與漏水點位文字資料（不含照片）
+    const priorDocs = await ysLoadCaseDocuments(c.caseId, 'inspection_report');
+    if (priorDocs.length > 0) {
+      const fd = priorDocs[0].form_data || {};
+      set('inspectScope', fd.inspectScope);
+      if (fd.conclusion) {
+        set('s5Cause', fd.conclusion.cause);
+        set('s5Type', fd.conclusion.type);
+        set('s5Source', fd.conclusion.source);
+        set('s6RepairItem', fd.conclusion.repairItem);
+        set('s6RepairOther', fd.conclusion.repairOther);
+        const sp = document.getElementById('s5SourcePreview');
+        if (sp) sp.textContent = fd.conclusion.source || '（請填寫漏水來源）';
+        toggleRepairOther();
+      }
+      if (Array.isArray(fd.detectionPoints) && fd.detectionPoints.length > 0) {
+        cardStore[2] = fd.detectionPoints.map(pt => {
+          cardSeqStore[2]++;
+          return {
+            id: cardSeqStore[2],
+            template: pt.template || 'A',
+            position: pt.position || '',
+            instrument: pt.instrument || '',
+            recordA: pt.recordA || '',
+            recordB: pt.recordB || '',
+            analysis: pt.analysis || '',
+            photoTimeA: '', photoTimeB: '',
+          };
+        });
+        renderCards(2);
+      }
     }
 
     updateCaseNo();
@@ -3407,7 +3382,44 @@ async function doExportPDF() {
     a.click();
     URL.revokeObjectURL(url);
 
-    msg.className = 'status-msg success'; msg.textContent = '✅ 報告書已產生';
+    // 確保案件已存在於 Supabase，再把這份 PDF 上傳並寫入 documents 表
+    let cloudSaveError = null;
+    try {
+      await syncCaseToCloud();
+      if (cloudCaseId) {
+        const detectionPoints = (cardStore[2] || []).map(card => ({
+          position: card.position || '', instrument: card.instrument || '', recordA: card.recordA || '',
+          recordB: card.recordB || '', analysis: card.analysis || '', template: card.template || 'A'
+        }));
+        await ysSaveDocument({
+          caseId: cloudCaseId,
+          docType: 'inspection_report',
+          docNumber: currentCaseNo || '',
+          title: `檢測報告書 ${currentCaseNo || ''}`,
+          pdfBlob: blob,
+          formData: {
+            inspectScope: document.getElementById('inspectScope').value || '',
+            conclusion: {
+              cause: document.getElementById('s5Cause').value || '',
+              type: document.getElementById('s5Type').value || '',
+              source: document.getElementById('s5Source').value || '',
+              repairItem: document.getElementById('s6RepairItem').value || '',
+              repairOther: document.getElementById('s6RepairOther').value || '',
+            },
+            detectionPoints
+          }
+        });
+      }
+    } catch (cloudErr) {
+      console.warn('文件雲端存檔失敗（PDF 已成功下載到本機）：', cloudErr);
+      cloudSaveError = cloudErr;
+    }
+
+    if (cloudSaveError) {
+      msg.className = 'status-msg'; msg.textContent = '⚠️ PDF 已下載，但雲端存檔失敗：' + cloudSaveError.message;
+    } else {
+      msg.className = 'status-msg success'; msg.textContent = '✅ 報告書已產生（已同步至雲端）';
+    }
     mainBtn.disabled = false;
 
     const issueDateVal = document.getElementById('issueDate').value;
