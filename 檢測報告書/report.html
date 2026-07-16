@@ -3227,6 +3227,7 @@ const AUTOFILL_FIELD_MAP = {
   '拍攝位置': 's1Position',
   '委託方陳述': 'clientDeclare',
   '二、檢測結果結論': 's2Conclusion',
+  '結論': 's2Conclusion',
   '漏水原因': 's5Cause',
   '漏水型態': 's5Type',
   '漏水來源': 's5Source',
@@ -3297,8 +3298,13 @@ function applyAutoFill() {
         const limit = cardField === 'position' ? FIELD_LIMITS.position : (cardField === 'analysis' ? FIELD_LIMITS.analysis : FIELD_LIMITS.record);
         curCard[cardField] = value.slice(0, limit);
         filledCount++;
+        continue;
       }
-      continue;
+      // 不是卡片欄位（位置／檢測項目／紀錄／判讀／前後對比），代表已經離開
+      // 二三四卡片區塊，先收掉目前卡片、退出卡片模式，再往下當一般欄位處理，
+      // 不能直接 continue 把這行吃掉，否則後面五、六的欄位會被靜默略過。
+      flushCard();
+      mode = null;
     }
 
     if (label === '建築類型') { buildingTypeLabel = value; filledCount++; continue; }
