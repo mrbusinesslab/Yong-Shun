@@ -3186,6 +3186,10 @@ const AUTOFILL_FIELD_MAP = {
   '施工項目說明': 's6RepairOther',
 };
 const AUTOFILL_CARD_LABELS = { '位置': 'position', '檢測項目': 'instrument', '儀器': 'instrument', '紀錄': 'recordA', '配置': 'recordA', '觀察': 'recordA', '判讀': 'analysis' };
+const AUTOFILL_CARD_DUAL_LABELS = {
+  '紀錄前': 'recordA', '配置前': 'recordA', '觀察前': 'recordA',
+  '紀錄後': 'recordB', '配置後': 'recordB', '觀察後': 'recordB',
+};
 
 function openAutoFillModal() {
   document.getElementById('autoFillInput').value = '';
@@ -3209,7 +3213,7 @@ function applyAutoFill() {
   let filledCount = 0;
 
   const flushCard = () => {
-    if (mode && curCard && (curCard.position || curCard.recordA || curCard.analysis)) {
+    if (mode && curCard && (curCard.position || curCard.recordA || curCard.recordB || curCard.analysis)) {
       parsedCards[mode].push(curCard);
     }
     curCard = null;
@@ -3223,7 +3227,7 @@ function applyAutoFill() {
     if (marker) {
       flushCard();
       mode = marker[1] === '二' ? 2 : (marker[1] === '三' ? 3 : 4);
-      curCard = { position: '', instrument: '', recordA: '', recordB: '', analysis: '' };
+      curCard = { position: '', instrument: '', recordA: '', recordB: '', analysis: '', template: 'A' };
       continue;
     }
 
@@ -3234,6 +3238,13 @@ function applyAutoFill() {
     if (!value) continue;
 
     if (mode && curCard) {
+      const dualField = AUTOFILL_CARD_DUAL_LABELS[label];
+      if (dualField) {
+        curCard[dualField] = value.slice(0, FIELD_LIMITS.record);
+        curCard.template = 'B'; // 有前後對比欄位，自動改成雙圖對比卡片
+        filledCount++;
+        continue;
+      }
       const cardField = AUTOFILL_CARD_LABELS[label];
       if (cardField) {
         const limit = cardField === 'position' ? FIELD_LIMITS.position : (cardField === 'analysis' ? FIELD_LIMITS.analysis : FIELD_LIMITS.record);
@@ -3282,12 +3293,12 @@ function applyAutoFill() {
         cardSeqStore[step]++;
         return {
           id: cardSeqStore[step],
-          template: 'A',
+          template: c.template === 'B' ? 'B' : 'A',
           position: c.position,
           instrument: c.instrument || '',
           recordA: c.recordA,
-          recordB: '',
-          analysis: c.analysis,
+          recordB: c.recordB || '',
+          analysis: c.template === 'B' ? '' : c.analysis,
           photoTimeA: defaultDT,
           photoTimeB: defaultDT,
         };
