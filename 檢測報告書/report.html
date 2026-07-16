@@ -7,7 +7,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-firebase-compat.js"></script>
+<script src="../supabase-firebase-compat.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Microsoft JhengHei','微軟正黑體',Arial,sans-serif; background: #f0f4f8; color: #1a1a1a; min-height: 100vh; }
@@ -1068,6 +1068,13 @@ function getCropDims(groupId, slot) {
 
 function handleImg(e, groupId, slot) {
   const file = e.target.files[0]; if (!file) return;
+  // 原始檔同步到私人 Storage；頁面仍使用本地 Data URL 作即時裁切與 PDF 預覽。
+  (async () => {
+    try {
+      if (!cloudCaseId) await syncCaseToCloud();
+      await uploadCasePhoto(cloudCaseId, 'inspection', file, `檢測報告：${groupId}／${slot}`);
+    } catch (err) { console.warn('照片上傳失敗（不影響本頁預覽）：', err); }
+  })();
   const reader = new FileReader();
   reader.onload = ev => {
     const key = `${groupId}_${slot}`;
