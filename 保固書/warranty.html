@@ -6,7 +6,7 @@
 <title>詠順工程行｜施工保固書產生器</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../supabase-firebase-compat.js"></script>
+<script src="../supabase-shared.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Microsoft JhengHei','微軟正黑體',Arial,sans-serif; background: #f0f4f8; color: #1a1a1a; min-height: 100vh; }
@@ -197,47 +197,11 @@ function triggerLivePreview() {
   previewTimeout = setTimeout(() => generatePDF(true), 600);
 }
 
-/* ══════════════ Firebase 初始化（僅用於讀取案件資料，不寫回） ══════════════ */
-const firebaseConfig = {
-  apiKey: "AIzaSyD2wWHP27kqd005xAuz-DEuEg_z9A8YCVc",
-  authDomain: "yong-shun.firebaseapp.com",
-  projectId: "yong-shun",
-  storageBucket: "yong-shun.firebasestorage.app",
-  messagingSenderId: "530988019396",
-  appId: "1:530988019396:web:6554ce1e9f977bd5182391"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+/* ══════════════ 案件雲端資料庫（Supabase，共用） ══════════════ */
+// supabaseClient 已由 ../supabase-shared.js 建立好
 let folderClientName = ''; // 從 Portal 載入案件時記錄委託方姓名，供下載歸檔使用（本表單無此欄位）
-let cloudCaseId = null; // 從 Portal 載入的案件 ID，用於輸出時回寫保固日期供 Portal 提醒使用
-
-// 產生保固書 PDF 時，順便把保固起訖日回寫到雲端案件資料（僅此欄位，供 Portal 到期提醒使用）
-async function syncWarrantyToCloud() {
-  if (!cloudCaseId) return; // 非從 Portal 載入的案件，沒有對應的雲端資料可回寫
-  try {
-    const sy = parseInt(document.getElementById('startYear').value) || 0;
-    const sm = parseInt(document.getElementById('startMonth').value) || 1;
-    const sd = parseInt(document.getElementById('startDay').value) || 1;
-    const ey = parseInt(document.getElementById('endYear').value) || 0;
-    const em = parseInt(document.getElementById('endMonth').value) || 1;
-    const ed = parseInt(document.getElementById('endDay').value) || 1;
-    if (!sy || !ey) return;
-
-    const startDate = new Date(sy + 1911, sm - 1, sd).toISOString();
-    const endDate = new Date(ey + 1911, em - 1, ed).toISOString();
-
-    await db.collection('cases').doc(cloudCaseId).set({
-      warranty: {
-        startDate, endDate,
-        warrantyNo: document.getElementById('warrantyNo').value || '',
-        years: document.getElementById('warrantyYears').value || '',
-      },
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
-  } catch (err) {
-    console.warn('保固日期回寫雲端失敗（不影響 PDF 產生）：', err);
-  }
-}
+let cloudCaseId = null;     // 從 Portal 載入的案件 id（cases.id）
+let cloudCustomerId = null; // 對應的客戶 id（customers.id）
 
 function buildDownloadPath(caseNo, clientName, fileNamePart) {
   const safe = s => (s || '').toString().replace(/[\\/:*?"<>|]/g, '_').trim();
@@ -248,22 +212,22 @@ function buildDownloadPath(caseNo, clientName, fileNamePart) {
   return `顧客資料/${year}/${month}/${safe(caseNo)}/${fileNamePart}`;
 }
 
-/* ══════════════ 從 Portal 網址參數自動載入案件（?case=xxx，僅讀取） ══════════════ */
+/* ══════════════ 從 Portal 網址參數自動載入案件（?case=xxx） ══════════════ */
 async function loadCaseFromUrl() {
   const params = new URLSearchParams(window.location.search);
   const caseId = params.get('case');
   if (!caseId) return; // 沒有帶參數，維持顯示提示
 
   try {
-    const doc = await db.collection('cases').doc(caseId).get();
-    if (!doc.exists) return;
-    const c = doc.data();
+    const c = await ysLoadCaseForEdit(caseId);
+    if (!c) return;
 
-    document.getElementById('clientAddress').value = c.clientAddress || '';
+    document.getElementById('clientAddress').value = c.address || '';
     if (c.caseNumber) document.getElementById('warrantyNo').value = c.caseNumber;
     folderClientName = c.clientName || '';
-    cloudCaseId = caseId;
-    window.YSCurrentCaseId = caseId;
+    cloudCaseId = c.caseId;
+    cloudCustomerId = c.customerId;
+    window.YSCurrentCaseId = c.caseId;
 
     document.getElementById('caseNotLoadedNotice').style.display = 'none';
     document.getElementById('caseLoadedText').textContent = `✅ 已從 Portal 載入案件：${c.clientName || ''}　${c.caseNumber || ''}`;
@@ -729,8 +693,40 @@ async function generatePDF(isPreview = false) {
       a.href = url;
       a.download = fName;
       a.click(); URL.revokeObjectURL(url);
-      msg.className = 'status-msg success'; msg.textContent = '✅ 保固書已產生';
-      syncWarrantyToCloud(); // 回寫保固起訖日到雲端，供 Portal 到期提醒使用
+
+      // 把保固書 PDF 與保固起訖日存入 Supabase（僅限已從 Portal 載入既有案件時；
+      // 若是獨立開啟、沒有對應案件，仍可正常下載本機 PDF，只是不會同步到雲端）
+      if (cloudCaseId) {
+        try {
+          const sy = parseInt(document.getElementById('startYear').value) || 0;
+          const sm = parseInt(document.getElementById('startMonth').value) || 1;
+          const sd = parseInt(document.getElementById('startDay').value) || 1;
+          const ey = parseInt(document.getElementById('endYear').value) || 0;
+          const em = parseInt(document.getElementById('endMonth').value) || 1;
+          const ed = parseInt(document.getElementById('endDay').value) || 1;
+          const toIso = (y, mo, d) => y ? `${y + 1911}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}` : null;
+
+          await ysSaveDocument({
+            caseId: cloudCaseId,
+            docType: 'warranty',
+            docNumber: warrantyNo !== '—' ? warrantyNo : '',
+            title: `施工保固書 ${warrantyNo !== '—' ? warrantyNo : ''}`,
+            pdfBlob: blob,
+            warrantyStart: toIso(sy, sm, sd),
+            warrantyEnd: toIso(ey, em, ed),
+            formData: {
+              warrantyYears: document.getElementById('warrantyYears').value || '',
+              stampType: window._lastStampType || 'none'
+            }
+          });
+          msg.className = 'status-msg success'; msg.textContent = '✅ 保固書已產生（已同步至雲端）';
+        } catch (cloudErr) {
+          console.warn('文件雲端存檔失敗（PDF 已成功下載到本機）：', cloudErr);
+          msg.className = 'status-msg'; msg.textContent = '⚠️ PDF 已下載，但雲端存檔失敗：' + cloudErr.message;
+        }
+      } else {
+        msg.className = 'status-msg success'; msg.textContent = '✅ 保固書已產生';
+      }
 
       const issueDateVal = document.getElementById('issueDate').value;
       setTimeout(() => {
@@ -841,7 +837,7 @@ async function askAndStamp(canvasEl, stampPos) {
     document.body.appendChild(ov);
     const setMsg = (t,c='#e53935') => { const el=document.getElementById('_sMsg'); el.textContent=t; el.style.color=c; };
     const close = () => document.body.removeChild(ov);
-    document.getElementById('_sSkip').onclick = () => { close(); resolve(canvasEl); };
+    document.getElementById('_sSkip').onclick = () => { window._lastStampType = 'none'; close(); resolve(canvasEl); };
     const doStamp = async (type) => {
       ['_sInv','_sPer','_sSkip'].forEach(id => document.getElementById(id).disabled=true);
       setMsg('讀取印章中…','#1871b5');
@@ -862,6 +858,7 @@ async function askAndStamp(canvasEl, stampPos) {
         const px = stampPos.cx - sW / 2;
         const py = stampPos.topY + PAD + (availH - sH) / 2;
         ctx.drawImage(img, px, py, sW, sH);
+        window._lastStampType = type;
         setMsg('✔ 蓋章完成！','#2e7d32');
         setTimeout(() => { close(); resolve(canvasEl); }, 350);
       } catch(e) {
