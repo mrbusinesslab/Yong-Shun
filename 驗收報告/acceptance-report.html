@@ -6,7 +6,7 @@
 <title>詠順工程行｜施工驗收報告產生器</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../supabase-firebase-compat.js"></script>
+<script src="../supabase-shared.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Microsoft JhengHei','微軟正黑體',Arial,sans-serif; background: #f0f4f8; color: #1a1a1a; min-height: 100vh; }
@@ -186,18 +186,9 @@ function triggerLivePreview() {
   previewTimeout = setTimeout(() => generatePDF(true), 600);
 }
 
-/* ══════════════ Firebase 初始化 ══════════════ */
-const firebaseConfig = {
-  apiKey: "AIzaSyD2wWHP27kqd005xAuz-DEuEg_z9A8YCVc",
-  authDomain: "yong-shun.firebaseapp.com",
-  projectId: "yong-shun",
-  storageBucket: "yong-shun.firebasestorage.app",
-  messagingSenderId: "530988019396",
-  appId: "1:530988019396:web:6554ce1e9f977bd5182391"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const CASES_COLLECTION = 'cases';
+/* ══════════════ 案件雲端資料庫（Supabase，共用） ══════════════ */
+// supabaseClient 已由 ../supabase-shared.js 建立好
+let currentCustomerId = null;
 
 /* ══════════════ 從 Portal 網址參數自動載入案件（?case=xxx） ══════════════ */
 async function loadCaseFromUrl() {
@@ -206,41 +197,42 @@ async function loadCaseFromUrl() {
   if (!caseId) return; // 沒有帶參數，維持顯示「尚未選擇案件」提示
 
   try {
-    const doc = await db.collection(CASES_COLLECTION).doc(caseId).get();
-    if (!doc.exists) {
+    const c = await ysLoadCaseForEdit(caseId);
+    if (!c) {
       showToast('⚠️ 找不到對應的案件資料（可能已被刪除）');
       return;
     }
-    applyCase(caseId, doc.data());
+    const priorAcceptance = await ysLoadCaseDocuments(caseId, 'acceptance_report');
+    const priorInspection = await ysLoadCaseDocuments(caseId, 'inspection_report');
+    await applyCase(c, priorAcceptance[0]?.form_data, priorInspection[0]?.form_data);
+
     document.getElementById('caseNotLoadedNotice').style.display = 'none';
-    const banner = document.getElementById('caseLoadedBanner');
-    const c = doc.data();
     document.getElementById('caseLoadedText').textContent = `✅ 已從 Portal 載入案件：${c.clientName || ''}　${c.caseNumber || ''}`;
-    banner.style.display = 'block';
+    document.getElementById('caseLoadedBanner').style.display = 'block';
   } catch (err) {
     console.error(err);
     showToast('❌ 載入案件失敗：' + err.message);
   }
 }
 
-function applyCase(id, c) {
-  currentCaseId = id;
-  window.YSCurrentCaseId = id;
+async function applyCase(c, acceptanceData, inspectionData) {
+  currentCaseId = c.caseId;
+  currentCustomerId = c.customerId;
+  window.YSCurrentCaseId = c.caseId;
   document.getElementById('caseNumber').value = c.caseNumber || '';
   document.getElementById('clientName').value = c.clientName || '';
-  document.getElementById('clientContact').value = c.clientContact || '';
-  document.getElementById('address').value = c.clientAddress || '';
-  document.getElementById('phone').value = c.phone || '';
+  document.getElementById('address').value = c.address || '';
+  document.getElementById('phone').value = c.clientPhone || '';
 
   // 優先使用此案件先前存過的驗收資料（若有），否則從檢測資料帶入問題點位
-  if (c.acceptance && Array.isArray(c.acceptance.points) && c.acceptance.points.length > 0) {
-    points = c.acceptance.points.map(pt => { pointSeq++; return { ...pt, id: pointSeq, beforeImg: null, afterImg: null }; });
-    if (c.acceptance.testTime) document.getElementById('testTime').value = c.acceptance.testTime;
-    if (c.acceptance.testMethod) document.getElementById('testMethod').value = c.acceptance.testMethod;
-    if (c.acceptance.testResult) document.getElementById('testResult').value = c.acceptance.testResult;
-    if (c.acceptance.watchNote) document.getElementById('watchNote').value = c.acceptance.watchNote;
-  } else if (c.detection && Array.isArray(c.detection.points)) {
-    points = c.detection.points.map(card => {
+  if (acceptanceData && Array.isArray(acceptanceData.points) && acceptanceData.points.length > 0) {
+    points = acceptanceData.points.map(pt => { pointSeq++; return { ...pt, id: pointSeq, beforeImg: null, afterImg: null }; });
+    if (acceptanceData.testTime) document.getElementById('testTime').value = acceptanceData.testTime;
+    if (acceptanceData.testMethod) document.getElementById('testMethod').value = acceptanceData.testMethod;
+    if (acceptanceData.testResult) document.getElementById('testResult').value = acceptanceData.testResult;
+    if (acceptanceData.watchNote) document.getElementById('watchNote').value = acceptanceData.watchNote;
+  } else if (inspectionData && Array.isArray(inspectionData.detectionPoints)) {
+    points = inspectionData.detectionPoints.map(card => {
       pointSeq++;
       const issueParts = [];
       if (card.recordA) issueParts.push(card.recordA);
@@ -658,7 +650,43 @@ async function generatePDF(isPreview = false) {
       const a = document.createElement('a');
       a.href = url2; a.download = `${caseNumber}_驗收.pdf`;
       a.click(); URL.revokeObjectURL(url2);
-      msg.className = 'status-msg success'; msg.textContent = '✅ 驗收報告已產生';
+
+      try {
+        const clientName = document.getElementById('clientName').value || '';
+        const clientPhone = document.getElementById('phone').value || '';
+        const clientAddress = document.getElementById('address').value || '';
+
+        if (!currentCaseId) {
+          const resolved = await ysResolveCustomerAndCase({ name: clientName, phone: clientPhone, address: clientAddress });
+          currentCustomerId = resolved.customerId;
+          currentCaseId = resolved.caseId;
+        }
+        currentCaseId = await ysUpsertCase({
+          caseId: currentCaseId, customerId: currentCustomerId,
+          caseNumber: caseNumber, address: clientAddress
+        });
+        window.YSCurrentCaseId = currentCaseId;
+
+        await ysSaveDocument({
+          caseId: currentCaseId,
+          docType: 'acceptance_report',
+          docNumber: caseNumber,
+          title: `施工驗收報告 ${caseNumber}`,
+          pdfBlob: blob2,
+          formData: {
+            points: points.map(p => ({ location: p.location, originalIssue: p.originalIssue, status: p.status, note: p.note, fromReport: p.fromReport })),
+            testTime: document.getElementById('testTime').value || '',
+            testMethod: document.getElementById('testMethod').value || '',
+            testResult: document.getElementById('testResult').value || '',
+            watchNote: document.getElementById('watchNote').value || '',
+            stampType: window._lastStampType || 'none'
+          }
+        });
+        msg.className = 'status-msg success'; msg.textContent = '✅ 驗收報告已產生（已同步至雲端）';
+      } catch (cloudErr) {
+        console.warn('文件雲端存檔失敗（PDF 已成功下載到本機）：', cloudErr);
+        msg.className = 'status-msg'; msg.textContent = '⚠️ PDF 已下載，但雲端存檔失敗：' + cloudErr.message;
+      }
 
       const acceptDateVal = document.getElementById('acceptDate').value;
       setTimeout(() => {
@@ -780,7 +808,7 @@ async function askAndStamp(canvasEl, stampPos) {
     document.body.appendChild(ov);
     const setMsg = (t,c='#e53935') => { const el=document.getElementById('_sMsg'); el.textContent=t; el.style.color=c; };
     const close = () => document.body.removeChild(ov);
-    document.getElementById('_sSkip').onclick = () => { close(); resolve(canvasEl); };
+    document.getElementById('_sSkip').onclick = () => { window._lastStampType = 'none'; close(); resolve(canvasEl); };
     const doStamp = async (type) => {
       ['_sInv','_sPer','_sSkip'].forEach(id => document.getElementById(id).disabled=true);
       setMsg('讀取印章中…','#1871b5');
@@ -801,6 +829,7 @@ async function askAndStamp(canvasEl, stampPos) {
         const px = stampPos.cx - sW / 2;
         const py = stampPos.topY + PAD + (availH - sH) / 2;
         ctx.drawImage(img, px, py, sW, sH);
+        window._lastStampType = type;
         setMsg('✔ 蓋章完成！','#2e7d32');
         setTimeout(() => { close(); resolve(canvasEl); }, 350);
       } catch(e) {
