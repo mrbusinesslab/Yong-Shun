@@ -6,7 +6,7 @@
 <title>詠順工程行｜施工驗收報告產生器</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-firebase-compat.js"></script>
+<script src="../supabase-firebase-compat.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Microsoft JhengHei','微軟正黑體',Arial,sans-serif; background: #f0f4f8; color: #1a1a1a; min-height: 100vh; }
@@ -329,6 +329,9 @@ function renderPoints() {
 function handleImage(e, id, field) {
   const file = e.target.files[0];
   if (!file) return;
+  // 驗收報告的施工前／後原始照片同步到私人 Storage。
+  uploadCasePhoto(currentCaseId, field === 'beforeImg' ? 'before' : 'after', file, `驗收報告點位 ${id}／${field === 'beforeImg' ? '施工前' : '施工後'}`)
+    .catch(err => console.warn('照片上傳失敗（不影響本頁預覽）：', err));
   const reader = new FileReader();
   reader.onload = (ev) => {
     getPoint(id)[field] = ev.target.result;
