@@ -345,6 +345,7 @@ async function loadCaseFromUrl() {
     }
     const c = doc.data();
     currentCaseId = caseId;
+    window.YSCurrentCaseId = caseId;
 
     document.getElementById('clientName').value = c.clientName || '';
     document.getElementById('clientContact').value = c.clientContact || '';
