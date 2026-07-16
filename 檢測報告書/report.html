@@ -830,6 +830,7 @@ async function syncCaseToCloud() {
     if (!clientName && !clientAddress) return; // 資料太空，不建立雲端案件
 
     if (!cloudCaseId) cloudCaseId = generateCloudCaseId();
+    window.YSCurrentCaseId = cloudCaseId;
     const docId = cloudCaseId;
     const detectionPoints = (cardStore[2] || []).map(card => ({
       position: card.position || '', instrument: card.instrument || '', recordA: card.recordA || '', recordB: card.recordB || '',
@@ -881,6 +882,7 @@ async function loadCaseFromUrlForEdit() {
     }
     const c = doc.data();
     cloudCaseId = caseId;
+    window.YSCurrentCaseId = caseId;
 
     const set = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined) el.value = val; };
     set('clientName', c.clientName);
