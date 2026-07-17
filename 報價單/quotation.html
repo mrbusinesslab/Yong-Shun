@@ -340,7 +340,7 @@ async function loadCaseFromUrl() {
     if (c.caseNumber) document.getElementById('quoteNo').value = c.caseNumber;
 
     // 若檢測報告已有問題點位，帶入作為施工位置起點（僅檢測報告書會寫入這份資料，其餘文件只讀取）
-    const priorDocs = await ysLoadCaseDocuments(caseId, 'inspection_report');
+    const priorDocs = await ysLoadCaseDocuments(caseId, 'report');
     const points = priorDocs.length > 0 ? priorDocs[0].form_data?.detectionPoints : null;
     if (Array.isArray(points) && points.length > 0) {
       loadLocationsFromDetectionPoints(points);
