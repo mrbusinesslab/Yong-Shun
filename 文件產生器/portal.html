@@ -970,14 +970,13 @@
     const listEl = document.getElementById('recentList');
     try {
       const { data, error } = await supabaseClient.from('cases')
-        .select('id, case_number, site_address, updated_at, customers(name, cloud_folder_url), case_pins!left(user_id)')
+        .select('id, case_number, site_address, updated_at, customers(name), case_pins!left(user_id)')
         .neq('status', 'closed').neq('status', 'cancelled')
         .order('updated_at', { ascending: false }).limit(15);
       if (error) throw error;
       allRecentCases = (data || []).map(c => ({
         id: c.id, caseNumber: c.case_number, clientAddress: c.site_address, updatedAt: c.updated_at,
-        clientName: c.customers?.name || '', folderUrl: c.customers?.cloud_folder_url || '',
-        pinned: (c.case_pins || []).some(p => p.user_id === currentUser?.id)
+        clientName: c.customers?.name || '', pinned: (c.case_pins || []).some(p => p.user_id === currentUser?.id)
       }));
       renderRecentList(allRecentCases);
     } catch (err) {
@@ -1104,7 +1103,6 @@
             <div class="recent-meta">${esc(c.clientAddress || '')}　｜　更新於 ${dateStr}</div>
           </div>
           <div class="recent-actions">
-            ${c.folderUrl ? `<a class="recent-btn" style="background:#e6f6ea;color:#2e7d32;" href="${esc(c.folderUrl)}" target="_blank" rel="noopener">📁 雲端資料夾</a>` : ''}
             <a class="recent-btn edit-btn" href="${DOC_URLS.report}?case=${caseParam}" target="_blank" rel="noopener">✏️ 編輯報告書</a>
             <a class="recent-btn" href="${DOC_URLS.quotation}?case=${caseParam}" target="_blank" rel="noopener">建立報價單</a>
             <a class="recent-btn" href="${DOC_URLS.warranty}?case=${caseParam}" target="_blank" rel="noopener">建立保固書</a>
@@ -1231,13 +1229,12 @@
     listEl.innerHTML = '<div class="recent-loading">讀取中...</div>';
     try {
       const { data, error } = await supabaseClient.from('cases')
-        .select('id, case_number, site_address, status, updated_at, customers(name, phone, cloud_folder_url), case_pins!left(user_id)')
+        .select('id, case_number, site_address, status, updated_at, customers(name, phone), case_pins!left(user_id)')
         .order('updated_at', { ascending: false }).limit(300);
       if (error) throw error;
       allCasesFull = (data || []).map(c => ({
         id: c.id, caseNumber: c.case_number, clientAddress: c.site_address, status: c.status,
         updatedAt: c.updated_at, clientName: c.customers?.name || '', clientPhone: c.customers?.phone || '',
-        folderUrl: c.customers?.cloud_folder_url || '',
         pinned: (c.case_pins || []).some(p => p.user_id === currentUser?.id),
       }));
       renderCasesView();
@@ -1286,7 +1283,6 @@
             <span class="status-badge ${group}">${esc(badgeLabel)}</span>
           </div>
           <div class="case-row-actions">
-            ${c.folderUrl ? `<a class="recent-btn" style="background:#e6f6ea;color:#2e7d32;" href="${esc(c.folderUrl)}" target="_blank" rel="noopener">📁 雲端資料夾</a>` : ''}
             <a class="recent-btn edit-btn" href="${DOC_URLS.report}?case=${caseParam}" target="_blank" rel="noopener">✏️ 編輯報告書</a>
             <a class="recent-btn" href="${DOC_URLS.quotation}?case=${caseParam}" target="_blank" rel="noopener">報價單</a>
             <a class="recent-btn" href="${DOC_URLS.warranty}?case=${caseParam}" target="_blank" rel="noopener">保固書</a>
@@ -1332,13 +1328,12 @@
     const listEl = document.getElementById('customerListView');
     try {
       const { data, error } = await supabaseClient.from('customers')
-        .select('id, name, phone, phone_alt, address, cloud_folder_url, cases(count)')
+        .select('id, name, phone, phone_alt, address, is_returning, cases(count)')
         .is('deleted_at', null).order('name', { ascending: true }).limit(300);
       if (error) throw error;
       allCustomers = (data || []).map(c => ({
         id: c.id, name: c.name, phone: c.phone || '', address: c.address || '',
-        caseCount: c.cases?.[0]?.count || 0, folderUrl: c.cloud_folder_url || '',
-        isReturning: (c.cases?.[0]?.count || 0) > 1, // 資料庫沒有專門欄位，用案件數 > 1 判斷是否回頭客
+        isReturning: c.is_returning, caseCount: c.cases?.[0]?.count || 0,
       }));
       renderCustomersList(allCustomers);
     } catch (err) {
@@ -1359,7 +1354,7 @@
     listEl.innerHTML = list.map(c => `
       <div class="customer-row" onclick="openCustomerDetail('${c.id}')">
         <div>
-          <div class="customer-row-name">${c.folderUrl ? '📁 ' : ''}${esc(c.name)}${c.isReturning ? '<span class="returning-badge">回頭客</span>' : ''}</div>
+          <div class="customer-row-name">${esc(c.name)}${c.isReturning ? '<span class="returning-badge">回頭客</span>' : ''}</div>
           <div class="customer-row-meta">${esc(c.phone)}　${esc(c.address)}</div>
         </div>
         <div class="customer-case-count">${c.caseCount} 筆案件 →</div>
@@ -1407,18 +1402,13 @@
             `;
           }).join('');
 
-      const isReturning = (cases || []).length > 1;
       box.innerHTML = `
         <div class="detail-card">
-          <h3>${esc(cust.name)}${isReturning ? '<span class="returning-badge">回頭客</span>' : ''}</h3>
+          <h3>${esc(cust.name)}${cust.is_returning ? '<span class="returning-badge">回頭客</span>' : ''}</h3>
           <div class="detail-meta">
             電話：${esc(cust.phone || '—')}${cust.phone_alt ? '　／　' + esc(cust.phone_alt) : ''}<br>
             通訊地址：${esc(cust.address || '—')}<br>
-            ${cust.notes ? '備註：' + esc(cust.notes) + '<br>' : ''}
-            雲端資料夾：${cust.cloud_folder_url
-              ? `<a href="${esc(cust.cloud_folder_url)}" target="_blank" rel="noopener">📁 開啟資料夾</a>`
-              : '尚未設定'}
-            　<button class="recent-btn" style="padding:2px 10px;font-size:11.5px;" onclick="setCustomerFolder('${cust.id}', ${JSON.stringify(cust.cloud_folder_url || '')})">🔗 設定連結</button>
+            ${cust.note ? '備註：' + esc(cust.note) : ''}
           </div>
         </div>
         <h3 style="font-size:15px;margin-bottom:12px;">📁 歷史案件（${(cases || []).length} 筆）</h3>
@@ -1426,18 +1416,6 @@
       `;
     } catch (err) {
       box.innerHTML = '<div class="recent-empty">⚠️ 讀取客戶詳情失敗：' + esc(err.message) + '</div>';
-    }
-  }
-
-  async function setCustomerFolder(id, currentUrl) {
-    const url = prompt('請貼上這位客戶的雲端共享資料夾連結（例如 Google Drive 資料夾網址）：', currentUrl || '');
-    if (url === null) return; // 取消
-    try {
-      const { error } = await supabaseClient.from('customers').update({ cloud_folder_url: url.trim() || null }).eq('id', id);
-      if (error) throw error;
-      openCustomerDetail(id); // 重新載入顯示最新連結
-    } catch (err) {
-      alert('設定失敗：' + err.message);
     }
   }
 
@@ -1458,14 +1436,13 @@
     const listEl = document.getElementById('documentListView');
     try {
       const { data, error } = await supabaseClient.from('documents')
-        .select('id, doc_type, doc_number, title, status, pdf_path, created_at, issued_at, cases(case_number, customers(name, cloud_folder_url))')
+        .select('id, doc_type, doc_number, title, status, pdf_path, created_at, issued_at, cases(case_number, customers(name))')
         .is('deleted_at', null).order('created_at', { ascending: false }).limit(300);
       if (error) throw error;
       allDocuments = (data || []).map(d => ({
         id: d.id, docType: d.doc_type, docNumber: d.doc_number || '', title: d.title,
-        status: d.status, createdAt: d.created_at, issuedAt: d.issued_at,
+        status: d.status, pdfPath: d.pdf_path, createdAt: d.created_at, issuedAt: d.issued_at,
         caseNumber: d.cases?.case_number || '', clientName: d.cases?.customers?.name || '',
-        folderUrl: d.cases?.customers?.cloud_folder_url || '',
       }));
       renderDocumentsList(allDocuments);
     } catch (err) {
@@ -1490,9 +1467,9 @@
     if (list.length === 0) { listEl.innerHTML = '<div class="recent-empty">沒有符合條件的文件</div>'; return; }
     listEl.innerHTML = list.map(d => {
       const dateStr = (d.issuedAt || d.createdAt) ? new Date(d.issuedAt || d.createdAt).toLocaleDateString('zh-TW') : '';
-      const dlBtn = d.folderUrl
-        ? `<a class="recent-btn" style="background:#e6f6ea;color:#2e7d32;" href="${esc(d.folderUrl)}" target="_blank" rel="noopener">📁 雲端資料夾</a>`
-        : `<span style="font-size:11.5px;color:var(--sub);">尚未設定雲端資料夾</span>`;
+      const dlBtn = d.pdfPath
+        ? `<button class="recent-btn" onclick="downloadDocumentPdf('${d.pdfPath.replace(/'/g, "\\'")}')">⬇️ 下載 PDF</button>`
+        : `<span style="font-size:11.5px;color:var(--sub);">尚無已上傳 PDF</span>`;
       return `
         <div class="doc-row">
           <div>
@@ -1505,6 +1482,16 @@
         </div>
       `;
     }).join('');
+  }
+
+  async function downloadDocumentPdf(path) {
+    try {
+      const { data, error } = await supabaseClient.storage.from('documents').createSignedUrl(path, 3600);
+      if (error) throw error;
+      window.open(data.signedUrl, '_blank');
+    } catch (err) {
+      alert('下載失敗：' + err.message);
+    }
   }
 
   /* ══════════════ 搜尋中心 ══════════════ */
