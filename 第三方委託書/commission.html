@@ -780,7 +780,7 @@ async function loadCaseFromUrl() {
     document.getElementById('clientPhone').value = c.clientPhone || '';
     document.getElementById('siteAddress').value = c.address || '';
 
-    const priorInspection = await ysLoadCaseDocuments(c.caseId, 'inspection_report');
+    const priorInspection = await ysLoadCaseDocuments(c.caseId, 'report');
     const fd = priorInspection[0] ? priorInspection[0].form_data || {} : {};
 
     // 檢測範圍：與檢測報告書一致
