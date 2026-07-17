@@ -78,7 +78,7 @@ async function ysUpsertCase({ caseId, customerId, caseNumber, address, buildingT
     if (error) throw new Error('案件更新失敗：' + error.message);
     return caseId;
   } else {
-    const { data, error } = await sb.from('cases').insert({ ...payload, status: 'active' }).select('id').single();
+    const { data, error } = await sb.from('cases').insert({ ...payload, status: 'open' }).select('id').single();
     if (error) throw new Error('案件建立失敗：' + error.message);
     return data.id;
   }
