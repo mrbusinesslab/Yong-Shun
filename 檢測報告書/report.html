@@ -838,7 +838,7 @@ async function syncCaseToCloud() {
       }));
       await ysSaveDocument({
         caseId: cloudCaseId,
-        docType: 'inspection_report',
+        docType: 'report',
         docNumber: currentCaseNo,
         title: `檢測報告書 ${currentCaseNo}`,
         formData: {
@@ -911,7 +911,7 @@ async function loadCaseFromUrlForEdit() {
     if (bSel && c.buildingType) bSel.value = c.buildingType;
 
     // 從雲端帶回完整文字內容（每次暫存草稿都會同步，不需要等到產生過 PDF），僅照片需要重新上傳
-    const priorDocs = await ysLoadCaseDocuments(c.caseId, 'inspection_report');
+    const priorDocs = await ysLoadCaseDocuments(c.caseId, 'report');
     if (priorDocs.length > 0) {
       const fd = priorDocs[0].form_data || {};
       set('issueDate', fd.issueDate);
@@ -3471,7 +3471,7 @@ async function doExportPDF() {
         }));
         await ysSaveDocument({
           caseId: cloudCaseId,
-          docType: 'inspection_report',
+          docType: 'report',
           docNumber: currentCaseNo || '',
           title: `檢測報告書 ${currentCaseNo || ''}`,
           pdfBlob: blob,
