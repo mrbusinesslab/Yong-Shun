@@ -1210,6 +1210,13 @@
   let allCasesFull = [];       // 案件管理頁：完整案件清單（含所有狀態）
   let currentCaseTab = 'all';
   const STATUS_LABELS = { active: '進行中', completed: '已完工', closed: '已結案', cancelled: '已取消' };
+  // 資料庫實際存的是階段值（open／inspection／quotation／construction／warranty／closed／cancelled），
+  // 這裡對應到畫面上的四個分類（進行中／已完工／已結案／已取消），畫面顯示不變
+  const STATUS_GROUP = {
+    open: 'active', inspection: 'active', quotation: 'active', construction: 'active',
+    warranty: 'completed', closed: 'closed', cancelled: 'cancelled'
+  };
+  const caseGroup = c => STATUS_GROUP[c.status] || c.status;
 
   function switchCaseTab(status) {
     currentCaseTab = status;
@@ -1244,7 +1251,7 @@
     const term = (document.getElementById('caseSearchInput').value || '').trim().toLowerCase();
 
     let list = allCasesFull;
-    if (currentCaseTab !== 'all') list = list.filter(c => c.status === currentCaseTab);
+    if (currentCaseTab !== 'all') list = list.filter(c => caseGroup(c) === currentCaseTab);
     if (term) {
       list = list.filter(c => [c.clientName, c.clientAddress, c.caseNumber, c.clientPhone]
         .join(' ').toLowerCase().includes(term));
@@ -1258,12 +1265,13 @@
     listEl.innerHTML = list.map(c => {
       const dateStr = c.updatedAt ? new Date(c.updatedAt).toLocaleDateString('zh-TW') : '';
       const caseParam = encodeURIComponent(c.id);
-      const badgeLabel = STATUS_LABELS[c.status] || c.status;
-      const reopenBtn = (c.status === 'closed' || c.status === 'cancelled')
-        ? `<button class="recent-btn" onclick="changeCaseStatus('${c.id}','active')">↩️ 重新開啟</button>` : '';
-      const completeBtn = c.status === 'active'
-        ? `<button class="recent-btn" onclick="changeCaseStatus('${c.id}','completed')">✅ 標記完工</button>` : '';
-      const closeBtn = (c.status !== 'closed')
+      const group = caseGroup(c);
+      const badgeLabel = STATUS_LABELS[group] || c.status;
+      const reopenBtn = (group === 'closed' || group === 'cancelled')
+        ? `<button class="recent-btn" onclick="changeCaseStatus('${c.id}','open')">↩️ 重新開啟</button>` : '';
+      const completeBtn = group === 'active'
+        ? `<button class="recent-btn" onclick="changeCaseStatus('${c.id}','warranty')">✅ 標記完工</button>` : '';
+      const closeBtn = (group !== 'closed')
         ? `<button class="recent-btn" onclick="if(confirm('標記為已結案，確定嗎？')) changeCaseStatus('${c.id}','closed')">📁 標記已結案</button>` : '';
       return `
         <div class="case-row">
@@ -1272,7 +1280,7 @@
               <div class="case-row-name">${c.pinned ? '<span class="pin-badge">📌</span>' : ''}${esc(c.clientName || '（未命名委託方）')}　${esc(c.caseNumber || '')}</div>
               <div class="case-row-meta">${esc(c.clientAddress || '')}　${c.clientPhone ? '｜　' + esc(c.clientPhone) : ''}　｜　更新於 ${dateStr}</div>
             </div>
-            <span class="status-badge ${c.status}">${esc(badgeLabel)}</span>
+            <span class="status-badge ${group}">${esc(badgeLabel)}</span>
           </div>
           <div class="case-row-actions">
             <a class="recent-btn edit-btn" href="${DOC_URLS.report}?case=${caseParam}" target="_blank" rel="noopener">✏️ 編輯報告書</a>
@@ -1372,7 +1380,8 @@
         : cases.map(cs => {
             const dateStr = cs.updated_at ? new Date(cs.updated_at).toLocaleDateString('zh-TW') : '';
             const caseParam = encodeURIComponent(cs.id);
-            const badgeLabel = STATUS_LABELS[cs.status] || cs.status;
+            const group = STATUS_GROUP[cs.status] || cs.status;
+            const badgeLabel = STATUS_LABELS[group] || cs.status;
             return `
               <div class="case-row">
                 <div class="case-row-top">
@@ -1380,7 +1389,7 @@
                     <div class="case-row-name">${esc(cs.case_number || '')}</div>
                     <div class="case-row-meta">${esc(cs.site_address || '')}　｜　更新於 ${dateStr}</div>
                   </div>
-                  <span class="status-badge ${cs.status}">${esc(badgeLabel)}</span>
+                  <span class="status-badge ${group}">${esc(badgeLabel)}</span>
                 </div>
                 <div class="case-row-actions">
                   <a class="recent-btn edit-btn" href="${DOC_URLS.report}?case=${caseParam}" target="_blank" rel="noopener">✏️ 編輯報告書</a>
