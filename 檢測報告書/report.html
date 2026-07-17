@@ -997,8 +997,7 @@ function saveSeqMap(map) { localStorage.setItem(SEQ_KEY, JSON.stringify(map)); }
 // 依地址開頭文字判讀縣市，回傳 [中文縣市, 英文代碼] 或 null
 function detectRegionFromAddress(address) {
   if (!address) return null;
-  // 「台」「臺」通用（例：台中市＝臺中市），統一轉成臺再比對
-  const trimmed = address.trim().replace(/台/g, '臺');
+  const trimmed = address.trim();
   for (const [cn, code] of REGIONS) {
     if (trimmed.startsWith(cn)) return [cn, code];
   }
@@ -2523,7 +2522,9 @@ function drawCardBox(ctx, card, labelBase, x, y, w, h, cfg, step) {
   ctx.strokeStyle = '#5d89bd'; ctx.lineWidth = 0.6;
   ctx.strokeRect(textColX, posBoxY, textColW, posBoxH);
 
-  const posText = `位置：${card.position || '樓層-空間-位置'}`;
+  const posText = step === 2 && card.instrument
+    ? `位置：${card.position || '樓層-空間-位置'}　儀器：${card.instrument}`
+    : `位置：${card.position || '樓層-空間-位置'}`;
   let posFontSize = 12;
   ctx.font = `${posFontSize}px ${ff}`;
   while (ctx.measureText(posText).width > textColW - 12 && posFontSize > 9) {
@@ -3227,17 +3228,12 @@ const AUTOFILL_FIELD_MAP = {
   '拍攝位置': 's1Position',
   '委託方陳述': 'clientDeclare',
   '二、檢測結果結論': 's2Conclusion',
-  '結論': 's2Conclusion',
   '漏水原因': 's5Cause',
   '漏水型態': 's5Type',
   '漏水來源': 's5Source',
   '施工項目說明': 's6RepairOther',
 };
 const AUTOFILL_CARD_LABELS = { '位置': 'position', '檢測項目': 'instrument', '儀器': 'instrument', '紀錄': 'recordA', '配置': 'recordA', '觀察': 'recordA', '判讀': 'analysis' };
-const AUTOFILL_CARD_DUAL_LABELS = {
-  '紀錄前': 'recordA', '配置前': 'recordA', '觀察前': 'recordA',
-  '紀錄後': 'recordB', '配置後': 'recordB', '觀察後': 'recordB',
-};
 
 function openAutoFillModal() {
   document.getElementById('autoFillInput').value = '';
@@ -3261,7 +3257,7 @@ function applyAutoFill() {
   let filledCount = 0;
 
   const flushCard = () => {
-    if (mode && curCard && (curCard.position || curCard.recordA || curCard.recordB || curCard.analysis)) {
+    if (mode && curCard && (curCard.position || curCard.recordA || curCard.analysis)) {
       parsedCards[mode].push(curCard);
     }
     curCard = null;
@@ -3275,7 +3271,7 @@ function applyAutoFill() {
     if (marker) {
       flushCard();
       mode = marker[1] === '二' ? 2 : (marker[1] === '三' ? 3 : 4);
-      curCard = { position: '', instrument: '', recordA: '', recordB: '', analysis: '', template: 'A' };
+      curCard = { position: '', instrument: '', recordA: '', recordB: '', analysis: '' };
       continue;
     }
 
@@ -3286,25 +3282,13 @@ function applyAutoFill() {
     if (!value) continue;
 
     if (mode && curCard) {
-      const dualField = AUTOFILL_CARD_DUAL_LABELS[label];
-      if (dualField) {
-        curCard[dualField] = value.slice(0, FIELD_LIMITS.record);
-        curCard.template = 'B'; // 有前後對比欄位，自動改成雙圖對比卡片
-        filledCount++;
-        continue;
-      }
       const cardField = AUTOFILL_CARD_LABELS[label];
       if (cardField) {
         const limit = cardField === 'position' ? FIELD_LIMITS.position : (cardField === 'analysis' ? FIELD_LIMITS.analysis : FIELD_LIMITS.record);
         curCard[cardField] = value.slice(0, limit);
         filledCount++;
-        continue;
       }
-      // 不是卡片欄位（位置／檢測項目／紀錄／判讀／前後對比），代表已經離開
-      // 二三四卡片區塊，先收掉目前卡片、退出卡片模式，再往下當一般欄位處理，
-      // 不能直接 continue 把這行吃掉，否則後面五、六的欄位會被靜默略過。
-      flushCard();
-      mode = null;
+      continue;
     }
 
     if (label === '建築類型') { buildingTypeLabel = value; filledCount++; continue; }
@@ -3346,12 +3330,12 @@ function applyAutoFill() {
         cardSeqStore[step]++;
         return {
           id: cardSeqStore[step],
-          template: c.template === 'B' ? 'B' : 'A',
+          template: 'A',
           position: c.position,
           instrument: c.instrument || '',
           recordA: c.recordA,
-          recordB: c.recordB || '',
-          analysis: c.template === 'B' ? '' : c.analysis,
+          recordB: '',
+          analysis: c.analysis,
           photoTimeA: defaultDT,
           photoTimeB: defaultDT,
         };
