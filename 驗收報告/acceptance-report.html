@@ -202,8 +202,8 @@ async function loadCaseFromUrl() {
       showToast('⚠️ 找不到對應的案件資料（可能已被刪除）');
       return;
     }
-    const priorAcceptance = await ysLoadCaseDocuments(caseId, 'acceptance_report');
-    const priorInspection = await ysLoadCaseDocuments(caseId, 'inspection_report');
+    const priorAcceptance = await ysLoadCaseDocuments(caseId, 'acceptance');
+    const priorInspection = await ysLoadCaseDocuments(caseId, 'report');
     await applyCase(c, priorAcceptance[0]?.form_data, priorInspection[0]?.form_data);
 
     document.getElementById('caseNotLoadedNotice').style.display = 'none';
@@ -669,7 +669,7 @@ async function generatePDF(isPreview = false) {
 
         await ysSaveDocument({
           caseId: currentCaseId,
-          docType: 'acceptance_report',
+          docType: 'acceptance',
           docNumber: caseNumber,
           title: `施工驗收報告 ${caseNumber}`,
           pdfBlob: blob2,
