@@ -852,10 +852,10 @@
         <input type="text" id="docSearchInput" placeholder="搜尋姓名／案號..." oninput="filterDocumentsView()" style="min-width:220px;">
         <select id="docTypeFilter" onchange="filterDocumentsView()">
           <option value="all">全部類型</option>
-          <option value="inspection_report">檢測報告書</option>
+          <option value="report">檢測報告書</option>
           <option value="quotation">工程報價單</option>
           <option value="warranty">施工保固書</option>
-          <option value="acceptance_report">施工驗收報告</option>
+          <option value="acceptance">施工驗收報告</option>
           <option value="commission">第三方委託書</option>
         </select>
         <select id="docStatusFilter" onchange="filterDocumentsView()">
@@ -1427,8 +1427,8 @@
   /* ══════════════ 文件中心 ══════════════ */
   let allDocuments = [];
   const DOC_TYPE_LABELS = {
-    inspection_report: '檢測報告書', quotation: '工程報價單', warranty: '施工保固書',
-    acceptance_report: '施工驗收報告', commission: '第三方委託書',
+    report: '檢測報告書', quotation: '工程報價單', warranty: '施工保固書',
+    acceptance: '施工驗收報告', commission: '第三方委託書',
   };
   const DOC_STATUS_LABELS = { draft: '草稿', issued: '已出具', voided: '已作廢' };
 
