@@ -198,6 +198,76 @@
     .warranty-panel { width: 100%; position: static; max-height: none; }
   }
 
+  /* ── 場務表（甘特圖） ── */
+  .fs-modebtns { display: flex; gap: 8px; }
+  .fs-mode-btn {
+    border: 1.5px solid var(--line); background: #fff; color: var(--sub);
+    padding: 7px 16px; border-radius: 8px; font-size: 12.5px; font-weight: 700;
+    font-family: inherit; cursor: pointer; transition: all .15s;
+  }
+  .fs-mode-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .fs-period-toggle { display: flex; gap: 6px; }
+  .fs-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+  .fs-toolbar-left { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .fs-month-nav { display: flex; align-items: center; gap: 10px; }
+  .fs-month-nav button {
+    border: 1.5px solid var(--line); background: #fff; width: 32px; height: 32px;
+    border-radius: 8px; cursor: pointer; font-size: 15px; color: var(--sub); line-height: 1;
+  }
+  .fs-month-nav button:hover { border-color: var(--blue); color: var(--blue); }
+  .fs-month-label { font-size: 15px; font-weight: 700; color: var(--text); min-width: 88px; text-align: center; }
+  .fs-toolbar select {
+    border: 1.5px solid var(--line); border-radius: 8px; padding: 7px 10px; font-size: 12.5px;
+    font-family: inherit; color: var(--text); background: #fff;
+  }
+  .fs-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: var(--sub); margin-bottom: 12px; }
+  .fs-legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .fs-legend i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+  .fs-gantt-wrap { overflow-x: auto; background: var(--white); border: 1.5px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
+  .fs-gantt { display: flex; flex-direction: column; min-width: 760px; }
+  .fs-gantt-head, .fs-gantt-row { display: grid; grid-template-columns: 200px repeat(var(--days), minmax(26px, 1fr)); align-items: stretch; }
+  .fs-gantt-head { border-bottom: 1.5px solid var(--line); position: sticky; top: 0; background: var(--white); z-index: 1; }
+  .fs-gantt-head .fs-daycell { font-size: 11px; color: var(--sub); text-align: center; padding: 9px 0; border-left: 1px solid #f0f3f7; line-height: 1.5; }
+  .fs-gantt-head .fs-daycell.today { color: var(--blue); font-weight: 700; }
+  .fs-gantt-label-head { padding: 8px 12px; font-size: 12px; font-weight: 700; color: var(--sub); }
+  .fs-gantt-row { border-bottom: 1px solid #f0f3f7; min-height: 56px; }
+  .fs-gantt-row:hover { background: #fafcff; }
+  .fs-gantt-label { padding: 8px 12px; display: flex; flex-direction: column; justify-content: center; cursor: pointer; }
+  .fs-gantt-label .fs-case-name { font-size: 13px; font-weight: 700; color: var(--text); }
+  .fs-gantt-label .fs-case-meta { font-size: 10.5px; color: var(--sub); margin-top: 2px; }
+  .fs-gantt-track {
+    position: relative; grid-column: 2 / -1; padding: 4px 0;
+    display: grid; grid-template-columns: repeat(var(--days), 1fr); grid-auto-rows: 24px; grid-auto-flow: row;
+  }
+  .fs-gantt-track-bg { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(var(--days), 1fr); }
+  .fs-gantt-track-bg div { border-left: 1px solid #f5f7fa; }
+  .fs-bar {
+    position: relative; height: 18px; border-radius: 5px; margin: 3px 0; display: flex; align-items: center;
+    padding: 0 6px; font-size: 10px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden;
+  }
+  .fs-bar-inspection { background: var(--blue); }
+  .fs-bar-deadline { background: #e8a13c; }
+  .fs-bar-deadline-overdue { background: #e53935; }
+  .fs-bar-construction { background: #2e7d32; }
+  .fs-bar-warranty { background: #8e5fc4; }
+  .fs-gantt-empty { padding: 44px; text-align: center; color: var(--sub); font-size: 13px; }
+  .todo-count { background: #e53935; color: #fff; font-size: 10.5px; font-weight: 700; border-radius: 20px; padding: 1px 7px; margin-left: 6px; }
+
+  /* 週檢視：欄位變寬，字級加大，方便看清楚 */
+  .fs-gantt.mode-week { min-width: 920px; }
+  .fs-gantt.mode-week .fs-gantt-head, .fs-gantt.mode-week .fs-gantt-row { grid-template-columns: 220px repeat(var(--days), minmax(92px, 1fr)); }
+  .fs-gantt.mode-week .fs-gantt-head .fs-daycell { font-size: 13.5px; padding: 12px 4px; font-weight: 600; }
+  .fs-gantt.mode-week .fs-gantt-label { padding: 12px 14px; }
+  .fs-gantt.mode-week .fs-case-name { font-size: 14px; }
+  .fs-gantt.mode-week .fs-case-meta { font-size: 12px; }
+  .fs-gantt.mode-week .fs-gantt-row { min-height: 62px; }
+  .fs-gantt.mode-week .fs-gantt-track { grid-auto-rows: 28px; }
+  .fs-gantt.mode-week .fs-bar { height: 22px; font-size: 12.5px; padding: 0 9px; white-space: normal; line-height: 1.3; }
+
+  @media (max-width: 1050px) {
+    .fs-gantt-wrap { font-size: 11px; }
+  }
+
   .menu-header {
     text-align: center;
     margin-bottom: 32px;
@@ -599,7 +669,7 @@
         <span class="emo">👤</span> 客戶管理
       </div>
       <div class="sidebar-item" data-view="cases" onclick="showView('cases')">
-        <span class="emo">📁</span> 案件管理
+        <span class="emo">📅</span> 場務表
       </div>
       <div class="sidebar-item" data-view="documents" onclick="showView('documents')">
         <span class="emo">📄</span> 文件中心
@@ -804,26 +874,83 @@
     </div>
     <!-- /view-dashboard -->
 
-    <!-- ════ 案件管理 ════ -->
+    <!-- ════ 場務表 ════ -->
     <div id="view-cases" class="view">
-      <div class="view-title-row"><h2>📁 案件管理</h2></div>
-
-      <div class="case-search-row">
-        <input type="text" id="caseSearchInput" placeholder="搜尋姓名／電話／地址／案號..." oninput="filterCasesView()">
+      <div class="view-title-row">
+        <h2>📅 場務表</h2>
+        <div class="fs-modebtns">
+          <button class="fs-mode-btn active" id="fsModeGanttBtn" onclick="switchCaseViewMode('gantt')">甘特圖</button>
+          <button class="fs-mode-btn" id="fsModeListBtn" onclick="switchCaseViewMode('list')">列表</button>
+        </div>
       </div>
 
-      <div class="case-tabs">
-        <button class="case-tab active" data-status="all" onclick="switchCaseTab('all')">全部</button>
-        <button class="case-tab" data-status="active" onclick="switchCaseTab('active')">進行中</button>
-        <button class="case-tab" data-status="completed" onclick="switchCaseTab('completed')">已完工</button>
-        <button class="case-tab" data-status="declined" onclick="switchCaseTab('declined')">無施工</button>
-        <button class="case-tab" data-status="closed" onclick="switchCaseTab('closed')">已結案</button>
-        <button class="case-tab" data-status="cancelled" onclick="switchCaseTab('cancelled')">已取消</button>
-      </div>
+      <!-- 甘特圖模式 -->
+      <div id="caseGanttMode">
+        <div class="menu-layout">
+          <div class="menu-main">
 
-      <div class="case-list" id="caseListView">
-        <div class="recent-loading">讀取中...</div>
+            <div class="fs-toolbar">
+              <div class="fs-month-nav">
+                <button onclick="changeScheduleMonth(-1)">‹</button>
+                <span class="fs-month-label" id="fsMonthLabel">—</span>
+                <button onclick="changeScheduleMonth(1)">›</button>
+              </div>
+              <select id="fsTechFilter" onchange="renderGantt()">
+                <option value="all">全部師傅</option>
+              </select>
+            </div>
+
+            <div class="fs-legend">
+              <span><i style="background:var(--blue);"></i>檢測預約</span>
+              <span><i style="background:#e8a13c;"></i>報告／報價期限（7天內）</span>
+              <span><i style="background:#e53935;"></i>已逾期未出具</span>
+              <span><i style="background:#2e7d32;"></i>施工期間</span>
+              <span><i style="background:#8e5fc4;"></i>保固起始</span>
+            </div>
+
+            <div class="fs-gantt-wrap">
+              <div class="fs-gantt" id="fsGantt">
+                <div class="recent-loading">讀取中...</div>
+              </div>
+            </div>
+
+          </div>
+          <!-- /menu-main -->
+
+          <!-- 代辦事項側欄 -->
+          <div class="warranty-panel">
+            <div class="warranty-panel-title" id="todoPanelTitle">✅ 代辦事項</div>
+            <div class="warranty-list" id="todoList">
+              <div class="recent-loading">讀取中...</div>
+            </div>
+          </div>
+
+        </div>
+        <!-- /menu-layout -->
       </div>
+      <!-- /caseGanttMode -->
+
+      <!-- 列表模式（原案件管理） -->
+      <div id="caseListMode" style="display:none;">
+        <div class="case-search-row">
+          <input type="text" id="caseSearchInput" placeholder="搜尋姓名／電話／地址／案號..." oninput="filterCasesView()">
+        </div>
+
+        <div class="case-tabs">
+          <button class="case-tab active" data-status="all" onclick="switchCaseTab('all')">全部</button>
+          <button class="case-tab" data-status="active" onclick="switchCaseTab('active')">進行中</button>
+          <button class="case-tab" data-status="completed" onclick="switchCaseTab('completed')">已完工</button>
+          <button class="case-tab" data-status="declined" onclick="switchCaseTab('declined')">無施工</button>
+          <button class="case-tab" data-status="closed" onclick="switchCaseTab('closed')">已結案</button>
+          <button class="case-tab" data-status="cancelled" onclick="switchCaseTab('cancelled')">已取消</button>
+        </div>
+
+        <div class="case-list" id="caseListView">
+          <div class="recent-loading">讀取中...</div>
+        </div>
+      </div>
+      <!-- /caseListMode -->
+
     </div>
 
     <!-- ════ 客戶管理 ════ -->
@@ -1188,9 +1315,10 @@
     const navItem = document.querySelector(`.sidebar-item[data-view="${name}"]`);
     if (navItem) navItem.classList.add('active');
 
-    if (name === 'cases' && !VIEW_LOADED.cases) {
-      VIEW_LOADED.cases = true;
-      loadCasesView();
+    if (name === 'cases' && !VIEW_LOADED.schedule) {
+      VIEW_LOADED.schedule = true;
+      loadTechnicianOptions();
+      loadFieldSchedule();
     }
     if (name === 'customers' && !VIEW_LOADED.customers) {
       VIEW_LOADED.customers = true;
@@ -1227,6 +1355,235 @@
   };
   const caseGroup = c => STATUS_GROUP[c.status] || c.status;
   const caseStageLabel = c => STAGE_LABELS[c.status] || c.status;
+
+  /* ══════════════ 場務表（甘特圖／代辦事項） ══════════════ */
+  let currentScheduleMonth = (() => { const d = new Date(); d.setDate(1); d.setHours(0, 0, 0, 0); return d; })();
+  let scheduleCasesFull = [];
+  let technicianMap = {};
+  const toDate = s => s ? new Date(s + 'T00:00:00') : null;
+
+  function switchCaseViewMode(mode) {
+    document.getElementById('fsModeGanttBtn').classList.toggle('active', mode === 'gantt');
+    document.getElementById('fsModeListBtn').classList.toggle('active', mode === 'list');
+    document.getElementById('caseGanttMode').style.display = mode === 'gantt' ? '' : 'none';
+    document.getElementById('caseListMode').style.display = mode === 'list' ? '' : 'none';
+    if (mode === 'list' && !VIEW_LOADED.cases) {
+      VIEW_LOADED.cases = true;
+      loadCasesView();
+    }
+  }
+
+  async function loadTechnicianOptions() {
+    try {
+      const { data, error } = await supabaseClient.from('users').select('id, name, role, is_active')
+        .eq('role', 'technician').eq('is_active', true);
+      if (error) throw error;
+      technicianMap = {};
+      (data || []).forEach(u => technicianMap[u.id] = u.name);
+      const sel = document.getElementById('fsTechFilter');
+      sel.innerHTML = '<option value="all">全部師傅</option>' +
+        (data || []).map(u => `<option value="${u.id}">${esc(u.name)}</option>`).join('');
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  function changeScheduleMonth(delta) {
+    currentScheduleMonth.setMonth(currentScheduleMonth.getMonth() + delta);
+    loadFieldSchedule();
+  }
+
+  async function loadFieldSchedule() {
+    const ganttEl = document.getElementById('fsGantt');
+    ganttEl.innerHTML = '<div class="recent-loading">讀取中...</div>';
+    document.getElementById('fsMonthLabel').textContent = `${currentScheduleMonth.getFullYear()} 年 ${currentScheduleMonth.getMonth() + 1} 月`;
+    try {
+      // 抓取範圍比顯示月份寬14天，才能涵蓋跨月的施工／保固期間色塊
+      const rangeStart = new Date(currentScheduleMonth); rangeStart.setDate(rangeStart.getDate() - 21);
+      const rangeEnd = new Date(currentScheduleMonth.getFullYear(), currentScheduleMonth.getMonth() + 1, 7);
+      const rangeStartStr = rangeStart.toISOString().slice(0, 10);
+      const rangeEndStr = rangeEnd.toISOString().slice(0, 10);
+
+      const { data, error } = await supabaseClient.from('cases')
+        .select('id, case_number, site_address, status, inspection_date, construction_start, construction_end, assigned_to, customers(name), documents(doc_type, status, issued_at, warranty_start, warranty_end)')
+        .is('deleted_at', null).neq('status', 'cancelled')
+        .gte('inspection_date', rangeStartStr).lte('inspection_date', rangeEndStr)
+        .order('inspection_date', { ascending: true }).limit(500);
+      if (error) throw error;
+
+      scheduleCasesFull = (data || []).map(c => {
+        const docs = c.documents || [];
+        const reportIssued = docs.find(d => d.doc_type === 'report' && d.status === 'issued');
+        const quotationIssued = docs.find(d => d.doc_type === 'quotation' && d.status === 'issued');
+        const warrantyDoc = docs.find(d => d.doc_type === 'warranty' && d.status === 'issued');
+        return {
+          id: c.id, caseNumber: c.case_number, address: c.site_address, status: c.status,
+          clientName: c.customers?.name || '（未命名委託方）',
+          inspectionDate: c.inspection_date, constructionStart: c.construction_start, constructionEnd: c.construction_end,
+          assignedTo: c.assigned_to, technicianName: technicianMap[c.assigned_to] || '未指派',
+          reportIssuedAt: reportIssued?.issued_at || null, quotationIssuedAt: quotationIssued?.issued_at || null,
+          warrantyStart: warrantyDoc?.warranty_start || null, warrantyEnd: warrantyDoc?.warranty_end || null,
+        };
+      });
+      renderGantt();
+      renderTodoList();
+    } catch (err) {
+      console.error(err);
+      ganttEl.innerHTML = '<div class="fs-gantt-empty">⚠️ 無法讀取場務資料（' + esc(err.message) + '）</div>';
+    }
+  }
+
+  // 把一個案件拆成甘特圖上的色塊區段（檢測／報告報價期限／施工／保固起始）
+  function caseSegments(c) {
+    const segs = [];
+    if (c.inspectionDate) {
+      const d = toDate(c.inspectionDate);
+      segs.push({ start: d, end: d, cls: 'fs-bar-inspection', label: '🔍 檢測預約' });
+
+      const deadlineStart = new Date(d); deadlineStart.setDate(deadlineStart.getDate() + 1);
+      const deadlineEnd = new Date(d); deadlineEnd.setDate(deadlineEnd.getDate() + 7);
+      const bothIssued = c.reportIssuedAt && c.quotationIssuedAt;
+      const isOverdue = !bothIssued && new Date() > deadlineEnd;
+      if (!bothIssued) {
+        segs.push({
+          start: deadlineStart, end: deadlineEnd,
+          cls: isOverdue ? 'fs-bar-deadline-overdue' : 'fs-bar-deadline',
+          label: isOverdue ? '⚠️ 逾期未交報告/報價' : '📄 報告/報價期限',
+        });
+      }
+    }
+    if (c.constructionStart) {
+      segs.push({
+        start: toDate(c.constructionStart), end: toDate(c.constructionEnd) || toDate(c.constructionStart),
+        cls: 'fs-bar-construction', label: '🔨 施工中',
+      });
+    }
+    if (c.warrantyStart) {
+      const d = toDate(c.warrantyStart);
+      segs.push({ start: d, end: d, cls: 'fs-bar-warranty', label: '🛡️ 保固起始' });
+    }
+    return segs;
+  }
+
+  function renderGantt() {
+    const ganttEl = document.getElementById('fsGantt');
+    const techFilter = document.getElementById('fsTechFilter').value;
+    const year = currentScheduleMonth.getFullYear(), month = currentScheduleMonth.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const monthStart = new Date(year, month, 1);
+    const monthEnd = new Date(year, month, daysInMonth);
+    const todayStr = new Date().toISOString().slice(0, 10);
+
+    let list = scheduleCasesFull;
+    if (techFilter !== 'all') list = list.filter(c => c.assignedTo === techFilter);
+    list = list.filter(c => caseSegments(c).some(s => s.end >= monthStart && s.start <= monthEnd));
+
+    if (list.length === 0) {
+      ganttEl.innerHTML = '<div class="fs-gantt-empty">這個月沒有排定的案件</div>';
+      return;
+    }
+
+    const dayHeaders = Array.from({ length: daysInMonth }, (_, i) => {
+      const d = i + 1;
+      const isToday = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}` === todayStr;
+      return `<div class="fs-daycell${isToday ? ' today' : ''}">${d}</div>`;
+    }).join('');
+
+    const rows = list.map(c => {
+      const segs = caseSegments(c).filter(s => s.end >= monthStart && s.start <= monthEnd);
+      const bars = segs.map(s => {
+        const clipStart = s.start < monthStart ? monthStart : s.start;
+        const clipEnd = s.end > monthEnd ? monthEnd : s.end;
+        const startDay = clipStart.getDate();
+        const span = clipEnd.getDate() - clipStart.getDate() + 1;
+        return `<div class="fs-bar ${s.cls}" style="grid-column: ${startDay} / span ${span};" title="${esc(s.label)}">${esc(s.label)}</div>`;
+      }).join('');
+      const caseParam = encodeURIComponent(c.id);
+      return `
+        <div class="fs-gantt-row" style="--days:${daysInMonth}">
+          <div class="fs-gantt-label" onclick="window.open('${DOC_URLS.report}?case=${caseParam}','_blank')">
+            <div class="fs-case-name">${esc(c.clientName)}　${esc(c.caseNumber || '')}</div>
+            <div class="fs-case-meta">${esc(c.technicianName)}　｜　${esc(caseStageLabel(c))}</div>
+          </div>
+          <div class="fs-gantt-track">
+            <div class="fs-gantt-track-bg">${Array.from({ length: daysInMonth }).map(() => '<div></div>').join('')}</div>
+            ${bars}
+          </div>
+        </div>`;
+    }).join('');
+
+    ganttEl.innerHTML = `
+      <div class="fs-gantt-head" style="--days:${daysInMonth}">
+        <div class="fs-gantt-label-head">案件</div>
+        ${dayHeaders}
+      </div>
+      ${rows}
+    `;
+  }
+
+  // 代辦事項：報告/報價逾期或即將到期 ＋ 保固倒數（3個月內）
+  function renderTodoList() {
+    const listEl = document.getElementById('todoList');
+    const today = new Date();
+    const items = [];
+
+    scheduleCasesFull.forEach(c => {
+      if (!c.inspectionDate) return;
+      const bothIssued = c.reportIssuedAt && c.quotationIssuedAt;
+      if (bothIssued) return;
+      const deadline = toDate(c.inspectionDate); deadline.setDate(deadline.getDate() + 7);
+      const daysLeft = Math.ceil((deadline - today) / 86400000);
+      if (daysLeft <= 2) {
+        const missing = [!c.reportIssuedAt && '檢測報告書', !c.quotationIssuedAt && '報價單'].filter(Boolean).join('／');
+        items.push({
+          level: daysLeft < 0 ? 'red' : 'orange',
+          sortKey: daysLeft,
+          name: `${esc(c.clientName)}　${esc(c.caseNumber || '')}`,
+          meta: `${esc(c.technicianName)}　｜　尚缺：${esc(missing)}`,
+          days: daysLeft < 0 ? `已逾期 ${Math.abs(daysLeft)} 天` : (daysLeft === 0 ? '今天到期' : `剩 ${daysLeft} 天`),
+        });
+      }
+    });
+
+    // 保固倒數（沿用 Dashboard 的保固到期資料源另外查詢，避免跟場務表月份範圍綁在一起）
+    listEl.innerHTML = '<div class="recent-loading">讀取中...</div>';
+    supabaseClient.from('documents')
+      .select('warranty_end, cases!inner(case_number, status, customers(name), assigned_to)')
+      .eq('doc_type', 'warranty').not('warranty_end', 'is', null)
+      .neq('cases.status', 'closed').neq('cases.status', 'cancelled')
+      .then(({ data, error }) => {
+        if (!error && data) {
+          const in3Months = new Date(); in3Months.setMonth(in3Months.getMonth() + 3);
+          data.forEach(d => {
+            const end = new Date(d.warranty_end + 'T00:00:00');
+            if (end <= in3Months) {
+              const daysLeft = Math.ceil((end - today) / 86400000);
+              items.push({
+                level: daysLeft <= 30 ? 'red' : 'orange',
+                sortKey: daysLeft + 100000, // 排在報告期限提醒之後
+                name: `🛡️ ${esc(d.cases?.customers?.name || '')}　${esc(d.cases?.case_number || '')}`,
+                meta: `${esc(technicianMap[d.cases?.assigned_to] || '未指派')}　｜　保固即將到期`,
+                days: daysLeft <= 0 ? '已到期' : `剩 ${daysLeft} 天`,
+              });
+            }
+          });
+        }
+        items.sort((a, b) => a.sortKey - b.sortKey);
+        const titleEl = document.getElementById('todoPanelTitle');
+        titleEl.innerHTML = `✅ 代辦事項${items.length ? `<span class="todo-count">${items.length}</span>` : ''}`;
+        if (items.length === 0) {
+          listEl.innerHTML = '<div class="warranty-empty">目前沒有待處理事項</div>';
+          return;
+        }
+        listEl.innerHTML = items.map(it => `
+          <div class="warranty-item ${it.level}">
+            <div class="w-name">${esc(it.name)}</div>
+            <div class="w-meta">${it.meta}</div>
+            <div class="w-days">${esc(it.days)}</div>
+          </div>
+        `).join('');
+      });
+  }
 
   function switchCaseTab(status) {
     currentCaseTab = status;
