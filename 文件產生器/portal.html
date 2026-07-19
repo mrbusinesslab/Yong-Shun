@@ -464,6 +464,7 @@
   .status-badge.completed { background: #fff6e8; color: #b5720f; }
   .status-badge.closed    { background: #eef1f4; color: #667; }
   .status-badge.cancelled { background: #fdecea; color: #c0392b; }
+  .status-badge.declined  { background: #f3e8fd; color: #7b3fa0; }
   .case-row-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 
   /* ── 客戶管理 ── */
@@ -815,6 +816,7 @@
         <button class="case-tab active" data-status="all" onclick="switchCaseTab('all')">全部</button>
         <button class="case-tab" data-status="active" onclick="switchCaseTab('active')">進行中</button>
         <button class="case-tab" data-status="completed" onclick="switchCaseTab('completed')">已完工</button>
+        <button class="case-tab" data-status="declined" onclick="switchCaseTab('declined')">無施工</button>
         <button class="case-tab" data-status="closed" onclick="switchCaseTab('closed')">已結案</button>
         <button class="case-tab" data-status="cancelled" onclick="switchCaseTab('cancelled')">已取消</button>
       </div>
@@ -986,7 +988,7 @@
     }
   }
 
-  function esc(str) { return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function esc(str) { return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
   function isPinned(id) { return allRecentCases.find(c => c.id === id)?.pinned === true; }
   async function togglePin(id) {
@@ -1211,14 +1213,20 @@
   /* ══════════════ 案件管理 ══════════════ */
   let allCasesFull = [];       // 案件管理頁：完整案件清單（含所有狀態）
   let currentCaseTab = 'all';
-  const STATUS_LABELS = { active: '進行中', completed: '已完工', closed: '已結案', cancelled: '已取消' };
-  // 資料庫實際存的是階段值（open／inspection／quotation／construction／warranty／closed／cancelled），
-  // 這裡對應到畫面上的四個分類（進行中／已完工／已結案／已取消），畫面顯示不變
+  const STATUS_LABELS = { active: '進行中', completed: '已完工', closed: '已結案', cancelled: '已取消', declined: '無施工' };
+  // 資料庫實際存的是階段值（open／inspection／quotation／construction／warranty／closed／cancelled／declined），
+  // 這裡對應到畫面上的分類（進行中／已完工／已結案／已取消／無施工）
   const STATUS_GROUP = {
     open: 'active', inspection: 'active', quotation: 'active', construction: 'active',
-    warranty: 'completed', closed: 'closed', cancelled: 'cancelled'
+    warranty: 'completed', closed: 'closed', cancelled: 'cancelled', declined: 'declined'
+  };
+  // 進行中的案件細部顯示到哪個階段（例如「檢測中」「報價中」），其餘直接顯示分類名稱
+  const STAGE_LABELS = {
+    open: '待處理', inspection: '檢測中', quotation: '報價中', construction: '施工中',
+    warranty: '保固中', closed: '已結案', cancelled: '已取消', declined: '無施工'
   };
   const caseGroup = c => STATUS_GROUP[c.status] || c.status;
+  const caseStageLabel = c => STAGE_LABELS[c.status] || c.status;
 
   function switchCaseTab(status) {
     currentCaseTab = status;
@@ -1269,11 +1277,13 @@
       const dateStr = c.updatedAt ? new Date(c.updatedAt).toLocaleDateString('zh-TW') : '';
       const caseParam = encodeURIComponent(c.id);
       const group = caseGroup(c);
-      const badgeLabel = STATUS_LABELS[group] || c.status;
-      const reopenBtn = (group === 'closed' || group === 'cancelled')
+      const badgeLabel = caseStageLabel(c);
+      const reopenBtn = (group === 'closed' || group === 'cancelled' || group === 'declined')
         ? `<button class="recent-btn" onclick="changeCaseStatus('${c.id}','open')">↩️ 重新開啟</button>` : '';
       const completeBtn = group === 'active'
         ? `<button class="recent-btn" onclick="changeCaseStatus('${c.id}','warranty')">✅ 標記完工</button>` : '';
+      const declineBtn = group === 'active'
+        ? `<button class="recent-btn" onclick="if(confirm('這個案件檢測後決定不施工，標記為「無施工」結案，確定嗎？')) changeCaseStatus('${c.id}','declined')">🚫 無施工結案</button>` : '';
       const closeBtn = (group !== 'closed')
         ? `<button class="recent-btn" onclick="if(confirm('標記為已結案，確定嗎？')) changeCaseStatus('${c.id}','closed')">📁 標記已結案</button>` : '';
       return `
@@ -1292,7 +1302,7 @@
             <a class="recent-btn" href="${DOC_URLS.warranty}?case=${caseParam}" target="_blank" rel="noopener">保固書</a>
             <a class="recent-btn" href="${DOC_URLS.acceptance}?case=${caseParam}" target="_blank" rel="noopener">驗收報告</a>
             <a class="recent-btn" href="${DOC_URLS.commission}?case=${caseParam}" target="_blank" rel="noopener">委託書</a>
-            ${completeBtn}${reopenBtn}${closeBtn}
+            ${completeBtn}${declineBtn}${reopenBtn}${closeBtn}
           </div>
         </div>
       `;
@@ -1386,7 +1396,7 @@
             const dateStr = cs.updated_at ? new Date(cs.updated_at).toLocaleDateString('zh-TW') : '';
             const caseParam = encodeURIComponent(cs.id);
             const group = STATUS_GROUP[cs.status] || cs.status;
-            const badgeLabel = STATUS_LABELS[group] || cs.status;
+            const badgeLabel = STAGE_LABELS[cs.status] || cs.status;
             return `
               <div class="case-row">
                 <div class="case-row-top">
@@ -1418,7 +1428,7 @@
             雲端資料夾：${cust.cloud_folder_url
               ? `<a href="${esc(cust.cloud_folder_url)}" target="_blank" rel="noopener">📁 開啟資料夾</a>`
               : '尚未設定'}
-            　<button class="recent-btn" style="padding:2px 10px;font-size:11.5px;" onclick="setCustomerFolder('${cust.id}', ${JSON.stringify(cust.cloud_folder_url || '')})">🔗 設定連結</button>
+            　<button class="recent-btn" style="padding:2px 10px;font-size:11.5px;" data-cid="${esc(cust.id)}" data-furl="${esc(cust.cloud_folder_url || '')}" onclick="setCustomerFolder(this.dataset.cid, this.dataset.furl)">🔗 設定連結</button>
           </div>
         </div>
         <h3 style="font-size:15px;margin-bottom:12px;">📁 歷史案件（${(cases || []).length} 筆）</h3>
