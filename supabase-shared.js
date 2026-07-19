@@ -154,6 +154,30 @@ async function ysLoadCaseForEdit(caseId) {
   };
 }
 
+// ── 依「產生了哪種文件」自動推進案件階段，只會往前推進，不會倒退，
+//    也不會去動已經結案／取消／無施工的案件 ──
+const YS_STAGE_ORDER = ['open', 'inspection', 'quotation', 'construction', 'warranty'];
+const YS_TERMINAL_STAGES = ['closed', 'cancelled', 'declined'];
+
+async function ysAdvanceCaseStage(caseId, targetStage) {
+  if (!caseId) return;
+  const sb = window.supabaseClient;
+  try {
+    const { data: current } = await sb.from('cases').select('status').eq('id', caseId).maybeSingle();
+    if (!current) return;
+    if (YS_TERMINAL_STAGES.includes(current.status)) return; // 已結案類的案件不自動變動
+
+    const curIdx = YS_STAGE_ORDER.indexOf(current.status);
+    const targetIdx = YS_STAGE_ORDER.indexOf(targetStage);
+    if (targetIdx === -1) return;
+    if (targetIdx <= curIdx) return; // 只往前推進
+
+    await sb.from('cases').update({ status: targetStage, updated_at: new Date().toISOString() }).eq('id', caseId);
+  } catch (err) {
+    console.warn('案件階段推進失敗（不影響文件產生）：', err);
+  }
+}
+
 // ── 讀取某案件已產生過的文件（讓其他產生器可以帶出檢測報告的資料，例如漏水點位）──
 async function ysLoadCaseDocuments(caseId, docType) {
   const sb = window.supabaseClient;
