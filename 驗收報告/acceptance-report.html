@@ -682,6 +682,7 @@ async function generatePDF(isPreview = false) {
             stampType: window._lastStampType || 'none'
           }
         });
+        await ysAdvanceCaseStage(currentCaseId, 'construction');
         msg.className = 'status-msg success'; msg.textContent = '✅ 驗收報告已產生（已同步至雲端）';
       } catch (cloudErr) {
         console.warn('文件雲端存檔失敗（PDF 已成功下載到本機）：', cloudErr);
