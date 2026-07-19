@@ -3497,6 +3497,7 @@ async function doExportPDF() {
             detectionPoints
           }
         });
+        await ysAdvanceCaseStage(cloudCaseId, 'inspection');
       }
     } catch (cloudErr) {
       console.warn('文件雲端存檔失敗（PDF 已成功下載到本機）：', cloudErr);
