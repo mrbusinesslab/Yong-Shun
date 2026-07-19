@@ -740,6 +740,7 @@ async function generatePDF() {
           stampType: window._lastStampType || 'none'
         }
       });
+      await ysAdvanceCaseStage(currentCaseId, currentType === 'construct' ? 'construction' : 'inspection');
       msg.className = 'status-msg success'; msg.textContent = `✅ 已輸出：${no}_${typeName}.pdf（已同步至雲端）`;
     } catch (cloudErr) {
       console.warn('文件雲端存檔失敗（PDF 已成功下載到本機）：', cloudErr);
