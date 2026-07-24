@@ -126,46 +126,6 @@ select { cursor: pointer; }
 .crop-container { position: relative; width: 320px; height: 240px; max-width: 100%; max-height: 60vh; background: #222; border-radius: 8px; overflow: hidden; cursor: move; user-select: none; margin: 0 auto; }
 .crop-container img { position: absolute; transform-origin: top left; }
 .crop-overlay { position: absolute; inset: 0; border: 3px solid #1871b5; pointer-events: none; z-index: 2; }
-
-/* ── 標記工具列 ── */
-.markup-toolbar {
-  display: none; align-items: center; gap: 6px;
-  background: #f4f7fb; border-radius: 8px; padding: 8px 10px;
-  margin-bottom: 12px; flex-wrap: wrap;
-}
-.markup-toolbar.visible { display: flex; }
-.markup-tool-btn {
-  background: white; border: 1.5px solid #d0d9e8; color: #444;
-  border-radius: 6px; padding: 5px 12px; font-size: 12.5px;
-  cursor: pointer; font-family: inherit; font-weight: 600;
-  transition: all .15s; display: flex; align-items: center; gap: 4px;
-}
-.markup-tool-btn:hover { border-color: #1871b5; color: #1871b5; }
-.markup-tool-btn.active { background: #e53935; border-color: #e53935; color: white; }
-.markup-tool-btn.clear-btn { border-color: #bbb; color: #888; margin-left: auto; }
-.markup-tool-btn.clear-btn:hover { border-color: #e53935; color: #e53935; background: #fdecea; }
-.markup-size-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #666; margin-left: 4px; }
-.markup-size-row input[type="range"] { width: 80px; accent-color: #e53935; }
-
-/* 標記 canvas 疊在裁切容器上 */
-#markupCanvas {
-  position: absolute; inset: 0; z-index: 3;
-  cursor: crosshair; display: none;
-  touch-action: none;
-}
-#markupCanvas.visible { display: block; }
-
-/* 裁切模式/標記模式的標題切換 */
-.crop-step-indicator {
-  display: flex; gap: 0; margin-bottom: 16px;
-  border: 1.5px solid #d0d9e8; border-radius: 8px; overflow: hidden;
-}
-.crop-step-item {
-  flex: 1; text-align: center; padding: 8px; font-size: 12.5px;
-  font-weight: 600; color: #aaa; background: white;
-}
-.crop-step-item.active { background: #1871b5; color: white; }
-.crop-step-item.done { background: #e8f2fb; color: #1871b5; }
 .crop-hint { font-size: 12px; color: #888; margin-top: 8px; text-align: center; }
 .crop-actions { display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end; }
 .crop-btn-cancel { background: #f0f4f8; border: 1px solid #d0d9e8; color: #555; padding: 9px 20px; border-radius: 7px; font-size: 14px; cursor: pointer; font-family: inherit; }
@@ -466,39 +426,19 @@ select { cursor: pointer; }
 
 <div class="crop-modal" id="cropModal">
   <div class="crop-box">
-    <!-- 步驟指示器 -->
-    <div class="crop-step-indicator">
-      <div class="crop-step-item active" id="cropStepA">① 調整裁切範圍</div>
-      <div class="crop-step-item" id="cropStepB">② 加上標記（選用）</div>
-    </div>
-
-    <!-- 標記工具列（第二步顯示） -->
-    <div class="markup-toolbar" id="markupToolbar">
-      <button class="markup-tool-btn active" id="toolCircle" onclick="setTool('circle')" title="畫圈">⭕ 圈選</button>
-      <button class="markup-tool-btn" id="toolArrow" onclick="setTool('arrow')" title="箭頭">➡️ 箭頭</button>
-      <button class="markup-tool-btn" id="toolLine" onclick="setTool('line')" title="直線">➖ 直線</button>
-      <button class="markup-tool-btn" id="toolPen" onclick="setTool('pen')" title="自由筆跡">✏️ 筆跡</button>
-      <div class="markup-size-row">
-        粗細 <input type="range" id="markupSize" min="2" max="12" value="3">
-      </div>
-      <button class="markup-tool-btn clear-btn" onclick="clearMarkup()">🗑 清除</button>
-    </div>
-
-    <p class="crop-hint" id="cropHintText">拖曳圖片調整位置，使用下方滑桿縮放</p>
-
+    <h3>調整圖片顯示範圍</h3>
     <div class="crop-container" id="cropContainer">
       <img id="cropImg" src="" alt="">
-      <div class="crop-overlay" id="cropOverlay"></div>
-      <canvas id="markupCanvas"></canvas>
+      <div class="crop-overlay"></div>
     </div>
-
-    <div class="zoom-row" id="zoomRowEl">
+    <p class="crop-hint">拖曳圖片調整位置，使用下方滑桿縮放</p>
+    <div class="zoom-row">
       <label>縮放</label>
       <input type="range" id="zoomSlider" min="0.1" max="3" step="0.001" value="1" oninput="onZoom()">
     </div>
     <div class="crop-actions">
       <button class="crop-btn-cancel" onclick="closeCrop()">取消</button>
-      <button class="crop-btn-confirm" id="cropNextBtn" onclick="goToMarkupStep()">確認裁切 →</button>
+      <button class="crop-btn-confirm" onclick="confirmCrop()">確認</button>
     </div>
   </div>
 </div>
@@ -1244,23 +1184,8 @@ function openCrop(key) {
   curCropW = dims.w; curCropH = dims.h;
 
   const container = document.getElementById('cropContainer');
-
-  // 容器可用空間必須「同時」滿足彈窗寬度限制與 60vh 高度限制，
-  // 且寬高要用同一個縮放係數一起縮小，否則寬高比會跟目標裁切比例不一致，
-  // 造成後續 markup canvas 置中繪圖時四周留白，而留白處是容器的深色背景，
-  // 最後合併輸出時就會變成黑邊/黑塊蓋在裁切圖上。
-  const availW = Math.min(552, window.innerWidth * 0.95 - 48);   // 552 ≈ .crop-box 600px 扣掉左右 padding
-  const availH = window.innerHeight * 0.6;                        // 對應 CSS 的 60vh
-  const fitScale = Math.min(1, availW / curCropW, availH / curCropH);
-  const dispW = Math.round(curCropW * fitScale);
-  const dispH = Math.round(curCropH * fitScale);
-
-  container.style.width = dispW + 'px';
-  container.style.height = dispH + 'px';
-  // 尺寸已經計算好會同時符合限制，關掉 CSS 的 max-width/max-height，
-  // 避免瀏覽器又各自獨立套用限制、破壞我們算好的等比例尺寸。
-  container.style.maxWidth = 'none';
-  container.style.maxHeight = 'none';
+  container.style.width = curCropW + 'px';
+  container.style.height = curCropH + 'px';
 
   const img = document.getElementById('cropImg');
   img.src = entry.originalSrc;
@@ -1333,230 +1258,6 @@ function applyCropTransform() {
 function closeCrop() {
   document.getElementById('cropModal').classList.remove('open');
   cropKey = null;
-  // 重設到第一步
-  document.getElementById('cropStepA').className = 'crop-step-item active';
-  document.getElementById('cropStepB').className = 'crop-step-item';
-  document.getElementById('zoomRowEl').style.display = '';
-  document.getElementById('cropHintText').textContent = '拖曳圖片調整位置，使用下方滑桿縮放';
-  document.getElementById('markupToolbar').classList.remove('visible');
-  document.getElementById('cropNextBtn').textContent = '確認裁切 →';
-  document.getElementById('cropNextBtn').onclick = goToMarkupStep;
-  document.getElementById('cropOverlay').style.display = '';
-  document.getElementById('markupCanvas').classList.remove('visible');
-  document.getElementById('cropContainer').style.cursor = 'move';
-  clearMarkup();
-  markupCtx = null;
-}
-
-/* ══════════════ 標記工具 ══════════════ */
-let markupTool = 'circle';  // circle | arrow | line | pen
-let markupDrawing = false;
-let markupStartX = 0, markupStartY = 0;
-let markupLastX = 0, markupLastY = 0;
-let markupSnapshotData = null; // 每次 mousedown 前的快照（用於橡皮筋預覽）
-let markupCtx = null;
-
-function setTool(t) {
-  markupTool = t;
-  ['Circle','Arrow','Line','Pen'].forEach(n => {
-    document.getElementById('tool'+n).classList.toggle('active', t === n.toLowerCase());
-  });
-}
-
-function clearMarkup() {
-  if (!markupCtx) return;
-  const mc = document.getElementById('markupCanvas');
-  markupCtx.clearRect(0, 0, mc.width, mc.height);
-  markupSnapshotData = null;
-}
-
-function initMarkupCanvas() {
-  const container = document.getElementById('cropContainer');
-  const mc = document.getElementById('markupCanvas');
-  mc.width = container.offsetWidth;
-  mc.height = container.offsetHeight;
-  mc.style.width = container.offsetWidth + 'px';
-  mc.style.height = container.offsetHeight + 'px';
-  markupCtx = mc.getContext('2d');
-
-  // 事件監聽器只綁定一次，避免每次進入標記步驟都重複疊加（造成畫線重複觸發）
-  if (mc._markupBound) return;
-  mc._markupBound = true;
-
-  const getPos = (e) => {
-    const rect = mc.getBoundingClientRect();
-    const src = e.touches ? e.touches[0] : e;
-    return { x: src.clientX - rect.left, y: src.clientY - rect.top };
-  };
-
-  const onDown = (e) => {
-    e.preventDefault();
-    markupDrawing = true;
-    const pos = getPos(e);
-    markupStartX = pos.x; markupStartY = pos.y;
-    markupLastX = pos.x; markupLastY = pos.y;
-    // 快照（橡皮筋效果用）
-    markupSnapshotData = markupCtx.getImageData(0, 0, mc.width, mc.height);
-    if (markupTool === 'pen') {
-      const sz = parseInt(document.getElementById('markupSize').value);
-      markupCtx.beginPath();
-      markupCtx.strokeStyle = '#e53935';
-      markupCtx.lineWidth = sz;
-      markupCtx.lineCap = 'round';
-      markupCtx.lineJoin = 'round';
-      markupCtx.moveTo(pos.x, pos.y);
-    }
-  };
-
-  const onMove = (e) => {
-    if (!markupDrawing) return;
-    e.preventDefault();
-    const pos = getPos(e);
-    const sz = parseInt(document.getElementById('markupSize').value);
-    markupCtx.strokeStyle = '#e53935';
-    markupCtx.lineWidth = sz;
-    markupCtx.lineCap = 'round';
-    markupCtx.lineJoin = 'round';
-
-    if (markupTool === 'pen') {
-      markupCtx.lineTo(pos.x, pos.y);
-      markupCtx.stroke();
-    } else {
-      // 橡皮筋：回復快照再重畫
-      if (markupSnapshotData) markupCtx.putImageData(markupSnapshotData, 0, 0);
-      markupCtx.beginPath();
-      if (markupTool === 'circle') {
-        const rx = (pos.x - markupStartX) / 2, ry = (pos.y - markupStartY) / 2;
-        const cx = markupStartX + rx, cy = markupStartY + ry;
-        markupCtx.ellipse(cx, cy, Math.abs(rx), Math.abs(ry), 0, 0, Math.PI * 2);
-        markupCtx.stroke();
-      } else if (markupTool === 'line') {
-        markupCtx.moveTo(markupStartX, markupStartY);
-        markupCtx.lineTo(pos.x, pos.y);
-        markupCtx.stroke();
-      } else if (markupTool === 'arrow') {
-        drawArrow(markupCtx, markupStartX, markupStartY, pos.x, pos.y, sz);
-      }
-    }
-    markupLastX = pos.x; markupLastY = pos.y;
-  };
-
-  const onUp = (e) => {
-    if (!markupDrawing) return;
-    markupDrawing = false;
-    markupSnapshotData = null;
-    if (markupTool === 'pen') markupCtx.closePath();
-  };
-
-  mc.addEventListener('mousedown', onDown);
-  mc.addEventListener('mousemove', onMove);
-  mc.addEventListener('mouseup', onUp);
-  mc.addEventListener('mouseleave', onUp);
-  mc.addEventListener('touchstart', onDown, { passive: false });
-  mc.addEventListener('touchmove', onMove, { passive: false });
-  mc.addEventListener('touchend', onUp);
-}
-
-function drawArrow(ctx, x1, y1, x2, y2, lineWidth) {
-  const headLen = Math.max(12, lineWidth * 4);
-  const angle = Math.atan2(y2 - y1, x2 - x1);
-  ctx.beginPath();
-  ctx.moveTo(x1, y1);
-  ctx.lineTo(x2, y2);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(x2, y2);
-  ctx.lineTo(x2 - headLen * Math.cos(angle - Math.PI / 6), y2 - headLen * Math.sin(angle - Math.PI / 6));
-  ctx.moveTo(x2, y2);
-  ctx.lineTo(x2 - headLen * Math.cos(angle + Math.PI / 6), y2 - headLen * Math.sin(angle + Math.PI / 6));
-  ctx.stroke();
-}
-
-function goToMarkupStep() {
-  if (!cropKey) return;
-
-  // 把裁切結果存進 entry
-  const entry = imgStore[cropKey];
-  entry.offsetX = cropOffsetX;
-  entry.offsetY = cropOffsetY;
-  entry.scale = cropZoom;
-  entry.cropW = curCropW;
-  entry.cropH = curCropH;
-  const c = document.createElement('canvas');
-  c.width = curCropW; c.height = curCropH;
-  const cx = c.getContext('2d');
-  cx.drawImage(entry.img, cropOffsetX, cropOffsetY, cropNatW * cropZoom, cropNatH * cropZoom);
-  entry.croppedCanvas = c;
-
-  // 切換 UI
-  document.getElementById('cropStepA').className = 'crop-step-item done';
-  document.getElementById('cropStepB').className = 'crop-step-item active';
-  document.getElementById('zoomRowEl').style.display = 'none';
-  document.getElementById('cropHintText').textContent = '用紅色工具在圖上標記重點位置，不需要標記可直接完成';
-  document.getElementById('markupToolbar').classList.add('visible');
-  document.getElementById('cropNextBtn').textContent = '✅ 完成標記';
-  document.getElementById('cropNextBtn').onclick = confirmWithMarkup;
-  document.getElementById('cropOverlay').style.display = 'none';
-  document.getElementById('cropContainer').style.cursor = 'crosshair';
-
-  // 隱藏 cropImg，改讓 markup canvas 自行顯示圖
-  const img = document.getElementById('cropImg');
-  img.style.display = 'none';
-
-  const mc = document.getElementById('markupCanvas');
-  mc.classList.add('visible');
-
-  // 先設定 canvas 尺寸並綁定事件。注意：initMarkupCanvas() 內部會對
-  // mc.width / mc.height 賦值，而賦值動作一定會把畫布內容整個清空，
-  // 所以必須在「畫底圖之前」先執行，否則底圖會被這裡的重設洗掉變黑。
-  initMarkupCanvas();
-
-  const dispW = mc.width;
-  const dispH = mc.height;
-
-  // 將裁切圖等比例置中畫進 markup canvas（作為底圖）
-  const scaleX = dispW / c.width;
-  const scaleY = dispH / c.height;
-  const fitScale = Math.min(scaleX, scaleY);
-  const drawW = c.width * fitScale;
-  const drawH = c.height * fitScale;
-  const drawX = (dispW - drawW) / 2;
-  const drawY = (dispH - drawH) / 2;
-
-  // 儲存底圖的繪製參數，confirmWithMarkup 時需要對齊
-  entry._markupDispW = dispW;
-  entry._markupDispH = dispH;
-  entry._markupDrawX = drawX;
-  entry._markupDrawY = drawY;
-  entry._markupDrawW = drawW;
-  entry._markupDrawH = drawH;
-
-  markupCtx.fillStyle = '#222';
-  markupCtx.fillRect(0, 0, dispW, dispH);
-  markupCtx.drawImage(c, drawX, drawY, drawW, drawH);
-
-  // 儲存底圖快照（清除標記時還原）
-  markupBaseSnapshot = markupCtx.getImageData(0, 0, dispW, dispH);
-}
-
-function confirmWithMarkup() {
-  if (!cropKey) return;
-  const entry = imgStore[cropKey];
-
-  // 合併裁切圖 + 標記圖層
-  const mc = document.getElementById('markupCanvas');
-  const final = document.createElement('canvas');
-  final.width = entry.cropW;
-  final.height = entry.cropH;
-  const fc = final.getContext('2d');
-  fc.drawImage(entry.croppedCanvas, 0, 0);
-  // 把標記 canvas 縮放合併進去
-  fc.drawImage(mc, 0, 0, mc.width, mc.height, 0, 0, entry.cropW, entry.cropH);
-  entry.croppedCanvas = final;
-
-  renderCroppedPreview(cropKey);
-  closeCrop();
-  triggerLivePreview();
 }
 
 function confirmCrop() {
@@ -2523,7 +2224,7 @@ async function drawStep1Canvas() {
     ctx.textAlign='right';
     ctx.font=`bold 13px ${ff}`; ctx.fillStyle='#1a1a1a';
     ctx.fillText(`編　　號：${caseNoText}`, PW-m, headerLineY-22);
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#444';
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#555';
     ctx.fillText(`出具日期：${issueDate}`, PW-m, headerLineY-4);
     ctx.textAlign='left';
 
@@ -2556,7 +2257,7 @@ async function drawStep1Canvas() {
     ctx.font=labelFont; ctx.fillStyle='#1a1a1a';
     ctx.fillText('檢測方資訊', leftX, y);
     ctx.fillText('委託方資訊', rightX2, y);
-    ctx.font=bodyFont; ctx.fillStyle='#111';
+    ctx.font=bodyFont; ctx.fillStyle='#333';
     [
       `檢測時間：${inspectDate}${inspectTime ? ' '+inspectTime : ''}`,
       `檢測單位：${inspectUnit}`,
@@ -2595,7 +2296,7 @@ async function drawStep1Canvas() {
     const infoBlockH = rowH*2;
     let by = y + boxH/2 - infoBlockH/2 + rowH*0.75;
     ctx.textAlign='left';
-    ctx.font=bodyFont; ctx.fillStyle='#111';
+    ctx.font=bodyFont; ctx.fillStyle='#333';
     ctx.fillText(`地址：${clientAddress}`, infoX1, by);
     by += rowH;
     ctx.fillText(`檢測範圍：${inspectScope}`, infoX1, by);
@@ -2663,7 +2364,7 @@ async function drawStep1Canvas() {
     ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
     ctx.fillText(declareLabel, m+photoPad, iy);
     const declareContentStartY = iy + declareLineH;
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#111';
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
     const wrapLines = wrapText(ctx, declareText, cw - photoPad*2 - 4, `12px ${ff}`);
     wrapLines.forEach((line,i)=>{ ctx.fillText(line, m+photoPad, declareContentStartY + i*declareLineH); });
     const declareBottom = declareContentStartY + wrapLines.length*declareLineH;
@@ -2711,7 +2412,7 @@ async function drawCardStepPages(step, chapterTitle, chapterNumIndex) {
     const titleY = titleLineY - 10;
     ctx.font=`bold 16px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
     ctx.fillText(titleText, m, titleY);
-    ctx.font=`10px ${ff}`; ctx.fillStyle='#444'; ctx.textAlign='right';
+    ctx.font=`10px ${ff}`; ctx.fillStyle='#555'; ctx.textAlign='right';
     ctx.fillText(`編號：${currentCaseNo || '—'}`, PW-m, titleY);
     ctx.textAlign='left';
     ctx.strokeStyle='#1a1a1a'; ctx.lineWidth=0.75;
@@ -2782,7 +2483,7 @@ function drawS2Conclusion(ctx, text, x, y, w, maxBottom) {
   ctx.font=`bold 13px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
   ctx.fillText('結論：', x+padLeft, y+18);
 
-  ctx.font=`12px ${ff}`; ctx.fillStyle='#111';
+  ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
   lines.forEach((line,i)=> ctx.fillText(line, x+padLeft, y+18 + lh*(i+1)));
 
   if (y + 18 + lh*(lines.length+1) > maxBottom) {
@@ -2841,7 +2542,7 @@ function drawCardBox(ctx, card, labelBase, x, y, w, h, cfg, step) {
   if (isA) {
     ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#1a1a1a';
     ctx.fillText(`【${recordLabel}】`, textColX, ty);
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#111';
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
     const recLines = wrapText(ctx, recordDisplayText(step, card, card.recordA || '—'), textColW, `12px ${ff}`);
     recLines.forEach((line,i)=> ctx.fillText(line, textColX, ty + lh*(i+1)));
     ty += lh*(recLines.length+1) + 4;
@@ -2849,7 +2550,7 @@ function drawCardBox(ctx, card, labelBase, x, y, w, h, cfg, step) {
     if (cfg.hasAnalysis) {
       ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#1a1a1a';
       ctx.fillText('【影像判讀】', textColX, ty);
-      ctx.font=`12px ${ff}`; ctx.fillStyle='#111';
+      ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
       const anaLines = wrapText(ctx, card.analysis || '—', textColW, `12px ${ff}`);
       const maxAnaLines = Math.max(0, Math.floor((y+h-pad - (ty+lh)) / lh));
       anaLines.slice(0, maxAnaLines).forEach((line,i)=> ctx.fillText(line, textColX, ty + lh*(i+1)));
@@ -2867,14 +2568,14 @@ function drawCardBox(ctx, card, labelBase, x, y, w, h, cfg, step) {
   } else {
     ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#1a1a1a';
     ctx.fillText(`【${recordLabel}（${labelBase}-1）】`, textColX, ty);
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#111';
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
     const recALines = wrapText(ctx, recordDisplayText(step, card, card.recordA || '—'), textColW, `12px ${ff}`);
     recALines.forEach((line,i)=> ctx.fillText(line, textColX, ty + lh*(i+1)));
     ty += lh*(recALines.length+1) + 4;
 
     ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#1a1a1a';
     ctx.fillText(`【${recordLabel}（${labelBase}-2）】`, textColX, ty);
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#111';
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
     const recBLines = wrapText(ctx, recordDisplayText(step, card, card.recordB || '—'), textColW, `12px ${ff}`);
     recBLines.forEach((line,i)=> ctx.fillText(line, textColX, ty + lh*(i+1)));
 
@@ -2947,7 +2648,7 @@ async function drawStep5Pages(chapters) {
     const titleY = titleLineY - 10;
     ctx.font=`bold 16px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
     ctx.fillText(titleText, m, titleY);
-    ctx.font=`10px ${ff}`; ctx.fillStyle='#444'; ctx.textAlign='right';
+    ctx.font=`10px ${ff}`; ctx.fillStyle='#555'; ctx.textAlign='right';
     ctx.fillText(`編號：${currentCaseNo || '—'}`, PW-m, titleY);
     ctx.textAlign='left';
     ctx.strokeStyle='#1a1a1a'; ctx.lineWidth=0.75;
@@ -2996,7 +2697,7 @@ async function drawStep5Pages(chapters) {
     // 檢測項目
     ctx.fillStyle = bg; ctx.fillRect(x, y, widths[1], rowH);
     ctx.strokeRect(x, y, widths[1], rowH);
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#111';
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
     const itemLines = wrapText(ctx, row.item || '—', widths[1]-12, `12px ${ff}`);
     itemLines.forEach((line,i)=> ctx.fillText(line, x+6, y+rowPad+lh*(i+1)-3));
     x += widths[1];
@@ -3004,7 +2705,7 @@ async function drawStep5Pages(chapters) {
     // 結果摘要
     ctx.fillStyle = bg; ctx.fillRect(x, y, widths[2], rowH);
     ctx.strokeRect(x, y, widths[2], rowH);
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#111';
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
     const summaryLines = wrapText(ctx, row.summary || '—', widths[2]-12, `12px ${ff}`);
     summaryLines.forEach((line,i)=> ctx.fillText(line, x+6, y+rowPad+lh*(i+1)-3));
     x += widths[2];
@@ -3098,7 +2799,7 @@ async function drawStep5Pages(chapters) {
       pageCtx.fillText(label, m+padLeft, fy+16);
 
       // 內容換行後開始
-      pageCtx.font=`12px ${ff}`; pageCtx.fillStyle='#111';
+      pageCtx.font=`12px ${ff}`; pageCtx.fillStyle='#333';
       const contentStartY = fy + labelLineH + lhF;
       lines.forEach((line,i)=> pageCtx.fillText(line, m+padLeft, contentStartY + i*lhF));
 
@@ -3124,7 +2825,7 @@ async function drawFlowingPages(chapterTitle, blocks) {
     const titleY = titleLineY - 10;
     ctx.font=`bold 16px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
     ctx.fillText(titleText, m, titleY);
-    ctx.font=`10px ${ff}`; ctx.fillStyle='#444'; ctx.textAlign='right';
+    ctx.font=`10px ${ff}`; ctx.fillStyle='#555'; ctx.textAlign='right';
     ctx.fillText(`編號：${currentCaseNo || '—'}`, PW-m, titleY);
     ctx.textAlign='left';
     ctx.strokeStyle='#1a1a1a'; ctx.lineWidth=0.75;
@@ -3157,7 +2858,7 @@ async function drawFlowingPages(chapterTitle, blocks) {
       const lines = wrapText(pageCtx, block.text, cw - 28, `12px ${ff}`);
       const h = lines.length*lineH + 10;
       if (y + h > maxBottom) await startNewPage(true);
-      pageCtx.fillStyle = '#111'; pageCtx.textAlign='left';
+      pageCtx.fillStyle = '#333'; pageCtx.textAlign='left';
       lines.forEach((line,i)=> drawJustifiedText(pageCtx, line, m + 28, y + lineH*(i+1) - 4, cw - 28, i < lines.length - 1));
       y += h;
     } else {
@@ -3171,7 +2872,7 @@ async function drawFlowingPages(chapterTitle, blocks) {
 
       if (y + blockTotalH > maxBottom) await startNewPage(true);
       
-      pageCtx.fillStyle = '#111'; pageCtx.textAlign='left';
+      pageCtx.fillStyle = '#333'; pageCtx.textAlign='left';
       segmentLines.forEach(lines => {
         lines.forEach((line, i) => {
           drawJustifiedText(pageCtx, line, m, y + lineH - 4, cw - 4, i < lines.length - 1);
