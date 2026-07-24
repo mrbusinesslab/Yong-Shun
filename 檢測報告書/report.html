@@ -1244,8 +1244,23 @@ function openCrop(key) {
   curCropW = dims.w; curCropH = dims.h;
 
   const container = document.getElementById('cropContainer');
-  container.style.width = curCropW + 'px';
-  container.style.height = curCropH + 'px';
+
+  // 容器可用空間必須「同時」滿足彈窗寬度限制與 60vh 高度限制，
+  // 且寬高要用同一個縮放係數一起縮小，否則寬高比會跟目標裁切比例不一致，
+  // 造成後續 markup canvas 置中繪圖時四周留白，而留白處是容器的深色背景，
+  // 最後合併輸出時就會變成黑邊/黑塊蓋在裁切圖上。
+  const availW = Math.min(552, window.innerWidth * 0.95 - 48);   // 552 ≈ .crop-box 600px 扣掉左右 padding
+  const availH = window.innerHeight * 0.6;                        // 對應 CSS 的 60vh
+  const fitScale = Math.min(1, availW / curCropW, availH / curCropH);
+  const dispW = Math.round(curCropW * fitScale);
+  const dispH = Math.round(curCropH * fitScale);
+
+  container.style.width = dispW + 'px';
+  container.style.height = dispH + 'px';
+  // 尺寸已經計算好會同時符合限制，關掉 CSS 的 max-width/max-height，
+  // 避免瀏覽器又各自獨立套用限制、破壞我們算好的等比例尺寸。
+  container.style.maxWidth = 'none';
+  container.style.maxHeight = 'none';
 
   const img = document.getElementById('cropImg');
   img.src = entry.originalSrc;
@@ -1363,6 +1378,10 @@ function initMarkupCanvas() {
   mc.style.width = container.offsetWidth + 'px';
   mc.style.height = container.offsetHeight + 'px';
   markupCtx = mc.getContext('2d');
+
+  // 事件監聽器只綁定一次，避免每次進入標記步驟都重複疊加（造成畫線重複觸發）
+  if (mc._markupBound) return;
+  mc._markupBound = true;
 
   const getPos = (e) => {
     const rect = mc.getBoundingClientRect();
@@ -1484,18 +1503,16 @@ function goToMarkupStep() {
   const img = document.getElementById('cropImg');
   img.style.display = 'none';
 
-  // 設定 markup canvas 尺寸 = cropContainer 視覺尺寸
-  const container = document.getElementById('cropContainer');
   const mc = document.getElementById('markupCanvas');
-  const dispW = container.offsetWidth;
-  const dispH = container.offsetHeight;
-  mc.width = dispW;
-  mc.height = dispH;
-  mc.style.width = dispW + 'px';
-  mc.style.height = dispH + 'px';
   mc.classList.add('visible');
 
-  markupCtx = mc.getContext('2d');
+  // 先設定 canvas 尺寸並綁定事件。注意：initMarkupCanvas() 內部會對
+  // mc.width / mc.height 賦值，而賦值動作一定會把畫布內容整個清空，
+  // 所以必須在「畫底圖之前」先執行，否則底圖會被這裡的重設洗掉變黑。
+  initMarkupCanvas();
+
+  const dispW = mc.width;
+  const dispH = mc.height;
 
   // 將裁切圖等比例置中畫進 markup canvas（作為底圖）
   const scaleX = dispW / c.width;
@@ -1520,8 +1537,6 @@ function goToMarkupStep() {
 
   // 儲存底圖快照（清除標記時還原）
   markupBaseSnapshot = markupCtx.getImageData(0, 0, dispW, dispH);
-
-  initMarkupCanvas();
 }
 
 function confirmWithMarkup() {
