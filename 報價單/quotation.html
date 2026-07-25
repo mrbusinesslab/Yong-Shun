@@ -203,6 +203,13 @@ input:focus { outline: none; border-color: #1871b5; background: white; }
           <label>報價單失效日</label>
           <input type="date" id="expireDate">
         </div>
+        <div class="form-group">
+          <label>搭配條款說明</label>
+          <select id="termsChoice">
+            <option value="termsA">A｜設計師（小案子）</option>
+            <option value="termsB">B｜私人住宅（小案子）</option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -891,8 +898,9 @@ async function generatePDF(isPreview = false) {
     const quotePdfBytes=doc.output('arraybuffer');
 
     let finalPdfBytes;
+    const termsFile = (document.getElementById('termsChoice').value || 'termsB') + '.pdf';
     try {
-      const resp=await fetch('terms.pdf');
+      const resp=await fetch(termsFile);
       if (!resp.ok) throw new Error('not found');
       const termsBytes=await resp.arrayBuffer();
       const { PDFDocument }=PDFLib;
@@ -908,7 +916,7 @@ async function generatePDF(isPreview = false) {
     } catch(e) {
       finalPdfBytes=quotePdfBytes;
       if (!isPreview) {
-        msg.className='status-msg'; msg.textContent='⚠️ 找不到 terms.pdf，已產生報價單（不含條款說明）';
+        msg.className='status-msg'; msg.textContent=`⚠️ 找不到 ${termsFile}，已產生報價單（不含條款說明）`;
       }
     }
 
