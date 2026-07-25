@@ -203,6 +203,8 @@ select { cursor: pointer; }
 .s6-fixed-title { font-size: 14px; font-weight: 700; color: #1871b5; margin: 24px 0 6px; }
 .s6-fixed-title:first-child { margin-top: 0; }
 .s6-plain-text { font-size: 13px; color: #444; line-height: 1.8; text-align: justify; margin-bottom: 4px; }
+.s6-note-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #333; font-weight: 400; cursor: pointer; }
+.s6-note-item input[type="checkbox"], .s6-note-item input[type="radio"] { width: 16px; height: 16px; margin: 0; accent-color: #1871b5; cursor: pointer; }
 
 
 .hint { font-size: 11px; color: #999; margin-top: 4px; }
@@ -692,21 +694,38 @@ select { cursor: pointer; }
 
       <div class="card">
         <div class="card-title-s6">6.2 注意事項</div>
-        <div class="s6-plain-text">
-          修繕前：<br>
-          ⚠️避免大量用水<br>
-          ⚠️保持排水孔暢通<br>
-          ⚠️避免持續積水
+        <div class="form-group">
+          <label>注意事項項目 <span style="color:#999;font-weight:400;">（師傅可自行複選要選幾項）</span></label>
+          <div id="s6NotesList" style="display:flex; flex-direction:column; gap:8px; margin-top:4px;">
+            <label class="s6-note-item"><input type="checkbox" class="s6-note-cb" value="避免大量用水" onchange="triggerLivePreview();"> ⚠️ 避免大量用水</label>
+            <label class="s6-note-item"><input type="checkbox" class="s6-note-cb" value="保持排水孔暢通" onchange="triggerLivePreview();"> ⚠️ 保持排水孔暢通</label>
+            <label class="s6-note-item"><input type="checkbox" class="s6-note-cb" value="避免施工區域持續積水" onchange="triggerLivePreview();"> ⚠️ 避免施工區域持續積水</label>
+            <label class="s6-note-item"><input type="checkbox" class="s6-note-cb" value="避免碰撞、踩踏施工區域" onchange="triggerLivePreview();"> ⚠️ 避免碰撞、踩踏施工區域</label>
+            <label class="s6-note-item"><input type="checkbox" class="s6-note-cb" value="勿自行拆除施工保護措施" onchange="triggerLivePreview();"> ⚠️ 勿自行拆除施工保護措施</label>
+            <label class="s6-note-item"><input type="checkbox" class="s6-note-cb" value="配合施工人員用水及停水安排" onchange="triggerLivePreview();"> ⚠️ 配合施工人員用水及停水安排</label>
+            <label class="s6-note-item"><input type="checkbox" class="s6-note-cb" value="施工區域請保持淨空，避免堆放物品" onchange="triggerLivePreview();"> ⚠️ 施工區域請保持淨空，避免堆放物品</label>
+            <label class="s6-note-item"><input type="checkbox" class="s6-note-cb" value="貴重物品請事先移至安全位置" onchange="triggerLivePreview();"> ⚠️ 貴重物品請事先移至安全位置</label>
+            <label class="s6-note-item"><input type="checkbox" class="s6-note-cb" value="如需停水、停電，請提前做好準備" onchange="triggerLivePreview();"> ⚠️ 如需停水、停電，請提前做好準備</label>
+            <label class="s6-note-item"><input type="checkbox" class="s6-note-cb" value="如發現異常滲漏或其他狀況，請立即通知施工人員" onchange="triggerLivePreview();"> ⚠️ 如發現異常滲漏或其他狀況，請立即通知施工人員</label>
+            <label class="s6-note-item"><input type="checkbox" class="s6-note-cb" value="未經施工人員確認前，請勿自行修補或變更施工區域" onchange="triggerLivePreview();"> ⚠️ 未經施工人員確認前，請勿自行修補或變更施工區域</label>
+            <label class="s6-note-item"><input type="checkbox" class="s6-note-cb" value="請依施工人員指示配合養護時間，避免影響修繕效果" onchange="triggerLivePreview();"> ⚠️ 請依施工人員指示配合養護時間，避免影響修繕效果</label>
+            <label class="s6-note-item"><input type="checkbox" id="s6NoteOtherCb" onchange="toggleS6NoteOther(); triggerLivePreview();"> ⚠️ 其他</label>
+          </div>
+          <div class="form-group" id="s6NoteOtherWrap" style="display:none; margin-top:8px;">
+            <div id="s6OtherItemsList" style="display:flex; flex-direction:column; gap:6px;"></div>
+            <button type="button" class="add-card-btn" style="margin-top:8px;" onclick="addS6OtherItem()">+ 新增其他項目</button>
+          </div>
         </div>
       </div>
 
       <div class="card">
         <div class="card-title-s6">6.3 保固與施工</div>
-        <div class="s6-plain-text">
-          若委託本公司施工：<br>
-          ✓ 檢測費折抵<br>
-          ✓ 保固三年<br>
-          ✓ 提供正式保固書
+        <div class="form-group">
+          <label>檢測費折抵方案</label>
+          <div style="display:flex; flex-direction:column; gap:8px; margin-top:4px;">
+            <label class="s6-note-item"><input type="radio" name="s6Discount" value="general" onchange="triggerLivePreview();"> 一般檢測費折抵 $9,000</label>
+            <label class="s6-note-item"><input type="radio" name="s6Discount" value="pipe" onchange="triggerLivePreview();"> 公共管道間折抵 $14,000</label>
+          </div>
         </div>
       </div>
 
@@ -858,6 +877,10 @@ async function syncCaseToCloud() {
             source: document.getElementById('s5Source').value || '',
             repairItem: document.getElementById('s6RepairItem').value || '',
             repairOther: document.getElementById('s6RepairOther').value || '',
+            notes: [...document.querySelectorAll('.s6-note-cb:checked')].map(cb => cb.value),
+            noteOtherChecked: !!(document.getElementById('s6NoteOtherCb') && document.getElementById('s6NoteOtherCb').checked),
+            noteOtherItems: JSON.parse(JSON.stringify(s6OtherItems)),
+            discount: (document.querySelector('input[name="s6Discount"]:checked') || {}).value || '',
           },
           s5TableRows: JSON.parse(JSON.stringify(s5TableRows)),
           detectionPoints
@@ -932,6 +955,22 @@ async function loadCaseFromUrlForEdit() {
         const sp = document.getElementById('s5SourcePreview');
         if (sp) sp.textContent = fd.conclusion.source || '（請填寫漏水來源）';
         toggleRepairOther();
+
+        if (Array.isArray(fd.conclusion.notes)) {
+          document.querySelectorAll('.s6-note-cb').forEach(cb => {
+            cb.checked = fd.conclusion.notes.includes(cb.value);
+          });
+        }
+        const otherCbLoad = document.getElementById('s6NoteOtherCb');
+        if (otherCbLoad) otherCbLoad.checked = !!fd.conclusion.noteOtherChecked;
+        s6OtherItems = Array.isArray(fd.conclusion.noteOtherItems) && fd.conclusion.noteOtherItems.length > 0
+          ? fd.conclusion.noteOtherItems : [''];
+        toggleS6NoteOther();
+
+        if (fd.conclusion.discount) {
+          const dRadioLoad = document.querySelector(`input[name="s6Discount"][value="${fd.conclusion.discount}"]`);
+          if (dRadioLoad) dRadioLoad.checked = true;
+        }
       }
       if (Array.isArray(fd.s5TableRows)) {
         s5TableRows.length = 0;
@@ -1867,6 +1906,10 @@ function collectDraft() {
     s5Source: document.getElementById('s5Source').value,
     s6RepairItem: document.getElementById('s6RepairItem').value,
     s6RepairOther: document.getElementById('s6RepairOther').value,
+    s6Notes: [...document.querySelectorAll('.s6-note-cb:checked')].map(cb => cb.value),
+    s6NoteOtherChecked: !!(document.getElementById('s6NoteOtherCb') && document.getElementById('s6NoteOtherCb').checked),
+    s6OtherItems: JSON.parse(JSON.stringify(s6OtherItems)),
+    s6Discount: (document.querySelector('input[name="s6Discount"]:checked') || {}).value || '',
     cardStore2: JSON.parse(JSON.stringify(cardStore[2])),
     cardStore3: JSON.parse(JSON.stringify(cardStore[3])),
     cardStore4: JSON.parse(JSON.stringify(cardStore[4])),
@@ -1897,6 +1940,19 @@ function applyDraft(draft) {
   set('s5Source', draft.s5Source);
   set('s6RepairItem', draft.s6RepairItem);
   set('s6RepairOther', draft.s6RepairOther);
+
+  document.querySelectorAll('.s6-note-cb').forEach(cb => {
+    cb.checked = Array.isArray(draft.s6Notes) && draft.s6Notes.includes(cb.value);
+  });
+  const otherCb = document.getElementById('s6NoteOtherCb');
+  if (otherCb) otherCb.checked = !!draft.s6NoteOtherChecked;
+  s6OtherItems = Array.isArray(draft.s6OtherItems) && draft.s6OtherItems.length > 0 ? draft.s6OtherItems : [''];
+  if (typeof toggleS6NoteOther === 'function') toggleS6NoteOther();
+
+  if (draft.s6Discount) {
+    const dRadio = document.querySelector(`input[name="s6Discount"][value="${draft.s6Discount}"]`);
+    if (dRadio) dRadio.checked = true;
+  }
 
   const bSel = document.getElementById('buildingType');
   if (bSel && draft.buildingType) bSel.value = draft.buildingType;
@@ -2026,6 +2082,13 @@ function clearAllFields() {
   if (sp) sp.textContent = '（請填寫漏水來源）';
   toggleRepairOther();
 
+  document.querySelectorAll('.s6-note-cb').forEach(cb => cb.checked = false);
+  const otherCbClear = document.getElementById('s6NoteOtherCb');
+  if (otherCbClear) otherCbClear.checked = false;
+  s6OtherItems = [''];
+  toggleS6NoteOther();
+  document.querySelectorAll('input[name="s6Discount"]').forEach(r => r.checked = false);
+
   cardStore[2] = []; cardStore[3] = []; cardStore[4] = [];
   cardSeqStore[2] = 0; cardSeqStore[3] = 0; cardSeqStore[4] = 0;
   renderCards(2); renderCards(3); renderCards(4);
@@ -2147,10 +2210,70 @@ function toggleRepairOther() {
   wrap.style.display = sel.value === '其他' ? 'block' : 'none';
 }
 
+/* ══════════════ 6.2 注意事項：複選 checkbox ══════════════ */
+let s6OtherItems = ['']; // 「其他」可自行新增多項手打內容
+
+function toggleS6NoteOther() {
+  const cb = document.getElementById('s6NoteOtherCb');
+  const wrap = document.getElementById('s6NoteOtherWrap');
+  if (!cb || !wrap) return;
+  wrap.style.display = cb.checked ? 'block' : 'none';
+  if (cb.checked && s6OtherItems.length === 0) s6OtherItems = [''];
+  renderS6OtherItems();
+}
+
+function renderS6OtherItems() {
+  const list = document.getElementById('s6OtherItemsList');
+  if (!list) return;
+  list.innerHTML = s6OtherItems.map((val, idx) => `
+    <div style="display:flex; gap:6px; align-items:center;">
+      <input type="text" value="${escapeHtml(val)}" placeholder="請輸入其他注意事項" style="flex:1;"
+        oninput="s6OtherItemChange(${idx}, this.value)">
+      <button type="button" class="s2-del-btn" onclick="removeS6OtherItem(${idx})">刪除</button>
+    </div>`).join('');
+}
+
+function addS6OtherItem() {
+  s6OtherItems.push('');
+  renderS6OtherItems();
+  triggerLivePreview();
+}
+
+function removeS6OtherItem(idx) {
+  s6OtherItems.splice(idx, 1);
+  renderS6OtherItems();
+  triggerLivePreview();
+}
+
+function s6OtherItemChange(idx, value) {
+  s6OtherItems[idx] = value;
+  triggerLivePreview();
+}
+
+// 取得目前勾選的注意事項清單（純文字陣列，已包含「其他」手打的多項內容）
+function getS6NotesItems() {
+  const items = [...document.querySelectorAll('.s6-note-cb:checked')].map(cb => cb.value);
+  const otherCb = document.getElementById('s6NoteOtherCb');
+  if (otherCb && otherCb.checked) {
+    s6OtherItems.forEach(t => { const v = (t || '').trim(); if (v) items.push(v); });
+  }
+  return items;
+}
+
+/* ══════════════ 6.3 保固與施工：檢測費折抵方案 ══════════════ */
+function getS6DiscountLabel() {
+  const checked = document.querySelector('input[name="s6Discount"]:checked');
+  if (!checked) return '';
+  if (checked.value === 'general') return '一般檢測費折抵 $9,000';
+  if (checked.value === 'pipe') return '公共管道間折抵 $14,000';
+  return '';
+}
+
 /* ══════════════ 初始化 ══════════════ */
 window.onload = async () => {
   populateSelect('buildingType', BUILDING_TYPES, 0); // 預設公寓
   toggleRepairOther();
+  toggleS6NoteOther();
 
   const fmt = d => d.toISOString().split('T')[0];
   const today = new Date();
@@ -2893,13 +3016,19 @@ async function drawStep6Pages(chapters) {
   const repairOther = document.getElementById('s6RepairOther').value.trim();
   const repairItemText = repairSel === '其他' ? (repairOther || '（未填寫）') : (repairSel || '（未填寫）');
 
+  const s6Notes = getS6NotesItems();
+  const s6NotesText = s6Notes.length > 0
+    ? '修繕前：\n' + s6Notes.map(t => `⚠️${t}`).join('\n')
+    : '修繕前：\n（未選擇注意事項）';
+  const s6DiscountLabel = getS6DiscountLabel() || '（未選擇檢測費折抵方案）';
+
   const blocks = [
     { type: 'h2', text: `${ch6.numIndex}.1 修繕建議` },
     { type: 'p', text: `建議施工項目：${repairItemText}` },
     { type: 'h2', text: `${ch6.numIndex}.2 注意事項` },
-    { type: 'p', text: '修繕前：\n⚠️避免大量用水\n⚠️保持排水孔暢通\n⚠️避免持續積水' },
+    { type: 'p', text: s6NotesText },
     { type: 'h2', text: `${ch6.numIndex}.3 保固與施工` },
-    { type: 'p', text: '若委託本公司施工：\n✓ 檢測費折抵\n✓ 保固三年\n✓ 提供正式保固書' },
+    { type: 'p', text: `若委託本公司施工：\n✓ ${s6DiscountLabel}\n✓ 保固三年\n✓ 提供正式保固書` },
     { type: 'h2', text: `${ch6.numIndex}.4 法律與保險` },
     { type: 'p', text: '▸若涉及管委會或鄰戶責任，本報告可作為協調、調解或訴訟之客觀證據。\n▸若委託方有投保住宅保險，建議向保險公司申請理賠勘查，本報告可輔助理賠申請。' },
   ];
@@ -3492,6 +3621,10 @@ async function doExportPDF() {
               source: document.getElementById('s5Source').value || '',
               repairItem: document.getElementById('s6RepairItem').value || '',
               repairOther: document.getElementById('s6RepairOther').value || '',
+              notes: [...document.querySelectorAll('.s6-note-cb:checked')].map(cb => cb.value),
+              noteOtherChecked: !!(document.getElementById('s6NoteOtherCb') && document.getElementById('s6NoteOtherCb').checked),
+              noteOtherItems: JSON.parse(JSON.stringify(s6OtherItems)),
+              discount: (document.querySelector('input[name="s6Discount"]:checked') || {}).value || '',
             },
             s5TableRows: JSON.parse(JSON.stringify(s5TableRows)),
             detectionPoints
