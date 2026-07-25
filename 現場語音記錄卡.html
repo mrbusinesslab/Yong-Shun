@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>現場語音記錄卡</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+TC:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f5f2ea;
+    --card: #ffffff;
+    --line: #ddd7c6;
+    --ink: #1c2a38;
+    --ink-soft: #5a6672;
+    --data: #0f6e56;
+    --data-bg: #e1f5ee;
+    --data-line: #9fe1cb;
+    --why: #8a4e0c;
+    --why-bg: #faeeda;
+    --why-line: #f0c98a;
+    --warn: #791f1f;
+    --warn-bg: #fcebeb;
+    --warn-line: #f0a5a5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans TC', -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 20px 16px 60px; }
+
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    margin: 0 0 6px;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0 0 6px;
+    line-height: 1.3;
+  }
+  .lede {
+    font-size: 14px;
+    color: var(--ink-soft);
+    line-height: 1.6;
+    margin: 0 0 20px;
+  }
+
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .flow-step {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 4px 9px;
+    background: var(--paper);
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+  .flow-arrow { color: var(--line); font-size: 13px; }
+
+  .section-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    margin: 28px 0 10px;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .card-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: var(--paper);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    flex-shrink: 0;
+  }
+  .card-title { font-size: 15px; font-weight: 700; }
+
+  .prompt-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+    align-items: flex-start;
+  }
+  .prompt-tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 3px 7px;
+    border-radius: 5px;
+    flex-shrink: 0;
+    margin-top: 1px;
+    white-space: nowrap;
+  }
+  .tag-data { background: var(--data-bg); color: var(--data); }
+  .tag-why { background: var(--why-bg); color: var(--why); }
+  .tag-info { background: #eef1f4; color: var(--ink-soft); }
+  .prompt-text { font-size: 13.5px; line-height: 1.55; color: var(--ink); }
+
+  .readout {
+    margin-top: 12px;
+    background: var(--ink);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .readout-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
+    color: #7c8a97;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .readout-text {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: #a8e6cc;
+  }
+
+  .callout {
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    border: 1px solid;
+  }
+  .callout-loop {
+    background: var(--why-bg);
+    border-color: var(--why-line);
+  }
+  .callout-critical {
+    background: var(--warn-bg);
+    border-color: var(--warn-line);
+  }
+  .callout-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14.5px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .callout-loop .callout-head { color: var(--why); }
+  .callout-critical .callout-head { color: var(--warn); }
+  .callout-body {
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--ink);
+  }
+  .callout-body p { margin: 0 0 8px; }
+  .callout-body p:last-child { margin-bottom: 0; }
+  .say-line {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--ink);
+    background: rgba(255,255,255,0.55);
+    border-radius: 6px;
+    padding: 6px 9px;
+    margin: 4px 0;
+  }
+
+  .footnote {
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    line-height: 1.6;
+    padding: 14px 16px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+  .footnote b { color: var(--ink); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="eyebrow">現場語音記錄卡</p>
+  <h1>邊看邊講，一格一格記</h1>
+  <p class="lede">開語音輸入後，照每張卡片的順序講，講完一個檢測點換下一張。不用照樣造句，把提示的內容講出來就好。</p>
+
+  <div class="flow">
+    <span class="flow-step">位置</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step">儀器</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step">量到什麼</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step">為什麼</span>
+  </div>
+
+  <p class="section-label">開口第一件事 · 客戶基本資料</p>
+
+  <div class="card">
+    <div class="prompt-row"><span class="prompt-tag tag-info">委託方</span><span class="prompt-text">姓名或稱謂</span></div>
+    <div class="prompt-row"><span class="prompt-tag tag-info">負責人</span><span class="prompt-text">現場聯絡窗口姓名（可能跟委託方不同人）</span></div>
+    <div class="prompt-row"><span class="prompt-tag tag-info">電話</span><span class="prompt-text">聯絡電話</span></div>
+    <div class="prompt-row"><span class="prompt-tag tag-info">地址</span><span class="prompt-text">完整地址，含縣市</span></div>
+    <div class="prompt-row"><span class="prompt-tag tag-info">建築類型</span><span class="prompt-text">公寓／透天厝／電梯大廈／社區／套房／辦公室／店面／廠房／學校／醫院／公共設施，選一個</span></div>
+    <div class="prompt-row"><span class="prompt-tag tag-info">日期時刻</span><span class="prompt-text">檢測日期、大概幾點</span></div>
+    <div class="prompt-row"><span class="prompt-tag tag-info">檢測範圍</span><span class="prompt-text">這次要查哪些樓層/空間，例：3樓陽台、對應2樓天花板</span></div>
+  </div>
+
+  <p class="section-label">開始檢測前 · 現場狀況</p>
+
+  <div class="card">
+    <div class="prompt-row"><span class="prompt-tag tag-info">拍攝位置</span><span class="prompt-text">現場漏水狀況照片拍在哪，例：2樓客廳天花板</span></div>
+    <div class="prompt-row"><span class="prompt-tag tag-info">委託方陳述</span><span class="prompt-text">客戶自己講的狀況——哪裡漏、多久了、多嚴重、有沒有變化</span></div>
+    <div class="readout">
+      <div class="readout-label">範例語音</div>
+      <div class="readout-text">2樓客廳靠陽台的天花板角落，兩週前開始有濕痕，這幾天範圍變大，偶爾會滴水</div>
+    </div>
+  </div>
+
+  <p class="section-label">二、檢測結果 · 五種儀器</p>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="icon">🌡️</div>
+      <div class="card-title">熱顯像儀</div>
+    </div>
+    <div class="prompt-row"><span class="prompt-tag tag-data">紀錄</span><span class="prompt-text">可疑區最低溫度、旁邊乾燥區溫度、溫差幾度</span></div>
+    <div class="prompt-row"><span class="prompt-tag tag-why">判讀</span><span class="prompt-text">溫差有沒有超過可疑門檻、跟其他點的關聯</span></div>
+    <div class="readout">
+      <div class="readout-label">範例語音</div>
+      <div class="readout-text">陽台熱顯像看到低溫區，最低16.8度，旁邊乾燥區18度</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="icon">💧</div>
+      <div class="card-title">牆體濕度檢測儀</div>
+    </div>
+    <div class="prompt-row"><span class="prompt-tag tag-data">紀錄</span><span class="prompt-text">讀數多少、這個材質正常基準值大概多少</span></div>
+    <div class="prompt-row"><span class="prompt-tag tag-why">判讀</span><span class="prompt-text">超標幅度、跟樓上樓下或其他角落比對結果</span></div>
+    <div class="readout">
+      <div class="readout-label">範例語音</div>
+      <div class="readout-text">天花板濕度計測9.2，正常應該在5以下</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="icon">🔍</div>
+      <div class="card-title">管道內視鏡</div>
+    </div>
+    <div class="prompt-row"><span class="prompt-tag tag-data">紀錄</span><span class="prompt-text">看到什麼（積水/裂縫/腐蝕），積水深度、流不流動</span></div>
+    <div class="prompt-row"><span class="prompt-tag tag-why">判讀</span><span class="prompt-text">周圍材質狀況、這代表什麼問題</span></div>
+    <div class="readout">
+      <div class="readout-label">範例語音</div>
+      <div class="readout-text">內視鏡看到樓板下面積水，大概2到3公分深，沒在流動，旁邊水泥都軟了</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="icon">👂</div>
+      <div class="card-title">數位型聽漏儀</div>
+    </div>
+    <div class="prompt-row"><span class="prompt-tag tag-data">紀錄</span><span class="prompt-text">有沒有聽到異常水流聲，強弱程度</span></div>
+    <div class="prompt-row"><span class="prompt-tag tag-why">判讀</span><span class="prompt-text">跟其他管線比對、排除了什麼可能性</span></div>
+    <div class="readout">
+      <div class="readout-label">範例語音</div>
+      <div class="readout-text">聽漏儀在這邊沒聽到聲音，排除是這條管線的問題</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="icon">🚰</div>
+      <div class="card-title">水壓檢測儀</div>
+    </div>
+    <div class="prompt-row"><span class="prompt-tag tag-data">紀錄</span><span class="prompt-text">測試前水壓、閉壓多久後掉到多少（一定要兩個數字）</span></div>
+    <div class="readout">
+      <div class="readout-label">範例語音</div>
+      <div class="readout-text">冷水管加壓測試，測試前水壓6公斤，閉壓15分鐘後掉到4.2公斤</div>
+    </div>
+  </div>
+
+  <div class="callout callout-loop">
+    <div class="callout-head">🔁 有前後對比就分開講</div>
+    <div class="callout-body">
+      <p>水壓測試、施工前後這種「量兩次」的，一定要講清楚「前」跟「後」兩個數字，不要只說「有異常」。這種不用另外講判讀，數字落差就是結果。</p>
+    </div>
+  </div>
+
+  <p class="section-label">五、最終判定 · 一定要親口講</p>
+
+  <div class="callout callout-critical">
+    <div class="callout-head">⚠️ AI 不會幫你猜，一定要自己講</div>
+    <div class="callout-body">
+      <p>前面都是儀器讀數，這段是你自己的專業判斷，沒講到 AI 就會留空白，不會自己拼湊結論。看完所有檢測點後，一定要補這三句：</p>
+      <div class="say-line">我認為漏水原因是……</div>
+      <div class="say-line">漏水型態是……（持續性／間歇性／一次性）</div>
+      <div class="say-line">漏水來源在……</div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
