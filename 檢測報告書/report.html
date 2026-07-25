@@ -379,6 +379,8 @@ select { cursor: pointer; }
       把 AI 潤飾好的文字整段貼在下面，會自動填入對應欄位（只有文字，照片仍需自行上傳）。
       格式跟指令範本一致：「標籤：內容」一行一個，二／三／四的多筆記錄用 [二][三][四] 標記分段。
       這個動作會覆蓋「二、三、四」目前已新增的卡片內容，其餘欄位只會覆蓋文字裡有寫到的部分。
+      AI 回覆最後面「─────」分隔線之後的【提醒與確認事項】是寫給你看的，
+      可以整段一起貼上沒關係，系統看到分隔線就會自動停止讀取，不會誤填。
     </div>
     <textarea id="autoFillInput" placeholder="貼上文字內容..." style="width:100%; min-height:260px; padding:12px; border:1px solid #ccc; border-radius:8px; font-size:13px; font-family:inherit; line-height:1.6; resize:vertical; margin-bottom:16px; box-sizing:border-box;"></textarea>
     <div style="display:flex; gap:10px;">
@@ -3399,6 +3401,13 @@ function applyAutoFill() {
   for (const raw of lines) {
     const line = raw.trim();
     if (!line) continue;
+
+    // 遇到分隔線或「提醒與確認事項」標記，代表結構化內容已經結束，
+    // 後面是 AI 寫給師傅看的口語提醒文字，直接停止解析，避免裡面的
+    // 文字被誤判成欄位內容而填錯資料。
+    if (/^─{3,}$/.test(line) || line.startsWith('【提醒與確認事項】')) {
+      break;
+    }
 
     const marker = line.match(/^\[(二|三|四)\]$/);
     if (marker) {
