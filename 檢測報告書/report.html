@@ -376,11 +376,7 @@ select { cursor: pointer; }
   <div style="background:#fff; border-radius:12px; padding:28px; width:560px; max-width:92vw; box-shadow:0 10px 40px rgba(0,0,0,0.25);">
     <div style="font-size:16px; font-weight:700; color:#1a1a1a; margin-bottom:6px;">📋 貼上文字自動填入</div>
     <div style="font-size:12px; color:#888; margin-bottom:14px; line-height:1.6;">
-      把 AI 潤飾好的文字整段貼在下面，會自動填入對應欄位（只有文字，照片仍需自行上傳）。
-      格式跟指令範本一致：「標籤：內容」一行一個，二／三／四的多筆記錄用 [二][三][四] 標記分段。
-      這個動作會覆蓋「二、三、四」目前已新增的卡片內容，其餘欄位只會覆蓋文字裡有寫到的部分。
-      AI 回覆最後面「─────」分隔線之後的【提醒與確認事項】是寫給你看的，
-      可以整段一起貼上沒關係，系統看到分隔線就會自動停止讀取，不會誤填。
+      把 整理好的文字整段貼在下面，會自動填入對應欄位（只有文字，照片仍需自行上傳）。
     </div>
     <textarea id="autoFillInput" placeholder="貼上文字內容..." style="width:100%; min-height:260px; padding:12px; border:1px solid #ccc; border-radius:8px; font-size:13px; font-family:inherit; line-height:1.6; resize:vertical; margin-bottom:16px; box-sizing:border-box;"></textarea>
     <div style="display:flex; gap:10px;">
@@ -1818,8 +1814,11 @@ function computeStepStatus() {
   const repairSel = document.getElementById('s6RepairItem').value;
   const repairOtherVal = document.getElementById('s6RepairOther').value.trim();
   const hasRepair = repairSel === '其他' ? !!repairOtherVal : !!repairSel;
-  if (!hasRepair) status[6] = 'partial';
-  else status[6] = 'done';
+  const hasNotes = document.querySelectorAll('.s6-note-cb:checked').length > 0;
+  const hasDiscount = !!document.querySelector('input[name="s6Discount"]:checked');
+  if (!hasRepair && !hasNotes && !hasDiscount) status[6] = 'empty';
+  else if (hasRepair && hasNotes && hasDiscount) status[6] = 'done';
+  else status[6] = 'partial';
 
   // Step 7 — 固定頁，永遠完成
   status[7] = 'done';
@@ -3238,6 +3237,8 @@ function collectFieldWarnings() {
   const repairOther = document.getElementById('s6RepairOther').value.trim();
   if (!repairSel) s6Warns.push('修繕建議（尚未選擇建議施工項目）');
   else if (repairSel === '其他' && !repairOther) s6Warns.push('修繕建議（選擇「其他」但未填寫說明）');
+  if (document.querySelectorAll('.s6-note-cb:checked').length === 0) s6Warns.push('注意事項（尚未勾選任何項目）');
+  if (!document.querySelector('input[name="s6Discount"]:checked')) s6Warns.push('檢測費折抵方案（尚未選擇）');
   if (s6Warns.length) warnings.push({ page: '六、建議事項', fields: s6Warns });
 
   return warnings;
