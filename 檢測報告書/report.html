@@ -377,10 +377,6 @@ select { cursor: pointer; }
     <div style="font-size:16px; font-weight:700; color:#1a1a1a; margin-bottom:6px;">📋 貼上文字自動填入</div>
     <div style="font-size:12px; color:#888; margin-bottom:14px; line-height:1.6;">
       把 AI 潤飾好的文字整段貼在下面，會自動填入對應欄位（只有文字，照片仍需自行上傳）。
-      格式跟指令範本一致：「標籤：內容」一行一個，二／三／四的多筆記錄用 [二][三][四] 標記分段。
-      這個動作會覆蓋「二、三、四」目前已新增的卡片內容，其餘欄位只會覆蓋文字裡有寫到的部分。
-      AI 回覆最後面「─────」分隔線之後的【提醒與確認事項】是寫給你看的，
-      可以整段一起貼上沒關係，系統看到分隔線就會自動停止讀取，不會誤填。
     </div>
     <textarea id="autoFillInput" placeholder="貼上文字內容..." style="width:100%; min-height:260px; padding:12px; border:1px solid #ccc; border-radius:8px; font-size:13px; font-family:inherit; line-height:1.6; resize:vertical; margin-bottom:16px; box-sizing:border-box;"></textarea>
     <div style="display:flex; gap:10px;">
@@ -1483,7 +1479,7 @@ function checkCardOverflowLive() {
   const pad = 12;
   const photoColW = (cw - pad*2) * 0.4;
   const textColW = cw - pad*2 - photoColW - 14;
-  const lh = 18;
+  const lh = 21;
 
   let overflowMsg = '';
   for (const step of [2,3,4]) {
@@ -1495,13 +1491,13 @@ function checkCardOverflowLive() {
       const labelBase = `${step}.${i+1}`;
       const posBoxH = 30; // 固定高度，單圖／雙圖模式一致
       let ty = posBoxH + 18; // 位置為固定底色區塊高度，不隨文字內容變化
-      mctx.font = `12px ${ff}`;
+      mctx.font = `14px ${ff}`;
 
       if (card.template === 'A') {
-        const recLines = wrapText(mctx, recordDisplayText(step, card, card.recordA || '—'), textColW, `12px ${ff}`);
+        const recLines = wrapText(mctx, recordDisplayText(step, card, card.recordA || '—'), textColW, `14px ${ff}`);
         ty += lh*(recLines.length+1) + 4;
         if (cfg.hasAnalysis) {
-          const anaLines = wrapText(mctx, card.analysis || '—', textColW, `12px ${ff}`);
+          const anaLines = wrapText(mctx, card.analysis || '—', textColW, `14px ${ff}`);
           const maxAnaLines = Math.max(0, Math.floor((cardH - pad*2 - ty) / lh));
           if (anaLines.length > maxAnaLines) {
             overflowMsg = `⚠️ 圖${labelBase}「${cfg.hasAnalysis ? '影像判讀' : cfg.recordLabel}」內容過長，已超出卡片版面範圍，請縮減文字。`;
@@ -1513,8 +1509,8 @@ function checkCardOverflowLive() {
           }
         }
       } else {
-        const recALines = wrapText(mctx, recordDisplayText(step, card, card.recordA || '—'), textColW, `12px ${ff}`);
-        const recBLines = wrapText(mctx, recordDisplayText(step, card, card.recordB || '—'), textColW, `12px ${ff}`);
+        const recALines = wrapText(mctx, recordDisplayText(step, card, card.recordA || '—'), textColW, `14px ${ff}`);
+        const recBLines = wrapText(mctx, recordDisplayText(step, card, card.recordB || '—'), textColW, `14px ${ff}`);
         const usedH = lh*(recALines.length+1) + 4 + lh*(recBLines.length+1);
         const availH = cardH - pad*2 - ty;
         if (usedH > availH) {
@@ -2326,7 +2322,7 @@ async function drawStep1Canvas() {
   const m = mSide, cw = pageCW;
   await drawWatermark(ctx);
 
-  const lineH = 22;
+  const lineH = 25;
   const logoH = 40, logoW = Math.round(logoH * 400/120);
   const blockGap = lineH * 0.9;
   const headerLineY = mTop + logoH + blockGap;
@@ -2339,7 +2335,7 @@ async function drawStep1Canvas() {
     const logoW_large = Math.round(logoH_large * 400/120);
     ctx.drawImage(logo, m, headerLineY - logoH_large, logoW_large, logoH_large);
   } catch(e) {
-    ctx.font=`bold 20px ${ff}`; ctx.fillStyle=BLUE; ctx.textAlign='left';
+    ctx.font=`bold 23px ${ff}`; ctx.fillStyle=BLUE; ctx.textAlign='left';
     ctx.fillText('詠順工程行', m, headerLineY-8);
   }
 
@@ -2347,9 +2343,9 @@ async function drawStep1Canvas() {
     const caseNoText = currentCaseNo || '—';
     const issueDate = document.getElementById('issueDate').value || '—';
     ctx.textAlign='right';
-    ctx.font=`bold 13px ${ff}`; ctx.fillStyle='#1a1a1a';
+    ctx.font=`bold 15px ${ff}`; ctx.fillStyle='#1a1a1a';
     ctx.fillText(`編　　號：${caseNoText}`, PW-m, headerLineY-22);
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#555';
+    ctx.font=`14px ${ff}`; ctx.fillStyle='#555';
     ctx.fillText(`出具日期：${issueDate}`, PW-m, headerLineY-4);
     ctx.textAlign='left';
 
@@ -2362,9 +2358,9 @@ async function drawStep1Canvas() {
     const colGap = 24;
     const colW = (cw - colGap) / 2;
     const leftX = m, rightX2 = m + colW + colGap;
-    const bodyFont = `12px ${ff}`;
-    const labelFont = `bold 12px ${ff}`;
-    const rowH = 19;
+    const bodyFont = `14px ${ff}`;
+    const labelFont = `bold 14px ${ff}`;
+    const rowH = 22;
 
     const inspectDate = document.getElementById('inspectDate').value || '—';
     const inspectTimeRaw = document.getElementById('inspectTime').value || '';
@@ -2411,9 +2407,9 @@ async function drawStep1Canvas() {
     ctx.strokeStyle = '#d0d9e8'; ctx.lineWidth=0.75;
     ctx.strokeRect(m+typePad, y+typePad, typeInnerW, boxH-typePad*2);
     ctx.textAlign='center';
-    ctx.font=`11px ${ff}`; ctx.fillStyle='#888';
+    ctx.font=`13px ${ff}`; ctx.fillStyle='#888';
     ctx.fillText('建築類型', m+typePad+typeInnerW/2, y+boxH/2-6);
-    ctx.font=`bold 15px ${ff}`; ctx.fillStyle=BLUE;
+    ctx.font=`bold 17px ${ff}`; ctx.fillStyle=BLUE;
     ctx.fillText(buildingTypeText, m+typePad+typeInnerW/2, y+boxH/2+16);
 
     // 右：地址、檢測範圍（左對齊文字，於剩餘區域內「上下置中」）
@@ -2449,7 +2445,7 @@ async function drawStep1Canvas() {
 
     // 標題列
     const titleY = boxTop + 24;
-    ctx.font=`bold 16px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
+    ctx.font=`bold 18px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
     ctx.fillText('一、現場漏水狀況紀錄', m+photoPad, titleY);
 
     // 標題列右側：拍攝位置（固定底色區塊，不論有無內容都顯示，與「二、檢測結果」同樣風格）
@@ -2459,7 +2455,7 @@ async function drawStep1Canvas() {
     ctx.fillRect(posBoxX, posBoxY, posBoxW, posBoxH);
     ctx.strokeStyle = '#5d89bd'; ctx.lineWidth=0.6;
     ctx.strokeRect(posBoxX, posBoxY, posBoxW, posBoxH);
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#336590'; ctx.textAlign='center';
+    ctx.font=`14px ${ff}`; ctx.fillStyle='#336590'; ctx.textAlign='center';
     ctx.fillText(`位置：${s1Position || '樓層-空間-位置'}`, posBoxX+posBoxW/2, posBoxY+posBoxH/2+4);
     ctx.textAlign='left';
 
@@ -2486,11 +2482,11 @@ async function drawStep1Canvas() {
     const declareLabel = '【委託方漏水狀況陳述】';
     const declareText = document.getElementById('clientDeclare').value || '（尚未填寫）';
     const declareLineH = 21;
-    ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
+    ctx.font=`bold 14px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
     ctx.fillText(declareLabel, m+photoPad, iy);
     const declareContentStartY = iy + declareLineH;
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
-    const wrapLines = wrapText(ctx, declareText, cw - photoPad*2 - 4, `12px ${ff}`);
+    ctx.font=`14px ${ff}`; ctx.fillStyle='#333';
+    const wrapLines = wrapText(ctx, declareText, cw - photoPad*2 - 4, `14px ${ff}`);
     wrapLines.forEach((line,i)=>{ ctx.fillText(line, m+photoPad, declareContentStartY + i*declareLineH); });
     const declareBottom = declareContentStartY + wrapLines.length*declareLineH;
 
@@ -2501,7 +2497,7 @@ async function drawStep1Canvas() {
 
     y = boxBottom + blockGap*0.6;
 
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#999'; ctx.textAlign='right';
+    ctx.font=`14px ${ff}`; ctx.fillStyle='#999'; ctx.textAlign='right';
     ctx.fillText('▶ 詳細檢測報告請翻至下一頁', PW-m, boxBottom + 20);
     ctx.textAlign='left';
 
@@ -2535,9 +2531,9 @@ async function drawCardStepPages(step, chapterTitle, chapterNumIndex) {
   function drawTitleBar(ctx, titleText) {
     const titleLineY = FIXED_TITLE_LINE_Y;
     const titleY = titleLineY - 10;
-    ctx.font=`bold 16px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
+    ctx.font=`bold 18px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
     ctx.fillText(titleText, m, titleY);
-    ctx.font=`10px ${ff}`; ctx.fillStyle='#555'; ctx.textAlign='right';
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#555'; ctx.textAlign='right';
     ctx.fillText(`編號：${currentCaseNo || '—'}`, PW-m, titleY);
     ctx.textAlign='left';
     ctx.strokeStyle='#1a1a1a'; ctx.lineWidth=0.75;
@@ -2593,22 +2589,22 @@ async function drawCardStepPages(step, chapterTitle, chapterNumIndex) {
 // 結論區塊：左側粗黑垂直線、上方加粗「結論：」、接續總結文字
 function drawS2Conclusion(ctx, text, x, y, w, maxBottom) {
   const barW = 4, padLeft = 16;
-  const lh = 21;
-  ctx.font=`bold 13px ${ff}`;
+  const lh = 24;
+  ctx.font=`bold 15px ${ff}`;
   const labelW = ctx.measureText('結論：').width;
 
-  ctx.font=`12px ${ff}`;
-  const lines = wrapText(ctx, text, w - padLeft - 4, `12px ${ff}`);
+  ctx.font=`14px ${ff}`;
+  const lines = wrapText(ctx, text, w - padLeft - 4, `14px ${ff}`);
   const blockH = Math.max(lh*1.6, lh*lines.length + 10);
 
   // 左側粗黑垂直線
   ctx.fillStyle = '#1a1a1a';
   ctx.fillRect(x, y, barW, blockH);
 
-  ctx.font=`bold 13px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
+  ctx.font=`bold 15px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
   ctx.fillText('結論：', x+padLeft, y+18);
 
-  ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
+  ctx.font=`14px ${ff}`; ctx.fillStyle='#333';
   lines.forEach((line,i)=> ctx.fillText(line, x+padLeft, y+18 + lh*(i+1)));
 
   if (y + 18 + lh*(lines.length+1) > maxBottom) {
@@ -2649,9 +2645,9 @@ function drawCardBox(ctx, card, labelBase, x, y, w, h, cfg, step) {
   ctx.strokeRect(textColX, posBoxY, textColW, posBoxH);
 
   const posText = `位置：${card.position || '樓層-空間-位置'}`;
-  let posFontSize = 12;
+  let posFontSize = 14;
   ctx.font = `${posFontSize}px ${ff}`;
-  while (ctx.measureText(posText).width > textColW - 12 && posFontSize > 9) {
+  while (ctx.measureText(posText).width > textColW - 12 && posFontSize > 10) {
     posFontSize -= 0.5;
     ctx.font = `${posFontSize}px ${ff}`;
   }
@@ -2661,22 +2657,22 @@ function drawCardBox(ctx, card, labelBase, x, y, w, h, cfg, step) {
 
   // 右欄文字（位置區塊之下）
   let ty = posBoxY + posBoxH + 18;
-  const lh = 18;
+  const lh = 21;
   const recordLabel = cfg.recordLabel;
 
   if (isA) {
-    ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#1a1a1a';
+    ctx.font=`bold 14px ${ff}`; ctx.fillStyle='#1a1a1a';
     ctx.fillText(`【${recordLabel}】`, textColX, ty);
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
-    const recLines = wrapText(ctx, recordDisplayText(step, card, card.recordA || '—'), textColW, `12px ${ff}`);
+    ctx.font=`14px ${ff}`; ctx.fillStyle='#333';
+    const recLines = wrapText(ctx, recordDisplayText(step, card, card.recordA || '—'), textColW, `14px ${ff}`);
     recLines.forEach((line,i)=> ctx.fillText(line, textColX, ty + lh*(i+1)));
     ty += lh*(recLines.length+1) + 4;
 
     if (cfg.hasAnalysis) {
-      ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#1a1a1a';
+      ctx.font=`bold 14px ${ff}`; ctx.fillStyle='#1a1a1a';
       ctx.fillText('【影像判讀】', textColX, ty);
-      ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
-      const anaLines = wrapText(ctx, card.analysis || '—', textColW, `12px ${ff}`);
+      ctx.font=`14px ${ff}`; ctx.fillStyle='#333';
+      const anaLines = wrapText(ctx, card.analysis || '—', textColW, `14px ${ff}`);
       const maxAnaLines = Math.max(0, Math.floor((y+h-pad - (ty+lh)) / lh));
       anaLines.slice(0, maxAnaLines).forEach((line,i)=> ctx.fillText(line, textColX, ty + lh*(i+1)));
 
@@ -2691,17 +2687,17 @@ function drawCardBox(ctx, card, labelBase, x, y, w, h, cfg, step) {
       }
     }
   } else {
-    ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#1a1a1a';
+    ctx.font=`bold 14px ${ff}`; ctx.fillStyle='#1a1a1a';
     ctx.fillText(`【${recordLabel}（${labelBase}-1）】`, textColX, ty);
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
-    const recALines = wrapText(ctx, recordDisplayText(step, card, card.recordA || '—'), textColW, `12px ${ff}`);
+    ctx.font=`14px ${ff}`; ctx.fillStyle='#333';
+    const recALines = wrapText(ctx, recordDisplayText(step, card, card.recordA || '—'), textColW, `14px ${ff}`);
     recALines.forEach((line,i)=> ctx.fillText(line, textColX, ty + lh*(i+1)));
     ty += lh*(recALines.length+1) + 4;
 
-    ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#1a1a1a';
+    ctx.font=`bold 14px ${ff}`; ctx.fillStyle='#1a1a1a';
     ctx.fillText(`【${recordLabel}（${labelBase}-2）】`, textColX, ty);
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
-    const recBLines = wrapText(ctx, recordDisplayText(step, card, card.recordB || '—'), textColW, `12px ${ff}`);
+    ctx.font=`14px ${ff}`; ctx.fillStyle='#333';
+    const recBLines = wrapText(ctx, recordDisplayText(step, card, card.recordB || '—'), textColW, `14px ${ff}`);
     recBLines.forEach((line,i)=> ctx.fillText(line, textColX, ty + lh*(i+1)));
 
     const finalBottom = ty + lh*(recBLines.length+1);
@@ -2719,7 +2715,7 @@ function drawCardPhoto(ctx, entry, x, y, w, h, label, photoTimeStr) {
   ctx.strokeStyle='#d0d9e8'; ctx.lineWidth=0.75; ctx.strokeRect(x,y,w,h);
 
   // 左上角：圖標（藍底白字方形標籤）
-  ctx.font=`bold 11px ${ff}`;
+  ctx.font=`bold 13px ${ff}`;
   const tagPadX=6, tagH=18;
   const tagText = `圖${label}`;
   const tw = ctx.measureText(tagText).width + tagPadX*2;
@@ -2733,7 +2729,7 @@ function drawCardPhoto(ctx, entry, x, y, w, h, label, photoTimeStr) {
     const dt = new Date(photoTimeStr);
     if (!isNaN(dt)) {
       const timeStr = `拍攝時間：${dt.getFullYear()}.${String(dt.getMonth()+1).padStart(2,'0')}.${String(dt.getDate()).padStart(2,'0')} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
-      ctx.font=`9px ${ff}`;
+      ctx.font=`10px ${ff}`;
       const ttw = ctx.measureText(timeStr).width;
       ctx.fillStyle = 'rgba(0,0,0,0.42)';
       ctx.fillRect(x+w-ttw-10, y+h-18, ttw+8, 16);
@@ -2760,7 +2756,7 @@ async function drawStep5Pages(chapters) {
   const m = mSide, cw = pageCW;
   const colSourceW = 50, colItemW = Math.round(cw*0.18), colVerdictW = 90;
   const colSummaryW = cw - colSourceW - colItemW - colVerdictW;
-  const headerH = 26, rowPad = 8, lh = 16;
+  const headerH = 30, rowPad = 9, lh = 18;
 
   async function newS5Page() {
     const { canvas, ctx } = newPageCanvas();
@@ -2771,9 +2767,9 @@ async function drawStep5Pages(chapters) {
   function drawTitleBar(ctx, titleText) {
     const titleLineY = mTop + 24;
     const titleY = titleLineY - 10;
-    ctx.font=`bold 16px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
+    ctx.font=`bold 18px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
     ctx.fillText(titleText, m, titleY);
-    ctx.font=`10px ${ff}`; ctx.fillStyle='#555'; ctx.textAlign='right';
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#555'; ctx.textAlign='right';
     ctx.fillText(`編號：${currentCaseNo || '—'}`, PW-m, titleY);
     ctx.textAlign='left';
     ctx.strokeStyle='#1a1a1a'; ctx.lineWidth=0.75;
@@ -2782,9 +2778,9 @@ async function drawStep5Pages(chapters) {
   }
 
   function measureRowH(ctx, row) {
-    ctx.font = `12px ${ff}`;
-    const itemLines = wrapText(ctx, row.item || '—', colItemW-12, `12px ${ff}`);
-    const summaryLines = wrapText(ctx, row.summary || '—', colSummaryW-12, `12px ${ff}`);
+    ctx.font = `14px ${ff}`;
+    const itemLines = wrapText(ctx, row.item || '—', colItemW-12, `14px ${ff}`);
+    const summaryLines = wrapText(ctx, row.summary || '—', colSummaryW-12, `14px ${ff}`);
     const maxLines = Math.max(itemLines.length, summaryLines.length, 1);
     return Math.max(headerH, maxLines*lh + rowPad*2);
   }
@@ -2793,14 +2789,14 @@ async function drawStep5Pages(chapters) {
     const headers = ['來源','檢測項目','結果摘要','判定'];
     const widths = [colSourceW, colItemW, colSummaryW, colVerdictW];
     let x = m;
-    ctx.font=`bold 12px ${ff}`; ctx.textAlign='left';
+    ctx.font=`bold 14px ${ff}`; ctx.textAlign='left';
     headers.forEach((h, i) => {
       ctx.fillStyle = '#eef5ff';
       ctx.fillRect(x, y, widths[i], headerH);
       ctx.strokeStyle = '#d0d9e8'; ctx.lineWidth=0.75;
       ctx.strokeRect(x, y, widths[i], headerH);
       ctx.fillStyle = '#1871b5';
-      ctx.fillText(h, x+8, y+17);
+      ctx.fillText(h, x+8, y+19);
       x += widths[i];
     });
     return y + headerH;
@@ -2815,30 +2811,30 @@ async function drawStep5Pages(chapters) {
     // 來源
     ctx.fillStyle = bg; ctx.fillRect(x, y, widths[0], rowH);
     ctx.strokeStyle = '#d0d9e8'; ctx.lineWidth=0.75; ctx.strokeRect(x, y, widths[0], rowH);
-    ctx.font=`10px ${ff}`; ctx.fillStyle='#999'; ctx.textAlign='left';
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#999'; ctx.textAlign='left';
     ctx.fillText(row.sourceLabel, x+6, y+rowH/2+3);
     x += widths[0];
 
     // 檢測項目
     ctx.fillStyle = bg; ctx.fillRect(x, y, widths[1], rowH);
     ctx.strokeRect(x, y, widths[1], rowH);
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
-    const itemLines = wrapText(ctx, row.item || '—', widths[1]-12, `12px ${ff}`);
+    ctx.font=`14px ${ff}`; ctx.fillStyle='#333';
+    const itemLines = wrapText(ctx, row.item || '—', widths[1]-12, `14px ${ff}`);
     itemLines.forEach((line,i)=> ctx.fillText(line, x+6, y+rowPad+lh*(i+1)-3));
     x += widths[1];
 
     // 結果摘要
     ctx.fillStyle = bg; ctx.fillRect(x, y, widths[2], rowH);
     ctx.strokeRect(x, y, widths[2], rowH);
-    ctx.font=`12px ${ff}`; ctx.fillStyle='#333';
-    const summaryLines = wrapText(ctx, row.summary || '—', widths[2]-12, `12px ${ff}`);
+    ctx.font=`14px ${ff}`; ctx.fillStyle='#333';
+    const summaryLines = wrapText(ctx, row.summary || '—', widths[2]-12, `14px ${ff}`);
     summaryLines.forEach((line,i)=> ctx.fillText(line, x+6, y+rowPad+lh*(i+1)-3));
     x += widths[2];
 
     // 判定
     ctx.fillStyle = isExists ? '#f5c6cb' : bg; ctx.fillRect(x, y, widths[3], rowH);
     ctx.strokeRect(x, y, widths[3], rowH);
-    ctx.font = isExists ? `bold 12px ${ff}` : `12px ${ff}`;
+    ctx.font = isExists ? `bold 14px ${ff}` : `14px ${ff}`;
     ctx.fillStyle = isExists ? '#c0392b' : '#333';
     ctx.textAlign='center';
     ctx.fillText(row.verdict || '—', x+widths[3]/2, y+rowH/2+4);
@@ -2857,7 +2853,7 @@ async function drawStep5Pages(chapters) {
 
   if (hasTable) {
     await startNewPage(false);
-    pageCtx.font=`bold 14px ${ff}`; pageCtx.fillStyle='#1a1a1a'; pageCtx.textAlign='left';
+    pageCtx.font=`bold 16px ${ff}`; pageCtx.fillStyle='#1a1a1a'; pageCtx.textAlign='left';
     pageCtx.fillText(`${ch5.numIndex}.1 綜合判定總表`, m, y);
     y += 14;
     y = drawTableHeader(pageCtx, y);
@@ -2884,8 +2880,8 @@ async function drawStep5Pages(chapters) {
 
     // 先量測總高度，決定是否需要另開新頁
     const measureFieldH = (text) => {
-      pageCtx.font = `12px ${ff}`;
-      const lines = wrapText(pageCtx, text || '（未填寫）', pageCW - padLeft - 4, `12px ${ff}`);
+      pageCtx.font = `14px ${ff}`;
+      const lines = wrapText(pageCtx, text || '（未填寫）', pageCW - padLeft - 4, `14px ${ff}`);
       return labelLineH + lines.length*lhF + 8;
     };
 
@@ -2899,7 +2895,7 @@ async function drawStep5Pages(chapters) {
       await startNewPage(true);
     }
 
-    pageCtx.font=`bold 14px ${ff}`; pageCtx.fillStyle='#1a1a1a'; pageCtx.textAlign='left';
+    pageCtx.font=`bold 16px ${ff}`; pageCtx.fillStyle='#1a1a1a'; pageCtx.textAlign='left';
     pageCtx.fillText(`${ch5.numIndex}.2 最終判定`, m, y);
     y += 18;
 
@@ -2911,8 +2907,8 @@ async function drawStep5Pages(chapters) {
 
     let fy = y;
     fields.forEach(([label, text]) => {
-      pageCtx.font=`12px ${ff}`;
-      const lines = wrapText(pageCtx, text || '（未填寫）', pageCW - padLeft - 4, `12px ${ff}`);
+      pageCtx.font=`14px ${ff}`;
+      const lines = wrapText(pageCtx, text || '（未填寫）', pageCW - padLeft - 4, `14px ${ff}`);
       const fieldH = labelLineH + lines.length*lhF + 8;
 
       // 每行各自獨立的左側黑線（只跨這一個欄位區塊的高度，不與其他行相連）
@@ -2920,11 +2916,11 @@ async function drawStep5Pages(chapters) {
       pageCtx.fillRect(m, fy, barW, fieldH);
 
       // 標籤獨立一行
-      pageCtx.font=`bold 13px ${ff}`; pageCtx.fillStyle='#1a1a1a';
+      pageCtx.font=`bold 15px ${ff}`; pageCtx.fillStyle='#1a1a1a';
       pageCtx.fillText(label, m+padLeft, fy+16);
 
       // 內容換行後開始
-      pageCtx.font=`12px ${ff}`; pageCtx.fillStyle='#333';
+      pageCtx.font=`14px ${ff}`; pageCtx.fillStyle='#333';
       const contentStartY = fy + labelLineH + lhF;
       lines.forEach((line,i)=> pageCtx.fillText(line, m+padLeft, contentStartY + i*lhF));
 
@@ -2948,9 +2944,9 @@ async function drawFlowingPages(chapterTitle, blocks) {
   function drawTitleBar(ctx, titleText) {
     const titleLineY = mTop + 24;
     const titleY = titleLineY - 10;
-    ctx.font=`bold 16px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
+    ctx.font=`bold 18px ${ff}`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='left';
     ctx.fillText(titleText, m, titleY);
-    ctx.font=`10px ${ff}`; ctx.fillStyle='#555'; ctx.textAlign='right';
+    ctx.font=`12px ${ff}`; ctx.fillStyle='#555'; ctx.textAlign='right';
     ctx.fillText(`編號：${currentCaseNo || '—'}`, PW-m, titleY);
     ctx.textAlign='left';
     ctx.strokeStyle='#1a1a1a'; ctx.lineWidth=0.75;
@@ -2971,28 +2967,28 @@ async function drawFlowingPages(chapterTitle, blocks) {
 
   for (const block of blocks) {
     if (block.type === 'h2') {
-      pageCtx.font = `bold 14px ${ff}`;
+      pageCtx.font = `bold 16px ${ff}`;
       const h = 14 + 8;
       if (y + h > maxBottom) await startNewPage(true);
       pageCtx.fillStyle = '#1871b5'; pageCtx.textAlign='left';
       pageCtx.fillText(block.text, m, y+12);
       y += h;
     } else if (block.type === 'subitem') {
-      const lineH = 20.5;
-      pageCtx.font = `12px ${ff}`;
-      const lines = wrapText(pageCtx, block.text, cw - 28, `12px ${ff}`);
+      const lineH = 24;
+      pageCtx.font = `14px ${ff}`;
+      const lines = wrapText(pageCtx, block.text, cw - 28, `14px ${ff}`);
       const h = lines.length*lineH + 10;
       if (y + h > maxBottom) await startNewPage(true);
       pageCtx.fillStyle = '#333'; pageCtx.textAlign='left';
       lines.forEach((line,i)=> drawJustifiedText(pageCtx, line, m + 28, y + lineH*(i+1) - 4, cw - 28, i < lines.length - 1));
       y += h;
     } else {
-      const lineH = 20.5;
-      pageCtx.font = `12px ${ff}`;
+      const lineH = 24;
+      pageCtx.font = `14px ${ff}`;
       // 支援 \n 手動換行
       const segments = block.text.split('\n');
       let blockTotalH = 24;
-      const segmentLines = segments.map(seg => wrapText(pageCtx, seg || ' ', cw - 4, `12px ${ff}`));
+      const segmentLines = segments.map(seg => wrapText(pageCtx, seg || ' ', cw - 4, `14px ${ff}`));
       segmentLines.forEach(lines => blockTotalH += lines.length * lineH);
 
       if (y + blockTotalH > maxBottom) await startNewPage(true);
@@ -3129,7 +3125,7 @@ async function generatePDF(isPreview = false) {
     const totalPageCount = pageObjs.length;
     pageObjs.forEach((p, i) => {
       const pc = p.ctx;
-      pc.font=`11px ${ff}`; pc.fillStyle='#999'; pc.textAlign='center';
+      pc.font=`13px ${ff}`; pc.fillStyle='#999'; pc.textAlign='center';
       const label = isPreview ? `預覽：第 ${i+1} 頁` : `${i+1} / ${totalPageCount}`;
       pc.fillText(label, PW/2, PH - mBottom + 30);
       pc.textAlign='left';
@@ -3315,7 +3311,7 @@ async function openPreviewModal() {
     const totalPageCount = pageObjs.length;
     pageObjs.forEach((p, i) => {
       const pc = p.ctx;
-      pc.font = `11px ${ff}`; pc.fillStyle = '#999'; pc.textAlign = 'center';
+      pc.font = `13px ${ff}`; pc.fillStyle = '#999'; pc.textAlign = 'center';
       pc.fillText(`預覽：第 ${i+1} 頁 / 共 ${totalPageCount} 頁`, PW/2, PH - mBottom + 30);
       pc.textAlign = 'left';
     });
@@ -3573,7 +3569,7 @@ async function doExportPDF() {
     const totalPageCount = pageObjs.length;
     pageObjs.forEach((p, i) => {
       const pc = p.ctx;
-      pc.font = `11px ${ff}`; pc.fillStyle = '#999'; pc.textAlign = 'center';
+      pc.font = `13px ${ff}`; pc.fillStyle = '#999'; pc.textAlign = 'center';
       pc.fillText(`${i+1} / ${totalPageCount}`, PW/2, PH - mBottom + 30);
       pc.textAlign = 'left';
     });
@@ -3684,7 +3680,7 @@ function drawPhotoCardFixed(ctx, entry, x, y, w, h, labelText, labelColor, ff) {
   const tagW = 52, tagH2 = 22;
   ctx.fillStyle=labelColor;
   ctx.fillRect(x+6, y+h-tagH2-6, tagW, tagH2);
-  ctx.font=`bold 12px ${ff}`; ctx.fillStyle='#fff'; ctx.textAlign='center';
+  ctx.font=`bold 14px ${ff}`; ctx.fillStyle='#fff'; ctx.textAlign='center';
   ctx.fillText(labelText, x+6+tagW/2, y+h-6-7);
   ctx.textAlign='left';
 }
